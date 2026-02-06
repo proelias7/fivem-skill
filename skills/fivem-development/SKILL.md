@@ -9,6 +9,15 @@ description: Desenvolve resources para FiveM usando a vRP Creative Network com L
 
 A vRP Creative Network é baseada em **Lua 5.4** com comunicação via **Proxy** (server-to-server) e **Tunnel** (client-server).
 
+## Suporte Creative v5 e vRPEX (variações antigas)
+
+As versões antigas mantêm a mesma lógica e boas práticas, mas mudam nomes de funções e arquivos.
+
+- **Creative v5:** core em `camelCase`, `modules/group.lua`, configs em `config/*.lua`.
+- **vRPEX:** core clássico (`getUserId`, `getUserSource`, `getUsers`, etc.) e configs em `cfg/*.lua`.
+
+Veja o mapeamento completo em [reference.md](reference.md).
+
 ### Conceitos-chave
 
 | Conceito | Descrição |

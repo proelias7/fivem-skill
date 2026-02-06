@@ -50,6 +50,60 @@ vrp/
 └── fxmanifest.lua    # Manifesto do resource
 ```
 
+## Creative v5 (versão anterior) — diferenças do core
+
+O Creative v5 mantém a arquitetura, mas o core usa **nomenclatura em `camelCase`**.
+
+### Arquivos com nomes diferentes
+
+- `modules/group.lua` (v5) ↔ `modules/groups.lua` (Creative Network)
+- `config/groups.lua`/`itemlist.lua`/`natives.lua`/`vehicles.lua` (v5) ↔ `Groups.lua`/`Item.lua`/`Native.lua`/`Vehicle.lua`
+
+### Mapa de funções (core v5 → Creative Network)
+
+| Creative v5 | Creative Network |
+|-------------|------------------|
+| `getUserId(source)` | `Passport(source)` |
+| `userSource(user_id)` | `Source(Passport)` |
+| `userList()` | `Players()` |
+| `getDatatable(user_id)` | `Datatable(Passport)` |
+| `userInventory(user_id)` | `Inventory(Passport)` |
+| `clearInventory(user_id)` | `ClearInventory(Passport)` |
+| `kick(source, reason)` | `Kick(source, reason)` |
+| `prepare(name, query)` | `Prepare(name, query)` |
+| `query(name, params)` | `Query(name, params)` |
+| `execute(name, params)` | `Query(name, params)` |
+
+## vRPEX (variação mais antiga) — diferenças do core
+
+O vRPEX mantém a mesma base, mas usa **nomenclatura clássica** no core e configs em `cfg/`.
+
+### Arquivos com nomes diferentes
+
+- `cfg/*.lua` (vRPEX) ↔ `config/*.lua` (Creative Network)
+- `server/*`/`client/*` (vRPEX) ↔ `modules/*`/`client/*` (Creative Network)
+
+### Mapa de funções (vRPEX → Creative Network)
+
+| vRPEX | Creative Network |
+|-------|------------------|
+| `getUserId(source)` | `Passport(source)` |
+| `getUserSource(user_id)` | `Source(Passport)` |
+| `getUsers()` | `Players()` |
+| `getUserIdentity(user_id)` | `Identity(Passport)` |
+| `getUserDataTable(user_id)` | `Datatable(Passport)` |
+| `getInventory(user_id)` | `Inventory(Passport)` |
+| `getInventoryWeight(user_id)` | `InventoryWeight(Passport)` |
+| `getMaxBackpack(user_id)` | `GetWeight(Passport)` |
+| `giveInventoryItem(user_id, item, amount, notify, slot)` | `GiveItem(Passport, item, amount, notify, slot)` |
+| `tryGetInventoryItem(user_id, item, amount, notify, slot)` | `TakeItem(Passport, item, amount, notify, slot)` |
+| `getBankMoney(user_id)` | `GetBank(source)` |
+| `tryFullPayment(user_id, amount)` | `PaymentFull(Passport, amount)` |
+| `addUserGroup(user_id, group)` | `SetPermission(Passport, group, level)` |
+| `removeUserGroup(user_id, group)` | `RemovePermission(Passport, group)` |
+| `getUsersByGroup(group)` | `NumPermission(group)` |
+| `hasPermission(user_id, perm)` | `HasPermission(Passport, perm)` |
+
 ## Tabelas Globais Importantes
 
 ### Characters (server-side)
