@@ -59,10 +59,10 @@ Prefixar chamada Tunnel com `_` para não aguardar resposta:
 
 ```lua
 -- Aguarda resposta (bloqueante)
-local result = vRPS.Passport(source)
+local result = vRP.Generateitem(Passport,"water",1)
 
 -- Fire-and-forget (não bloqueia)
-vRPS._Passport(source)
+vRP._Generateitem(Passport,"water",1)
 ```
 
 ## API Principal (Server-side)
