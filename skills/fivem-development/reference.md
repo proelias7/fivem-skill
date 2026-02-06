@@ -50,6 +50,11 @@ vrp/
 └── fxmanifest.lua    # Manifesto do resource
 ```
 
+## Natives FiveM — Fonte Oficial
+
+- Docs: https://docs.fivem.net/natives/
+- Repositório oficial (espelho): https://github.com/proelias7/fivem-natives
+
 ## Creative v5 (versão anterior) — diferenças do core
 
 O Creative v5 mantém a arquitetura, mas o core usa **nomenclatura em `camelCase`**.

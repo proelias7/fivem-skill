@@ -9,6 +9,13 @@ description: Desenvolve resources para FiveM usando a vRP Creative Network com L
 
 A vRP Creative Network é baseada em **Lua 5.4** com comunicação via **Proxy** (server-to-server) e **Tunnel** (client-server).
 
+## Natives FiveM — Fonte Oficial
+
+Fonte oficial de natives:
+
+- Docs: https://docs.fivem.net/natives/
+- Repositório oficial (espelho): https://github.com/proelias7/fivem-natives
+
 ## Suporte Creative v5 e vRPEX (variações antigas)
 
 As versões antigas mantêm a mesma lógica e boas práticas, mas mudam nomes de funções e arquivos.
