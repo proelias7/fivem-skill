@@ -3,7 +3,7 @@ name: fivem-development
 description: Desenvolve resources para FiveM usando a vRP Creative Network com Lua. Cobre criação de resources, sistema Proxy/Tunnel, inventário, dinheiro, grupos, identidade, NUI, banco de dados (oxmysql), segurança e performance. Use quando o usuário trabalhar com FiveM, vRP, scripts Lua para servidor GTA V, ou mencionar resources, client/server scripts, natives, NUI ou qualquer sistema do framework vRP Creative Network.
 ---
 
-# FiveM Development — vRP Creative Network
+# FiveM Development — vRP
 
 ## Arquitetura do Framework
 
