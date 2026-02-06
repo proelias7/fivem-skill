@@ -6,16 +6,16 @@ Agent Skill especializada em desenvolvimento FiveM com o framework **vRP**.
 
 ```bash
 # Instalar via npx skills (Cursor, Claude Code, Codex, Copilot, etc.)
-npx skills add eliasaraujo/fivem-skill
+npx skills add proelias7/fivem-skill
 
 # Instalar globalmente (disponível em todos os projetos)
-npx skills add eliasaraujo/fivem-skill -g
+npx skills add proelias7/fivem-skill -g
 
 # Instalar apenas para o Cursor
-npx skills add eliasaraujo/fivem-skill -a cursor
+npx skills add proelias7/fivem-skill -a cursor
 
 # Listar skills disponíveis
-npx skills add eliasaraujo/fivem-skill --list
+npx skills add proelias7/fivem-skill --list
 ```
 
 ## O que esta skill cobre
