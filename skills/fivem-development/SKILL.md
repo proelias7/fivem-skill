@@ -227,6 +227,7 @@ Stack: React 18 + TypeScript + Vite + Tailwind CSS + Zustand.
 - `base: "./"` no vite.config.ts (OBRIGATÓRIO para FiveM)
 - Usar `rem` para TODOS os tamanhos — NUNCA `px` para layout
 - Media queries no `html` font-size para escalar com resolução do jogador
+- **Tailwind v4 usa OKLCH** e o CEF do FiveM não suporta. **Use Tailwind v3.4.17**.
 - PROIBIDO: `backdrop-filter: blur()`, `filter: blur()`, `filter: drop-shadow()` — causam queda de FPS
 - PROIBIDO: framer-motion, GSAP, react-spring — libs de animação pesadas
 - Usar CSS transitions/keyframes puras para animações

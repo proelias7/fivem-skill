@@ -2,6 +2,9 @@
 
 Stack padrão: **React 18 + TypeScript + Vite + Tailwind CSS + Zustand**
 
+> **Compatibilidade FiveM (CEF):** **Tailwind v4** usa cores em **OKLCH**, e o CEF atual do FiveM **não suporta OKLCH**.  
+> **Recomendação:** usar **Tailwind v3.4.17** (última da v3) para evitar problemas de renderização.
+
 ---
 
 ## 1. Estrutura de Projeto
