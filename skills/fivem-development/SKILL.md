@@ -247,6 +247,13 @@ Para guia completo de UI: [ui-guide.md](ui-guide.md)
 - Para templates de resources: [templates.md](templates.md)
 - Para padrões e convenções: [patterns.md](patterns.md)
 
+## Recursos Externos (Download)
+
+Use estes repositórios oficiais quando o projeto mencionar dependências:
+
+- `cacheaside` (cache em memória): `git@github.com:proelias7/cacheaside.git`
+- `cerberus` (anti-exploit + cooldowns): `git@github.com:proelias7/cerberus.git`
+
 ## Compatibilidade vRPex
 
 A vRP Creative Network possui aliases de compatibilidade com a vRP clássica:

@@ -264,6 +264,20 @@ tvRP.PlaySound(Dict, Name)
 | `cerberus` | Anti-exploit e rate-limiting (v2.0) |
 | `cacheaside` | Cache em memória com TTL para queries |
 
+### Repositórios Oficiais
+
+```bash
+git clone git@github.com:proelias7/cacheaside.git
+git clone git@github.com:proelias7/cerberus.git
+```
+
+No `server.cfg`, adicione antes dos scripts que dependem:
+
+```cfg
+ensure cacheaside
+ensure cerberus
+```
+
 ## Cerberus v2.0 — API Rápida
 
 ### SafeEvent (server-side)
