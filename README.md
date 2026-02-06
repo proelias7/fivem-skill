@@ -1,6 +1,6 @@
-# FiveM Development Skill — vRP Creative Network
+# FiveM Development Skill — vRP
 
-Agent Skill especializada em desenvolvimento FiveM com o framework **vRP Creative Network**.
+Agent Skill especializada em desenvolvimento FiveM com o framework **vRP**.
 
 ## Instalação
 
@@ -61,7 +61,7 @@ Cursor, Claude Code, Codex, GitHub Copilot, Cline, Windsurf, Roo Code, Gemini CL
 
 ## Autor
 
-**Elias Araújo** — Creative Network
+**Elias Araújo**
 
 ## Licença
 
