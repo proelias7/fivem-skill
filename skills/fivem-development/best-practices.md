@@ -412,7 +412,7 @@ function cRP.paymentMethod(locate)
     end
 
     local randPrice = math.random(15000, 16000)
-    vRP.GenerateItem(Passport, "dollars2", randPrice, true)
+    vRP._GenerateItem(Passport, "dollars2", randPrice, true)
 end
 ```
 
@@ -527,3 +527,7 @@ end)
 | Chat/commands | Native protection | — |
 
 > **Rule:** Every server-side event that gives money/item/advantage MUST use `SafeEvent`. Repetitive client-side actions use `SetCooldown`.
+>
+> **Rule (source = -1):** Any server event that can be triggered with `source = -1` MUST be protected by `SafeEvent` with `noBan = true` to avoid server crashes if a cheat floods it.
+>
+> **Rule (DB access from client):** Any direct database interaction triggered by a client event or Tunnel call MUST be protected by `SafeEvent` with `noBan = true` to prevent flood/crash scenarios.
