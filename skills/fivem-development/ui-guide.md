@@ -1,19 +1,19 @@
-# Guia de Construção de UI — FiveM (React + Vite)
+# UI Construction Guide — FiveM (React + Vite)
 
-Stack padrão: **React 18 + TypeScript + Vite + Tailwind CSS + Zustand**
+Standard Stack: **React 18 + TypeScript + Vite + Tailwind CSS + Zustand**
 
-> **Compatibilidade FiveM (CEF):** **Tailwind v4** usa cores em **OKLCH**, e o CEF atual do FiveM **não suporta OKLCH**.  
-> **Recomendação:** usar **Tailwind v3.4.17** (última da v3) para evitar problemas de renderização.
+> **FiveM Compatibility (CEF):** **Tailwind v4** uses colors in **OKLCH**, and the current FiveM CEF **does not support OKLCH**.
+> **Recommendation:** use **Tailwind v3.4.17** (latest v3) to avoid rendering issues.
 
 ---
 
-## 1. Estrutura de Projeto
+## 1. Project Structure
 
 ```
-meu-resource/
+my-resource/
 ├── src/
 │   └── ui/
-│       ├── project/              # Código fonte da UI
+│       ├── project/              # UI source code
 │       │   ├── index.html
 │       │   ├── vite.config.ts
 │       │   ├── package.json
@@ -21,27 +21,27 @@ meu-resource/
 │       │   ├── postcss.config.js
 │       │   ├── tsconfig.json
 │       │   ├── public/
-│       │   │   └── config.ui.json    # Configurações de tema/imagens
+│       │   │   └── config.ui.json    # Theme/image configurations
 │       │   └── src/
 │       │       ├── main.tsx
 │       │       ├── types.ts
 │       │       ├── style/
 │       │       │   └── global.css
-│       │       ├── hooks/            # Comunicação com FiveM
-│       │       │   ├── listen.ts     # Listener de eventos DOM
-│       │       │   ├── observe.ts    # Listener de mensagens NUI
-│       │       │   ├── post.ts       # Envio de NUI callbacks
-│       │       │   └── useConfig.ts  # Carregamento de config.ui.json
+│       │       ├── hooks/            # Communication with FiveM
+│       │       │   ├── listen.ts     # DOM event listener
+│       │       │   ├── observe.ts    # NUI message listener
+│       │       │   ├── post.ts       # Send NUI callbacks
+│       │       │   └── useConfig.ts  # Load config.ui.json
 │       │       ├── providers/
-│       │       │   ├── Visibility.tsx # Controle de visibilidade/focus
-│       │       │   ├── Animation.tsx  # Transições de entrada/saída
-│       │       │   └── Theme.tsx      # Tema dinâmico via CSS vars
+│       │       │   ├── Visibility.tsx # Visibility/focus control
+│       │       │   ├── Animation.tsx  # Enter/exit transitions
+│       │       │   └── Theme.tsx      # Dynamic theme via CSS vars
 │       │       ├── stores/           # Zustand stores
-│       │       ├── components/       # Componentes da interface
+│       │       ├── components/       # Interface components
 │       │       └── utils/
 │       │           ├── misc.ts       # isEnvBrowser, cn()
-│       │           └── debugger.ts   # Mock de eventos NUI no browser
-│       └── build/                # Output do Vite (gerado)
+│       │           └── debugger.ts   # Mock NUI events in browser
+│       └── build/                # Vite output (generated)
 │           ├── index.html
 │           └── assets/
 ├── client/
@@ -49,7 +49,7 @@ meu-resource/
 └── fxmanifest.lua
 ```
 
-## 2. Configuração do Vite (Crítico para FiveM)
+## 2. Vite Configuration (Critical for FiveM)
 
 ```typescript
 // vite.config.ts
@@ -59,11 +59,11 @@ import react from "@vitejs/plugin-react-swc";
 
 export default defineConfig({
   plugins: [react()],
-  base: "./",           // OBRIGATÓRIO: paths relativos para funcionar no FiveM
+  base: "./",           // MANDATORY: relative paths to work in FiveM
   build: {
-    outDir: "../build",  // Output fora do project/ para o fxmanifest
-    sourcemap: false,    // Não gerar sourcemaps em produção
-    minify: "esbuild",   // esbuild é mais rápido que terser
+    outDir: "../build",  // Output outside project/ for fxmanifest
+    sourcemap: false,    // Do not generate sourcemaps in production
+    minify: "esbuild",   // esbuild is faster than terser
   },
   resolve: {
     alias: {
@@ -73,13 +73,13 @@ export default defineConfig({
 });
 ```
 
-**REGRAS DO VITE:**
-- `base: "./"` é **OBRIGATÓRIO** — sem isso, os assets não carregam no FiveM
-- `outDir: "../build"` — build fica fora do project para o fxmanifest referenciar
-- `sourcemap: false` — não expor código fonte
-- Usar `@vitejs/plugin-react-swc` (mais rápido que babel)
+**VITE RULES:**
+- `base: "./"` is **MANDATORY** — without it, assets do not load in FiveM
+- `outDir: "../build"` — build stays outside project for fxmanifest to reference
+- `sourcemap: false` — do not expose source code
+- Use `@vitejs/plugin-react-swc` (faster than babel)
 
-**Scripts do package.json:**
+**package.json Scripts:**
 ```json
 {
   "scripts": {
@@ -89,7 +89,7 @@ export default defineConfig({
 }
 ```
 
-## 3. Integração com fxmanifest.lua
+## 3. Integration with fxmanifest.lua
 
 ```lua
 ui_page "src/ui/build/index.html"
@@ -97,21 +97,21 @@ ui_page "src/ui/build/index.html"
 files {
     "src/ui/build/index.html",
     "src/ui/build/assets/*",
-    "src/ui/project/public/**/*",  -- config.ui.json e imagens
+    "src/ui/project/public/**/*",  -- config.ui.json and images
 }
 ```
 
-## 4. Sistema de Proporções para Tela In-Game
+## 4. In-Game Screen Proportions System
 
-O FiveM renderiza em diversas resoluções. Usar `rem` + media queries no `html` font-size:
+FiveM renders in various resolutions. Use `rem` + media queries in `html` font-size:
 
 ```css
-/* global.css — Sistema de escala responsiva */
+/* global.css — Responsive scale system */
 html {
   font-size: 100% !important;  /* Base: 1920x1080 */
 }
 
-/* Escala por largura */
+/* Scale by width */
 @media screen and (max-width: 1900px) { html { font-size: 88% !important; } }
 @media screen and (max-width: 1570px) { html { font-size: 75% !important; } }
 @media screen and (max-width: 1450px) { html { font-size: 70% !important; } }
@@ -125,7 +125,7 @@ html {
 @media screen and (max-width: 690px)  { html { font-size: 35% !important; } }
 @media screen and (max-width: 630px)  { html { font-size: 30% !important; } }
 
-/* Escala por altura */
+/* Scale by height */
 @media screen and (max-height: 950px) { html { font-size: 90% !important; } }
 @media screen and (max-height: 900px) { html { font-size: 86% !important; } }
 @media screen and (max-height: 860px) { html { font-size: 80% !important; } }
@@ -136,23 +136,23 @@ html {
 /* Ultrawide */
 @media screen and (min-aspect-ratio: 21/9) { html { font-size: 110% !important; } }
 
-/* Minimap (quando NUI está em elementos pequenos) */
+/* Minimap (when NUI is in small elements) */
 @media screen and (max-width: 100px) and (max-height: 100px) {
   html { font-size: 5.5% !important; }
 }
 ```
 
-**REGRA:** SEMPRE use `rem` para tamanhos (width, height, padding, margin, font-size, gap, border-radius). NUNCA `px` para layout, pois não escala com a resolução do jogador.
+**RULE:** ALWAYS use `rem` for sizes (width, height, padding, margin, font-size, gap, border-radius). NEVER `px` for layout, as it does not scale with player resolution.
 
-## 5. CSS Base Obrigatório para FiveM
+## 5. Mandatory Base CSS for FiveM
 
 ```css
 * {
   margin: 0;
   padding: 0;
   outline: none;
-  overflow: hidden;       /* Evita scrollbars no jogo */
-  user-select: none;      /* Impede seleção de texto */
+  overflow: hidden;       /* Avoids scrollbars in game */
+  user-select: none;      /* Prevents text selection */
   box-sizing: border-box;
   border: none;
   font-synthesis: none;
@@ -164,50 +164,50 @@ html {
 }
 ```
 
-**Por que cada propriedade:**
-- `overflow: hidden` — scrollbars quebram a UI no FiveM
-- `user-select: none` — impede seleção de texto acidental
-- `transition: all ease 0.25s` — suaviza todas as mudanças de estado
-- Font smoothing — texto mais nítido no CEF do FiveM
+**Why each property:**
+- `overflow: hidden` — scrollbars break UI in FiveM
+- `user-select: none` — prevents accidental text selection
+- `transition: all ease 0.25s` — smooths all state changes
+- Font smoothing — sharper text in FiveM CEF
 
-## 6. Restrições de CSS no FiveM (CEF)
+## 6. CSS Restrictions in FiveM (CEF)
 
-O FiveM usa **Chromium Embedded Framework (CEF)** com limitações:
+FiveM uses **Chromium Embedded Framework (CEF)** with limitations:
 
-### PROIBIDO (não funciona ou causa lag)
+### FORBIDDEN (does not work or causes lag)
 
-| Propriedade | Problema |
+| Property | Problem |
 |-------------|----------|
-| `backdrop-filter: blur()` | **Extremamente pesado** — causa queda de FPS |
-| `filter: blur()` | Pesado em elementos que mudam |
-| `filter: drop-shadow()` | Pesado, usar `box-shadow` no lugar |
-| `mix-blend-mode` | Inconsistente no CEF |
-| `-webkit-backdrop-filter` | Mesmo problema do backdrop-filter |
-| `will-change` em excesso | Memory leak no CEF |
+| `backdrop-filter: blur()` | **Extremely heavy** — causes FPS drop |
+| `filter: blur()` | Heavy on changing elements |
+| `filter: drop-shadow()` | Heavy, use `box-shadow` instead |
+| `mix-blend-mode` | Inconsistent in CEF |
+| `-webkit-backdrop-filter` | Same problem as backdrop-filter |
+| `will-change` in excess | Memory leak in CEF |
 
-### USAR COM CUIDADO
+### USE WITH CAUTION
 
-| Propriedade | Quando usar |
+| Property | When to use |
 |-------------|-------------|
-| `backdrop-filter: blur()` | **Apenas** em modais estáticos que cobrem a tela (uso mínimo) |
-| `box-shadow` complexo | Apenas em elementos estáticos, não em listas/scroll |
-| `animation` | Preferir CSS puro, evitar libs JS de animação |
-| `transform` | OK para animações, evitar `transform3d` |
+| `backdrop-filter: blur()` | **Only** in static modals covering the screen (minimal use) |
+| Complex `box-shadow` | Only on static elements, not lists/scroll |
+| `animation` | Prefer pure CSS, avoid JS animation libs |
+| `transform` | OK for animations, avoid `transform3d` |
 
-### ALTERNATIVAS SEGURAS
+### SAFE ALTERNATIVES
 
 ```css
-/* Em vez de backdrop-filter: blur() */
+/* Instead of backdrop-filter: blur() */
 .bg-modal-overlay {
-  background: rgba(16, 16, 16, 0.7);   /* Opacidade no lugar de blur */
+  background: rgba(16, 16, 16, 0.7);   /* Opacity instead of blur */
 }
 
-/* Em vez de filter: drop-shadow() */
+/* Instead of filter: drop-shadow() */
 .card {
   box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
 }
 
-/* Gradientes são leves e ficam bonitos */
+/* Gradients are light and look good */
 .bg-main {
   background: linear-gradient(
     293deg,
@@ -217,9 +217,9 @@ O FiveM usa **Chromium Embedded Framework (CEF)** com limitações:
 }
 ```
 
-## 7. Hooks de Comunicação NUI
+## 7. NUI Communication Hooks
 
-### observe — Ouvir mensagens do Lua
+### observe — Listen to messages from Lua
 
 ```typescript
 // hooks/observe.ts
@@ -265,15 +265,15 @@ export const observe = <T = unknown>(
 };
 ```
 
-**Uso:**
+**Usage:**
 ```tsx
-// Ouve evento "module:notify" vindo do Lua
+// Listens to "module:notify" event coming from Lua
 observe<NotifyData>("module:notify", (data) => {
   addNotify(data);
 });
 ```
 
-### Post — Enviar callbacks para o Lua
+### Post — Send callbacks to Lua
 
 ```typescript
 // hooks/post.ts
@@ -286,7 +286,7 @@ export class Post<T = unknown> {
     mockData?: T,
   ): Promise<T> {
     if (isEnvBrowser() && mockData !== undefined) {
-      return mockData;  // Mock no browser para dev
+      return mockData;  // Mock in browser for dev
     }
 
     const resourceName = (window as any).GetParentResourceName
@@ -303,19 +303,19 @@ export class Post<T = unknown> {
 }
 ```
 
-**Uso:**
+**Usage:**
 ```tsx
-// Envia callback para o Lua (RegisterNUICallback)
-await Post.create("comprar", { item: "agua", qtd: 1 });
+// Sends callback to Lua (RegisterNUICallback)
+await Post.create("buy", { item: "water", qty: 1 });
 
-// Com mock para desenvolvimento no browser
-const dados = await Post.create<UserData>("GetUserData", {}, mockUserData);
+// With mock for browser development
+const data = await Post.create<UserData>("GetUserData", {}, mockUserData);
 ```
 
-### listen — Ouvir eventos DOM
+### listen — Listen to DOM events
 
 ```typescript
-// hooks/listen.ts — para keyboard, mouse, etc.
+// hooks/listen.ts — for keyboard, mouse, etc.
 export const listen = <T extends Event = Event>(
   event: string,
   handler: (event: T) => void,
@@ -323,48 +323,48 @@ export const listen = <T extends Event = Event>(
 ) => { /* ... */ };
 ```
 
-**Uso:**
+**Usage:**
 ```tsx
 listen<KeyboardEvent>("keydown", (e) => {
-  if (e.code === "Escape") fecharInterface();
+  if (e.code === "Escape") closeInterface();
 });
 ```
 
-### isEnvBrowser — Detectar ambiente
+### isEnvBrowser — Detect environment
 
 ```typescript
 // utils/misc.ts
 export const isEnvBrowser = (): boolean => !(window as any).invokeNative;
 ```
 
-Retorna `true` no browser (dev), `false` no FiveM (prod). Usar para:
-- Mock de dados no dev
-- Background de debug
-- Logs condicionais
+Returns `true` in browser (dev), `false` in FiveM (prod). Use for:
+- Mocking data in dev
+- Debug background
+- Conditional logs
 
-## 8. Sistema de Visibilidade
+## 8. Visibility System
 
-Padrão para controlar abrir/fechar NUI com focus:
+Pattern to control open/close NUI with focus:
 
 ```tsx
-// providers/Visibility.tsx (padrão simplificado)
+// providers/Visibility.tsx (simplified pattern)
 
-// FORMATO DE EVENTOS:
-// Abrir: { action: "setNui", nui: "panel" | "craft" | "dialog", data: {...} }
-// Fechar: { action: "closeNui", nui?: "panel" | "craft" | "dialog" }
+// EVENT FORMAT:
+// Open: { action: "setNui", nui: "panel" | "craft" | "dialog", data: {...} }
+// Close: { action: "closeNui", nui?: "panel" | "craft" | "dialog" }
 
 export const VisibilityProvider = ({ children }) => {
   const [visible, setVisible] = useState(false);
   const [mode, setMode] = useState<UIMode>(null);
 
-  // Listener de mensagens NUI
+  // NUI message listener
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const { action, nui, data } = event.data;
       if (action === "setNui" && nui) {
         setMode(nui);
         setVisible(true);
-        // Carregar dados no store se necessário
+        // Load data into store if needed
       }
       if (action === "closeNui") {
         setMode(null);
@@ -375,14 +375,14 @@ export const VisibilityProvider = ({ children }) => {
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
-  // Remove NuiFocus quando fecha
+  // Remove NuiFocus when closed
   useEffect(() => {
     if (!visible && !isEnvBrowser()) {
       Post.create("removeFocus");
     }
   }, [visible]);
 
-  // ESC para fechar
+  // ESC to close
   listen<KeyboardEvent>("keydown", (e) => {
     if (visible && e.code === "Escape") {
       setVisible(false);
@@ -400,20 +400,20 @@ export const VisibilityProvider = ({ children }) => {
 };
 ```
 
-**Lado Lua (client):**
+**Lua Side (client):**
 ```lua
--- Abrir
+-- Open
 SendNUIMessage({ action = "setNui", nui = "panel", data = { ... } })
 SetNuiFocus(true, true)
 
--- Callback de fechar (chamado pela UI via Post.create("removeFocus"))
+-- Close callback (called by UI via Post.create("removeFocus"))
 RegisterNUICallback("removeFocus", function(data, cb)
     SetNuiFocus(false, false)
     cb("ok")
 end)
 ```
 
-## 9. Animação de Entrada/Saída
+## 9. Enter/Exit Animation
 
 ```tsx
 // providers/Animation.tsx
@@ -449,16 +449,16 @@ export const AnimationProvider = ({ children, show = false }) => {
 };
 ```
 
-**REGRA:** Usar CSS transitions/animations puras. NÃO usar framer-motion, react-spring ou libs de animação pesadas.
+**RULE:** Use pure CSS transitions/animations. DO NOT use framer-motion, react-spring or heavy animation libs.
 
-## 10. Config Dinâmica (Tema/Imagens)
+## 10. Dynamic Config (Theme/Images)
 
 ```json
 // public/config.ui.json
 {
   "theme": "104, 44, 242",
   "defaultAvatar": "https://url/avatar.png",
-  "imageDirectory": "https://url/inventario"
+  "imageDirectory": "https://url/inventory"
 }
 ```
 
@@ -477,18 +477,18 @@ export function useConfig(): Config | null {
 }
 ```
 
-**Tema via CSS Variables:**
+**Theme via CSS Variables:**
 ```css
 :root { --main-color: 0, 0, 0; }
 ```
 
 ```javascript
-// Aplicar tema dinâmico
+// Apply dynamic theme
 document.documentElement.style.setProperty("--main-color", config.theme);
 ```
 
 ```javascript
-// tailwind.config.js — cor dinâmica com opacidade
+// tailwind.config.js — dynamic color with opacity
 function withOpacity(variableName) {
   return ({ opacityValue }) => {
     if (opacityValue !== undefined) {
@@ -498,11 +498,11 @@ function withOpacity(variableName) {
   };
 }
 
-// Uso no Tailwind: bg-primary, text-primary, border-primary
+// Usage in Tailwind: bg-primary, text-primary, border-primary
 colors: { primary: withOpacity("--main-color") }
 ```
 
-## 11. Debugger para Desenvolvimento
+## 11. Debugger for Development
 
 ```typescript
 // utils/debugger.ts
@@ -520,32 +520,32 @@ export class Debugger {
 }
 ```
 
-**Uso no main.tsx:**
+**Usage in main.tsx:**
 ```tsx
 new Debugger([
-  { action: "module:notify", data: { title: "Teste", type: "success", description: "OK", delay: 5000 }, delay: 500 },
+  { action: "module:notify", data: { title: "Test", type: "success", description: "OK", delay: 5000 }, delay: 500 },
   { action: "setNui", nui: "panel", delay: 1000 },
 ]);
 ```
 
-Permite testar toda a UI no browser sem o FiveM rodando.
+Allows testing the entire UI in browser without FiveM running.
 
-## 12. Arquitetura de Componentes
+## 12. Component Architecture
 
-### Módulos Independentes vs Interface Principal
+### Independent Modules vs Main Interface
 
 ```tsx
 // main.tsx
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <ThemeProvider>
-    {/* Módulos independentes — SEMPRE visíveis, não bloqueiam o jogo */}
+    {/* Independent modules — ALWAYS visible, do not block game */}
     <NotifyComponent />
     <ProgressComponent />
     <Hoverfy />
     <RequestComponent />
     <DynamicMenu />
 
-    {/* Interface principal — controlada por VisibilityProvider */}
+    {/* Main interface — controlled by VisibilityProvider */}
     <HashRouter>
       <VisibilityProvider>
         <AppContent />
@@ -555,11 +555,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 );
 ```
 
-**Regra de separação:**
-- **Módulos independentes:** Notify, ProgressBar, Hoverfy, Request — aparecem sem NuiFocus, não bloqueiam input do jogador
-- **Interface principal:** Painéis, crafts, diálogos — requerem NuiFocus, bloqueiam input
+**Separation Rule:**
+- **Independent modules:** Notify, ProgressBar, Hoverfy, Request — appear without NuiFocus, do not block player input
+- **Main interface:** Panels, crafts, dialogs — require NuiFocus, block input
 
-### AppContent (Renderização por Modo)
+### AppContent (Rendering by Mode)
 
 ```tsx
 export function AppContent() {
@@ -575,34 +575,34 @@ export function AppContent() {
 }
 ```
 
-## 13. Boas Práticas de Performance
+## 13. Performance Best Practices
 
-### FAZER
+### DO
 
-- Usar `rem` para todos os tamanhos (escala com resolução)
-- CSS animations puras (keyframes) para enter/exit
-- `esbuild` como minifier no Vite
-- Zustand para estado global (leve, sem boilerplate)
-- Componentes pequenos e focados
-- `overflow: hidden` global
-- Gradientes lineares/radiais para backgrounds (leves)
-- `opacity` para transições de visibilidade
-- `transform: translate/scale` para animações
+- Use `rem` for all sizes (scales with resolution)
+- Pure CSS animations (keyframes) for enter/exit
+- `esbuild` as minifier in Vite
+- Zustand for global state (light, no boilerplate)
+- Small and focused components
+- Global `overflow: hidden`
+- Linear/radial gradients for backgrounds (light)
+- `opacity` for visibility transitions
+- `transform: translate/scale` for animations
 
-### NÃO FAZER
+### DO NOT
 
 - `backdrop-filter: blur()` (FPS killer)
-- `filter: blur()` em elementos dinâmicos
-- `filter: drop-shadow()` (usar `box-shadow`)
-- Libs de animação pesadas (framer-motion, GSAP, react-spring)
-- `px` para layout (não escala)
-- `overflow: auto/scroll` visível (scrollbar aparece no jogo)
-- Imagens grandes sem compressão
-- `setInterval`/`setTimeout` sem cleanup
-- `will-change` em muitos elementos
-- Fontes externas sem fallback
+- `filter: blur()` on dynamic elements
+- `filter: drop-shadow()` (use `box-shadow`)
+- Heavy animation libs (framer-motion, GSAP, react-spring)
+- `px` for layout (does not scale)
+- Visible `overflow: auto/scroll` (scrollbar appears in game)
+- Large images without compression
+- `setInterval`/`setTimeout` without cleanup
+- `will-change` on many elements
+- External fonts without fallback
 
-### Dependências Recomendadas
+### Recommended Dependencies
 
 ```json
 {
@@ -626,4 +626,4 @@ export function AppContent() {
 }
 ```
 
-**Pacotes leves e compatíveis.** Evitar: MUI, Chakra UI, Ant Design, framer-motion, styled-components (todos pesados demais para FiveM).
+**Lightweight and compatible packages.** Avoid: MUI, Chakra UI, Ant Design, framer-motion, styled-components (all too heavy for FiveM).

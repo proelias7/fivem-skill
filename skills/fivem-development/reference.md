@@ -1,70 +1,70 @@
-# Referência Completa — vRP Creative Network
+# Complete Reference — vRP Creative Network
 
-## Estrutura do Framework
+## Framework Structure
 
 ```
 vrp/
-├── client/           # Scripts client-side
+├── client/           # Client-side scripts
 │   ├── base.lua      # Proxy/Tunnel client, ClosestPed, GetPlayers
-│   ├── gui.lua       # Animações, comandos (andar, agachar, apontar, etc.)
-│   ├── iplloader.lua # Carregamento de IPLs
-│   ├── noclip.lua    # Sistema de noclip (admin)
-│   ├── objects.lua   # Gerenciamento de objetos attachados
-│   ├── playanim.lua  # Sistema de animações
-│   ├── player.lua    # Lógica do jogador client-side
-│   └── vehicles.lua  # Funções de veículos client-side
+│   ├── gui.lua       # Animations, commands (walk, crouch, point, etc.)
+│   ├── iplloader.lua # IPL loading
+│   ├── noclip.lua    # Noclip system (admin)
+│   ├── objects.lua   # Management of attached objects
+│   ├── playanim.lua  # Animation system
+│   ├── player.lua    # Player logic client-side
+│   └── vehicles.lua  # Vehicle functions client-side
 ├── config/
-│   ├── Global.lua    # Configurações globais (spawn, pesos, tempos, etc.)
-│   ├── Groups.lua    # Definição de grupos/permissões
-│   ├── Item.lua      # Definição de itens (peso, durabilidade, etc.)
-│   ├── Native.lua    # Configurações de natives
-│   ├── Vehicle.lua   # Configurações de veículos
-│   └── Webhooks.lua  # URLs de webhooks
+│   ├── Global.lua    # Global configurations (spawn, weights, times, etc.)
+│   ├── Groups.lua    # Groups/permissions definition
+│   ├── Item.lua      # Item definition (weight, durability, etc.)
+│   ├── Native.lua    # Native configurations
+│   ├── Vehicle.lua   # Vehicle configurations
+│   └── Webhooks.lua  # Webhook URLs
 ├── frameworks/
-│   └── vrpex.lua     # Aliases de compatibilidade com vRP clássica
+│   └── vrpex.lua     # Compatibility aliases with classic vRP
 ├── lib/
-│   ├── Proxy.lua     # Sistema Proxy (comunicação inter-resource server)
-│   ├── Tools.lua     # Utilitários auxiliares
-│   ├── Tunnel.lua    # Sistema Tunnel (comunicação client↔server)
-│   └── Utils.lua     # Funções utilitárias globais (parseInt, splitString, async, etc.)
-├── modules/          # Módulos server-side
-│   ├── base.lua      # Core: conexão, ban, passport, datatable, inventário
-│   ├── cooldown.lua  # Sistema de cooldowns
-│   ├── drugs.lua     # Sistema de drogas
-│   ├── fiveguard.lua # Integração FiveGuard anti-cheat
-│   ├── funtionslib.lua # Funções auxiliares
-│   ├── groups.lua    # Sistema de grupos/permissões/serviços
-│   ├── identity.lua  # Identidade, prisão, badges, geração de placa/telefone
-│   ├── inventory.lua # Inventário, itens, baús, server data
-│   ├── misc.lua      # Funções diversas
-│   ├── money.lua     # Sistema monetário (bank, coins, gems, multas)
-│   ├── party.lua     # Sistema de grupo/party
-│   ├── player.lua    # Jogador: survival, objetos, teleport, bucket
-│   ├── prepare.lua   # Queries SQL preparadas
-│   ├── queue.lua     # Sistema de fila
-│   ├── rolepass.lua  # Sistema de rolepass
-│   ├── salary.lua    # Sistema de salário
-│   ├── street.lua    # Limpeza de dados
-│   ├── vehicles.lua  # Funções de veículos server-side
-│   └── vrp.lua       # Ponto de entrada: inicializa Proxy/Tunnel
-└── fxmanifest.lua    # Manifesto do resource
+│   ├── Proxy.lua     # Proxy system (inter-resource server communication)
+│   ├── Tools.lua     # Auxiliary utilities
+│   ├── Tunnel.lua    # Tunnel system (client↔server communication)
+│   └── Utils.lua     # Global utility functions (parseInt, splitString, async, etc.)
+├── modules/          # Server-side modules
+│   ├── base.lua      # Core: connection, ban, passport, datatable, inventory
+│   ├── cooldown.lua  # Cooldown system
+│   ├── drugs.lua     # Drugs system
+│   ├── fiveguard.lua # FiveGuard anti-cheat integration
+│   ├── funtionslib.lua # Helper functions
+│   ├── groups.lua    # Groups/permissions/service system
+│   ├── identity.lua  # Identity, prison, badges, plate/phone generation
+│   ├── inventory.lua # Inventory, items, chests, server data
+│   ├── misc.lua      # Miscellaneous functions
+│   ├── money.lua     # Monetary system (bank, coins, gems, fines)
+│   ├── party.lua     # Party system
+│   ├── player.lua    # Player: survival, objects, teleport, bucket
+│   ├── prepare.lua   # Prepared SQL queries
+│   ├── queue.lua     # Queue system
+│   ├── rolepass.lua  # Rolepass system
+│   ├── salary.lua    # Salary system
+│   ├── street.lua    # Data cleanup
+│   ├── vehicles.lua  # Server-side vehicle functions
+│   └── vrp.lua       # Entry point: initializes Proxy/Tunnel
+└── fxmanifest.lua    # Resource manifest
 ```
 
-## Natives FiveM — Fonte Oficial
+## FiveM Natives — Official Source
 
 - Docs: https://docs.fivem.net/natives/
-- Repositório oficial (espelho): https://github.com/proelias7/fivem-natives
+- Official Repository (mirror): https://github.com/proelias7/fivem-natives
 
-## Creative v5 (versão anterior) — diferenças do core
+## Creative v5 (previous version) — core differences
 
-O Creative v5 mantém a arquitetura, mas o core usa **nomenclatura em `camelCase`**.
+Creative v5 maintains the architecture, but the core uses **`camelCase` naming**.
 
-### Arquivos com nomes diferentes
+### Files with different names
 
 - `modules/group.lua` (v5) ↔ `modules/groups.lua` (Creative Network)
 - `config/groups.lua`/`itemlist.lua`/`natives.lua`/`vehicles.lua` (v5) ↔ `Groups.lua`/`Item.lua`/`Native.lua`/`Vehicle.lua`
 
-### Mapa de funções (core v5 → Creative Network)
+### Function Map (core v5 → Creative Network)
 
 | Creative v5 | Creative Network |
 |-------------|------------------|
@@ -79,16 +79,16 @@ O Creative v5 mantém a arquitetura, mas o core usa **nomenclatura em `camelCase
 | `query(name, params)` | `Query(name, params)` |
 | `execute(name, params)` | `Query(name, params)` |
 
-## vRPEX (variação mais antiga) — diferenças do core
+## vRPEX (older variation) — core differences
 
-O vRPEX mantém a mesma base, mas usa **nomenclatura clássica** no core e configs em `cfg/`.
+vRPEX maintains the same base, but uses **classic naming** in the core and configs in `cfg/`.
 
-### Arquivos com nomes diferentes
+### Files with different names
 
 - `cfg/*.lua` (vRPEX) ↔ `config/*.lua` (Creative Network)
 - `server/*`/`client/*` (vRPEX) ↔ `modules/*`/`client/*` (Creative Network)
 
-### Mapa de funções (vRPEX → Creative Network)
+### Function Map (vRPEX → Creative Network)
 
 | vRPEX | Creative Network |
 |-------|------------------|
@@ -109,15 +109,15 @@ O vRPEX mantém a mesma base, mas usa **nomenclatura clássica** no core e confi
 | `getUsersByGroup(group)` | `NumPermission(group)` |
 | `hasPermission(user_id, perm)` | `HasPermission(Passport, perm)` |
 
-## Tabelas Globais Importantes
+## Important Global Tables
 
 ### Characters (server-side)
 
 ```lua
 Characters[source] = {
     id = 123,           -- Passport
-    name = "João",
-    name2 = "Silva",
+    name = "John",
+    name2 = "Doe",
     phone = "123-456",
     bank = 50000,
     coins = 100,
@@ -126,9 +126,9 @@ Characters[source] = {
     fines = 0,
     spending = 0,
     badges = "{}",
-    sex = "Masculino",
+    sex = "Male",
     blood = "A+",
-    ["table"] = {       -- Datatable (dados em memória)
+    ["table"] = {       -- Datatable (in-memory data)
         Pos = { x = 0, y = 0, z = 0 },
         Skin = "mp_m_freemode_01",
         Inventory = {},
@@ -145,33 +145,33 @@ Characters[source] = {
 ### Sources (server-side)
 
 ```lua
-Sources[Passport] = source  -- Lookup reverso: Passport → source
+Sources[Passport] = source  -- Reverse lookup: Passport → source
 ```
 
-### Inventory (estrutura de slot)
+### Inventory (slot structure)
 
 ```lua
 Datatable.Inventory = {
-    ["1"] = { item = "WEAPON_PISTOL", amount = 1 },   -- Slots 1-5 = hotbar (armas visíveis)
+    ["1"] = { item = "WEAPON_PISTOL", amount = 1 },   -- Slots 1-5 = hotbar (visual weapons)
     ["6"] = { item = "dollars", amount = 5000 },
     ["7"] = { item = "water", amount = 3 },
-    ["8"] = { item = "medkit-1706745600", amount = 1 } -- Item com durabilidade (timestamp)
+    ["8"] = { item = "medkit-1706745600", amount = 1 } -- Item with durability (timestamp)
 }
 ```
 
-**Regras do inventário:**
-- Slots 1–5: hotbar (armas criadas visualmente no jogador)
-- Items com durabilidade: `"item-timestamp"` (ex: `"medkit-1706745600"`)
-- Items com charges: `"item-charges"` (ex: `"repairkit01-5"`)
-- `vRP.GiveItem` = sem processar durabilidade
-- `vRP.GenerateItem` = processa durabilidade/charges automaticamente
+**Inventory Rules:**
+- Slots 1–5: hotbar (weapons visually created on player)
+- Items with durability: `"item-timestamp"` (e.g., `"medkit-1706745600"`)
+- Items with charges: `"item-charges"` (e.g., `"repairkit01-5"`)
+- `vRP.GiveItem` = without processing durability
+- `vRP.GenerateItem` = processes durability/charges automatically
 
-## Queries Preparadas (Tabelas do DB)
+## Prepared Queries (DB Tables)
 
 ### characters
 
 ```sql
--- Campos: id, license, name, name2, sex, phone, blood, bank, coins, 
+-- Fields: id, license, name, name2, sex, phone, blood, bank, coins, 
 --         prison, fines, taxs, spending, badges, deleted, gunlicense,
 --         tracking, likes, unlikes, medicplan, chars
 ```
@@ -179,189 +179,189 @@ Datatable.Inventory = {
 ### accounts
 
 ```sql
--- Campos: id, license, discord, gems, rolepass, premium, whitelist, chars
+-- Fields: id, license, discord, gems, rolepass, premium, whitelist, chars
 ```
 
 ### vehicles
 
 ```sql
--- Campos: Passport, vehicle, plate, work, tax, rental, arrest, engine,
+-- Fields: Passport, vehicle, plate, work, tax, rental, arrest, engine,
 --         body, health, fuel, doors, windows, tyres, brakes, nitro, drift, mode, dismantle
 ```
 
 ### playerdata
 
 ```sql
--- Campos: Passport, dkey, dvalue (JSON)
--- Dados por jogador, chave-valor
+-- Fields: Passport, dkey, dvalue (JSON)
+-- Data per player, key-value
 ```
 
 ### entitydata
 
 ```sql
--- Campos: dkey, dvalue (JSON)
--- Dados globais do servidor (baús, permissões, etc.)
--- Chaves especiais: "Permissions:NomeGrupo", "Chest:NomeBau"
+-- Fields: dkey, dvalue (JSON)
+-- Global server data (chests, permissions, etc.)
+-- Special keys: "Permissions:GroupName", "Chest:ChestName"
 ```
 
 ### propertys
 
 ```sql
--- Campos: Name, Interior, Passport, Serial, Vault, Fridge, Tax, Garage, Item
+-- Fields: Name, Interior, Passport, Serial, Vault, Fridge, Tax, Garage, Item
 ```
 
-## Funções de Item (config/Item.lua)
+## Item Functions (config/Item.lua)
 
-Estas funções vêm da configuração de itens:
+These functions come from items configuration:
 
-| Função | Retorno | Descrição |
+| Function | Return | Description |
 |--------|---------|-----------|
-| `itemName(item)` | string | Nome do item |
-| `itemWeight(item)` | number | Peso do item |
-| `itemType(item)` | string | Tipo: "Armamento", "Throwing", etc. |
-| `itemBody(item)` | bool | Se o item tem corpo (exibível) |
-| `itemIndex(item)` | string | Índice/ícone do item |
-| `itemMaxAmount(item)` | number | Quantidade máxima permitida |
-| `itemDurability(item)` | number\|nil | Durabilidade em dias |
-| `itemCharges(item)` | number\|nil | Cargas do item |
-| `itemRepair(item)` | string\|nil | Item de reparo necessário |
-| `itemScape(item)` | bool | Se o item tem exceção de quantidade |
+| `itemName(item)` | string | Item name |
+| `itemWeight(item)` | number | Item weight |
+| `itemType(item)` | string | Type: "Armament", "Throwing", etc. |
+| `itemBody(item)` | bool | If item has body (displayable) |
+| `itemIndex(item)` | string | Index/icon of item |
+| `itemMaxAmount(item)` | number | Maximum allowed amount |
+| `itemDurability(item)` | number\|nil | Durability in days |
+| `itemCharges(item)` | number\|nil | Charges of item |
+| `itemRepair(item)` | string\|nil | Repair item needed |
+| `itemScape(item)` | bool | If item has amount exception |
 
-## Sistema de Baús (Chests)
+## Chests System
 
 ```lua
--- Buscar dados de um baú (usa entitydata/GetSrvData)
-local chestData = vRP.GetSrvData("Chest:NomeDoBau")
+-- Fetch data from a chest (uses entitydata/GetSrvData)
+local chestData = vRP.GetSrvData("Chest:ChestName")
 
--- Pegar item do baú para inventário
-vRP.TakeChest(Passport, "Chest:NomeDoBau", Amount, SlotBau, SlotInventario)
+-- Take item from chest to inventory
+vRP.TakeChest(Passport, "Chest:ChestName", Amount, ChestSlot, InventorySlot)
 
--- Guardar item no baú
-vRP.StoreChest(Passport, "Chest:NomeDoBau", Amount, PesoMaximo, SlotInventario, SlotBau)
+-- Store item in chest
+vRP.StoreChest(Passport, "Chest:ChestName", Amount, MaxWeight, InventorySlot, ChestSlot)
 
--- Mover item dentro do baú
-vRP.UpdateChest(Passport, "Chest:NomeDoBau", SlotOrigem, SlotDestino, Amount)
+-- Move item inside chest
+vRP.UpdateChest(Passport, "Chest:ChestName", OriginSlot, DestSlot, Amount)
 
--- Adicionar dinheiro direto no baú
-vRP.DirectChest("NomeDoBau", Slot, Amount)
+-- Add money directly to chest
+vRP.DirectChest("ChestName", Slot, Amount)
 ```
 
-## Sistema de Multas e Impostos
+## Fines and Taxes System
 
 ```lua
--- Multas
-vRP.GiveFine(Passport, Amount)      -- Adiciona multa
-vRP.RemoveFine(Passport, Amount)    -- Remove multa
-vRP.GetFine(source)                 -- Obtém total de multas
+-- Fines
+vRP.GiveFine(Passport, Amount)      -- Adds fine
+vRP.RemoveFine(Passport, Amount)    -- Removes fine
+vRP.GetFine(source)                 -- Gets total fines
 
--- Prisão
-vRP.InitPrison(Passport, Amount)    -- Inicia prisão (serviços)
-vRP.UpdatePrison(Passport, Amount)  -- Reduz serviços da prisão
+-- Prison
+vRP.InitPrison(Passport, Amount)    -- Starts prison (services)
+vRP.UpdatePrison(Passport, Amount)  -- Reduces prison services
 ```
 
 ## Tunnel Rate Limiting
 
-O sistema Tunnel possui proteções:
-- **150 chamadas/segundo** por identificador
-- **Warning** em payloads > 64KB
-- **Limite** de 256KB por payload
-- **Timeout** de 30 segundos
-- Anti-flood automático
+Tunnel system has protections:
+- **150 calls/second** per identifier
+- **Warning** on payloads > 64KB
+- **Limit** of 256KB per payload
+- **Timeout** of 30 seconds
+- Automatic anti-flood
 
 ## LocalPlayer States (client-side)
 
 ```lua
-LocalPlayer["state"]["Active"]     -- Jogador ativo (personagem escolhido)
-LocalPlayer["state"]["Passport"]   -- Passport do jogador
-LocalPlayer["state"]["Name"]       -- Nome do jogador
-LocalPlayer["state"]["Admin"]      -- Em serviço admin
-LocalPlayer["state"]["Police"]     -- Em serviço policial
-LocalPlayer["state"]["Route"]      -- Routing bucket atual
-LocalPlayer["state"]["Handcuff"]   -- Algemado
-LocalPlayer["state"]["Cancel"]     -- Ação cancelada
-LocalPlayer["state"]["Commands"]   -- Usando comandos
-LocalPlayer["state"]["Invisible"]  -- Invisível
-LocalPlayer["state"]["Invincible"] -- Invencível
-LocalPlayer["state"]["usingPhone"] -- Usando telefone
-LocalPlayer["state"]["Buttons"]    -- Botões bloqueados
-LocalPlayer["state"]["Race"]       -- Em corrida
-LocalPlayer["state"]["Target"]     -- Target ativo
+LocalPlayer["state"]["Active"]     -- Active player (character chosen)
+LocalPlayer["state"]["Passport"]   -- Player Passport
+LocalPlayer["state"]["Name"]       -- Player Name
+LocalPlayer["state"]["Admin"]      -- In admin service
+LocalPlayer["state"]["Police"]     -- In police service
+LocalPlayer["state"]["Route"]      -- Current routing bucket
+LocalPlayer["state"]["Handcuff"]   -- Handcuffed
+LocalPlayer["state"]["Cancel"]     -- Action cancelled
+LocalPlayer["state"]["Commands"]   -- Using commands
+LocalPlayer["state"]["Invisible"]  -- Invisible
+LocalPlayer["state"]["Invincible"] -- Invincible
+LocalPlayer["state"]["usingPhone"] -- Using phone
+LocalPlayer["state"]["Buttons"]    -- Buttons blocked
+LocalPlayer["state"]["Race"]       -- In race
+LocalPlayer["state"]["Target"]     -- Target active
 ```
 
-## Funções Client-side (tvRP)
+## Client-side Functions (tvRP)
 
 ```lua
--- Obtém jogadores próximos
+-- Gets closest players
 local players = tvRP.ClosestPeds(Radius)
 
--- Obtém jogador mais próximo
+-- Gets closest player
 local serverId = tvRP.ClosestPed(Radius)
 
--- Define GPS
+-- Sets GPS
 tvRP.setGPS(x, y)
 
--- Cria objetos attachados
+-- Creates attached objects
 tvRP.CreateObjects(Dict, Anim, Prop, Flag, Hands, Pos1-6)
 
--- Destroi objetos/animações
-tvRP.Destroy(Mode)  -- "one", "two", ou nil (ambos)
+-- Destroys objects/animations
+tvRP.Destroy(Mode)  -- "one", "two", or nil (both)
 
--- Som
+-- Sound
 tvRP.PlaySound(Dict, Name)
 ```
 
-## Dependências Externas
+## External Dependencies
 
-| Resource | Uso |
+| Resource | Usage |
 |----------|-----|
-| `oxmysql` | Banco de dados MySQL |
-| `webhook` | `exports["webhook"]:Send(canal, titulo, campos)` |
-| `inventory` | UI de inventário, armas |
-| `request` | Sistema de requests (aceitar/recusar) |
-| `taskbar` | Barra de progresso |
-| `survival` | Sistema de vida/morte |
-| `cerberus` | Anti-exploit e rate-limiting (v2.0) |
-| `cacheaside` | Cache em memória com TTL para queries |
+| `oxmysql` | MySQL Database |
+| `webhook` | `exports["webhook"]:Send(channel, title, fields)` |
+| `inventory` | Inventory UI, weapons |
+| `request` | Request system (accept/deny) |
+| `taskbar` | Progress bar |
+| `survival` | Health/death system |
+| `cerberus` | Anti-exploit and rate-limiting (v2.0) |
+| `cacheaside` | In-memory cache with TTL for queries |
 
-### Repositórios Oficiais
+### Official Repositories
 
 ```bash
 git clone git@github.com:proelias7/cacheaside.git
 git clone git@github.com:proelias7/cerberus.git
 ```
 
-No `server.cfg`, adicione antes dos scripts que dependem:
+In `server.cfg`, add before scripts that depend on them:
 
 ```cfg
 ensure cacheaside
 ensure cerberus
 ```
 
-## Cerberus v2.0 — API Rápida
+## Cerberus v2.0 — Quick API
 
 ### SafeEvent (server-side)
 
 ```lua
--- Retorna true se bloqueou, false se permitiu
-exports["cerberus"]:SafeEvent(source, "nomeEvento", {
-    time = 10,            -- intervalo mínimo (segundos)
-    noBan = false,        -- não banir automaticamente
-    position = true,      -- verificar distância
-    positionDist = 2,     -- distância mínima (metros)
-    notification = true,  -- notificar jogador ao bloquear
-    blockThreshold = 3,   -- suspeitas antes de bloquear
-    silentLog = false,    -- log silencioso
-    data = "info extra"   -- dados para log
+-- Returns true if blocked, false if allowed
+exports["cerberus"]:SafeEvent(source, "eventName", {
+    time = 10,            -- minimum interval (seconds)
+    noBan = false,        -- do not ban automatically
+    position = true,      -- check distance
+    positionDist = 2,     -- minimum distance (meters)
+    notification = true,  -- notify player when blocked
+    blockThreshold = 3,   -- suspicions before blocking
+    silentLog = false,    -- silent log
+    data = "extra info"   -- data for log
 })
 ```
 
 ### SetCooldown (client-side)
 
 ```lua
--- Retorna true se bloqueou, false se permitiu
+-- Returns true if blocked, false if allowed
 -- Time-based
-exports["cerberus"]:SetCooldown("nome", 3000) -- 3 segundos
+exports["cerberus"]:SetCooldown("name", 3000) -- 3 seconds
 
--- Hit-based (permite N tentativas antes de bloquear)
-exports["cerberus"]:SetCooldown("nome", 5000, 3) -- 3 hits, depois bloqueia 5s
+-- Hit-based (allows N attempts before blocking)
+exports["cerberus"]:SetCooldown("name", 5000, 3) -- 3 hits, then blocks 5s
 ```

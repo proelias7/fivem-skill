@@ -1,68 +1,105 @@
-# FiveM Development Skill — vRP
+# FiveM Development Skill — vRP, QBCore, Qbox & ESX
 
-Agent Skill especializada em desenvolvimento FiveM com o framework **vRP**.
+Agent Skill specialized in FiveM development with support for **vRP**, **QBCore**, **Qbox**, and **ESX** frameworks.
 
-## Instalação
+## Installation
 
 ```bash
-# Instalar via npx skills (Cursor, Claude Code, Codex, Copilot, etc.)
+# Install via npx skills (Cursor, Claude Code, Codex, Copilot, etc.)
 npx skills add proelias7/fivem-skill
 
-# Instalar globalmente (disponível em todos os projetos)
+# Install globally (available in all projects)
 npx skills add proelias7/fivem-skill -g
 
-# Instalar apenas para o Cursor
+# Install only for Cursor
 npx skills add proelias7/fivem-skill -a cursor
 
-# Listar skills disponíveis
+# List available skills
 npx skills add proelias7/fivem-skill --list
 ```
 
-## O que esta skill cobre
+## Supported Frameworks
 
-| Área | Descrição |
+### 1. vRP (Creative / vRPEX)
+| Area | Description |
 |------|-----------|
-| **Framework vRP** | Arquitetura, Proxy/Tunnel, Passport/Source/Datatable |
-| **API Completa** | Player, Money, Inventory, Groups, Survival, Database |
-| **Comunicação** | Eventos, Tunnel, NUI callbacks, fire-and-forget |
-| **Segurança** | Cerberus v2.0 (SafeEvent, SetCooldown), validações server-side |
-| **Performance** | Sleep dinâmico, cache (cacheaside), payloads, lookup tables |
-| **UI (NUI)** | React + Vite + Tailwind, proporções in-game, restrições do CEF |
-| **Templates** | Boilerplates prontos para resources (server, client+server, NUI) |
-| **Padrões** | Nomenclatura, estrutura de pastas, anti-padrões |
+| **Core** | Proxy/Tunnel architecture, Passport/Source/Datatable |
+| **API** | Player, Money, Inventory, Groups, Survival, Database |
+| **Features** | Dynamic sleep, cacheaside, Cerberus v2.0 security |
+| **Modules** | Identity, Inventory, Vehicles, Groups, Money |
 
-## Estrutura dos Arquivos
+### 2. QBCore Framework
+| Area | Description |
+|------|-----------|
+| **Core** | `GetCoreObject()`, PlayerData, MetaData |
+| **API** | `QBCore.Functions`, `Player.Functions`, Callbacks |
+| **Features** | Server Callbacks, Useable Items, Job Loops |
+| **Modules** | Jobs, Gangs, Items, Commands, Events |
+
+### 3. Qbox Project (qbx_core)
+| Area | Description |
+|------|-----------|
+| **Core** | Exports-first (`exports.qbx_core`), Modules, Bridge |
+| **API** | `GetPlayer`, `Notify`, `UpsertPlayerData` |
+| **Ox Integration** | `ox_lib` (UI/Callbacks), `ox_inventory`, `oxmysql` |
+
+### 4. ESX Framework (Legacy)
+| Area | Description |
+|------|-----------|
+| **Core** | `ESX.GetCoreObject()`, xPlayer, Shared Object |
+| **API** | `xPlayer.addMoney`, `xPlayer.setJob`, `ESX.RegisterServerCallback` |
+| **Features** | Menu-based UI (default), Ox Inventory support, OneSync |
+
+## File Structure
 
 ```
-skills/fivem-development/
-├── SKILL.md            # Entrada principal — visão geral e API resumida
-├── reference.md        # Referência completa do framework (tabelas, queries, estados)
-├── examples.md         # 13 exemplos práticos de código
-├── templates.md        # 4 templates de resources prontos para uso
-├── patterns.md         # Convenções, padrões de código e anti-padrões
-├── best-practices.md   # Performance, cache, comunicação e segurança detalhada
-└── ui-guide.md         # Guia completo de UI com React + Vite para FiveM
+skills/
+├── fivem-development/          # vRP Framework (Legacy name: fivem-development)
+│   ├── SKILL.md                # vRP Entry point
+│   ├── reference.md            # vRP Full reference
+│   └── ui-guide.md             # React + Vite UI Guide
+│
+├── qbcore-framework/           # QBCore Framework
+│   ├── SKILL.md                # QBCore Entry point
+│   ├── reference.md            # QBCore API reference
+│   └── templates.md            # QBCore Templates
+│
+├── qbox-framework/             # Qbox Framework
+│   ├── SKILL.md                # Qbox Entry point
+│   ├── reference.md            # Qbox API reference
+│   └── templates.md            # Qbox Templates
+│
+└── esx-framework/              # ESX Framework
+    ├── SKILL.md                # ESX Entry point
+    ├── reference.md            # ESX API reference
+    ├── examples.md             # ESX Code examples
+    ├── templates.md            # ESX Resource templates
+    └── best-practices.md       # ESX Best practices
 ```
 
-## Stack Coberta
+## Stack Covered
 
-- **Linguagem:** Lua 5.4 (server/client) + TypeScript/React (NUI)
-- **Framework:** vRP Creative Network
-- **Banco de dados:** oxmysql
-- **Cache:** cacheaside
+- **Language:** Lua 5.4 (server/client) + TypeScript/React (NUI)
+- **Frameworks:**
+    - vRP Creative Network (Proxy/Tunnel)
+    - QBCore Framework (Core Object/Callbacks)
+    - Qbox Project (Exports/Ox Lib)
+    - ESX Framework (Shared Object/xPlayer)
+- **Database:** oxmysql (All)
+- **Cache:** cacheaside (vRP)
 - **Anti-exploit:** Cerberus v2.0
 - **UI:** React 18 + Vite + Tailwind CSS + Zustand
 
-## Compatibilidade
+## Compatibility
 
-Esta skill funciona com qualquer agente que suporte o [padrão Agent Skills](https://agentskills.io):
+This skill works with any agent that supports the [Agent Skills standard](https://agentskills.io):
 
-Cursor, Claude Code, Codex, GitHub Copilot, Cline, Windsurf, Roo Code, Gemini CLI, Amp, e [30+ outros](https://github.com/vercel-labs/skills#supported-agents).
+Cursor, Claude Code, Codex, GitHub Copilot, Cline, Windsurf, Roo Code, Gemini CLI, Amp, and [30+ others](https://github.com/vercel-labs/skills#supported-agents).
 
-## Autor
+## Author
 
 **Elias Araújo**
 
-## Licença
+## License
 
 MIT

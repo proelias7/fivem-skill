@@ -1,281 +1,281 @@
 ---
 name: fivem-development
-description: Desenvolve resources para FiveM usando a vRP Creative Network com Lua. Cobre criação de resources, sistema Proxy/Tunnel, inventário, dinheiro, grupos, identidade, NUI, banco de dados (oxmysql), segurança e performance. Use quando o usuário trabalhar com FiveM, vRP, scripts Lua para servidor GTA V, ou mencionar resources, client/server scripts, natives, NUI ou qualquer sistema do framework vRP Creative Network.
+description: Develops resources for FiveM using vRP Creative Network with Lua. Covers resource creation, Proxy/Tunnel system, inventory, money, groups, identity, NUI, database (oxmysql), security, and performance. Use when the user works with FiveM, vRP, Lua scripts for GTA V servers, or mentions resources, client/server scripts, natives, NUI, or any system of the vRP Creative Network framework.
 ---
 
 # FiveM Development — vRP
 
-## Arquitetura do Framework
+## Framework Architecture
 
-A vRP Creative Network é baseada em **Lua 5.4** com comunicação via **Proxy** (server-to-server) e **Tunnel** (client-server).
+vRP Creative Network is based on **Lua 5.4** with communication via **Proxy** (server-to-server) and **Tunnel** (client-server).
 
-## Natives FiveM — Fonte Oficial
+## FiveM Natives — Official Source
 
-Fonte oficial de natives:
+Official source for natives:
 
 - Docs: https://docs.fivem.net/natives/
-- Repositório oficial (espelho): https://github.com/proelias7/fivem-natives
+- Official Repository (mirror): https://github.com/proelias7/fivem-natives
 
-## Suporte Creative v5 e vRPEX (variações antigas)
+## Support for Creative v5 and vRPEX (older variations)
 
-As versões antigas mantêm a mesma lógica e boas práticas, mas mudam nomes de funções e arquivos.
+Older versions maintain the same logic and best practices but change function and file names.
 
-- **Creative v5:** core em `camelCase`, `modules/group.lua`, configs em `config/*.lua`.
-- **vRPEX:** core clássico (`getUserId`, `getUserSource`, `getUsers`, etc.) e configs em `cfg/*.lua`.
+- **Creative v5:** core in `camelCase`, `modules/group.lua`, configs in `config/*.lua`.
+- **vRPEX:** classic core (`getUserId`, `getUserSource`, `getUsers`, etc.) and configs in `cfg/*.lua`.
 
-Veja o mapeamento completo em [reference.md](reference.md).
+See the full mapping in [reference.md](reference.md).
 
-### Conceitos-chave
+### Key Concepts
 
-| Conceito | Descrição |
-|----------|-----------|
-| **Passport** | ID único do personagem (equivalente a `user_id` em outras vRPs) |
-| **Source** | ID da conexão do jogador no servidor (muda a cada reconexão) |
-| **Datatable** | Tabela em memória com dados do personagem (inventário, posição, skin, etc.) |
-| **Characters** | Tabela global server-side indexada por `source` com dados do personagem |
-| **Sources** | Tabela global `Sources[Passport] = source` para lookup reverso |
+| Concept | Description |
+|---|---|
+| **Passport** | Unique character ID (equivalent to `user_id` in other vRPs) |
+| **Source** | Player connection ID on the server (changes on every reconnection) |
+| **Datatable** | In-memory table with character data (inventory, position, skin, etc.) |
+| **Characters** | Global server-side table indexed by `source` with character data |
+| **Sources** | Global table `Sources[Passport] = source` for reverse lookup |
 
-### Fluxo de identificação
+### Identification Flow
 
 ```lua
--- Server-side: obter Passport a partir do source
+-- Server-side: get Passport from source
 local Passport = vRP.Passport(source)
 
--- Server-side: obter source a partir do Passport
+-- Server-side: get source from Passport
 local source = vRP.Source(Passport)
 
--- Server-side: obter Datatable do personagem
+-- Server-side: get character Datatable
 local Datatable = vRP.Datatable(Passport)
 
--- Server-side: obter inventário
+-- Server-side: get inventory
 local Inventory = vRP.Inventory(Passport)
 ```
 
-### Sistema Proxy/Tunnel
+### Proxy/Tunnel System
 
 ```lua
--- Em qualquer resource SERVER-SIDE, obter acesso à vRP:
+-- In any SERVER-SIDE resource, get access to vRP:
 local Proxy = module("vrp", "lib/Proxy")
 vRP = Proxy.getInterface("vRP")
 
--- Em qualquer resource CLIENT-SIDE:
+-- In any CLIENT-SIDE resource:
 local Tunnel = module("vrp", "lib/Tunnel")
 local Proxy = module("vrp", "lib/Proxy")
-vRPS = Tunnel.getInterface("vRP")  -- chamar funções do server
+vRPS = Tunnel.getInterface("vRP")  -- call server functions
 
--- Expor funções do seu resource (server):
+-- Expose your resource functions (server):
 myResource = {}
 Proxy.addInterface("myResource", myResource)
 Tunnel.bindInterface("myResource", myResource)
 ```
 
-### Regra de fire-and-forget
+### Fire-and-forget Rule
 
-Prefixar chamada Tunnel com `_` para não aguardar resposta:
+Prefix Tunnel calls with `_` to not wait for a response:
 
 ```lua
--- Aguarda resposta (bloqueante)
+-- Await response (blocking)
 local result = vRP.Generateitem(Passport,"water",1)
 
--- Fire-and-forget (não bloqueia)
+-- Fire-and-forget (non-blocking)
 vRP._Generateitem(Passport,"water",1)
 ```
 
-## API Principal (Server-side)
+## Main API (Server-side)
 
-### Jogador/Identidade
+### Player/Identity
 
-| Função | Parâmetros | Retorno | Descrição |
+| Function | Parameters | Return | Description |
 |--------|------------|---------|-----------|
-| `vRP.Passport(source)` | source | Passport\|false | Obtém Passport do jogador |
-| `vRP.Source(Passport)` | Passport | source\|nil | Obtém source do Passport |
-| `vRP.Datatable(Passport)` | Passport | table\|false | Dados em memória do personagem |
-| `vRP.Inventory(Passport)` | Passport | table | Inventário do personagem |
-| `vRP.Identity(Passport)` | Passport | table\|false | Dados do personagem (name, name2, bank, phone, etc.) |
-| `vRP.FullName(source)` | source | string\|false | Nome completo do personagem |
-| `vRP.Players()` | — | table | Retorna `Sources` (Passport→source) |
-| `vRP.Kick(source, Reason)` | source, string | — | Kicka o jogador |
-| `vRP.Teleport(source, x, y, z)` | source, coords | — | Teleporta o jogador |
-| `vRP.GetEntityCoords(source)` | source | vector3 | Coordenadas do jogador |
-| `vRP.ModelPlayer(source)` | source | string | Modelo do ped (mp_m/mp_f) |
+| `vRP.Passport(source)` | source | Passport\|false | Gets player Passport |
+| `vRP.Source(Passport)` | Passport | source\|nil | Gets source from Passport |
+| `vRP.Datatable(Passport)` | Passport | table\|false | Character in-memory data |
+| `vRP.Inventory(Passport)` | Passport | table | Character inventory |
+| `vRP.Identity(Passport)` | Passport | table\|false | Character data (name, name2, bank, phone, etc.) |
+| `vRP.FullName(source)` | source | string\|false | Character full name |
+| `vRP.Players()` | — | table | Returns `Sources` (Passport→source) |
+| `vRP.Kick(source, Reason)` | source, string | — | Kicks the player |
+| `vRP.Teleport(source, x, y, z)` | source, coords | — | Teleports the player |
+| `vRP.GetEntityCoords(source)` | source | vector3 | Player coordinates |
+| `vRP.ModelPlayer(source)` | source | string | Ped model (mp_m/mp_f) |
 
-### Dinheiro
+### Money
 
-| Função | Parâmetros | Retorno | Descrição |
+| Function | Parameters | Return | Description |
 |--------|------------|---------|-----------|
-| `vRP.GetBank(source)` | source | number | Saldo bancário |
-| `vRP.GiveBank(Passport, Amount)` | Passport, number | — | Adiciona dinheiro ao banco |
-| `vRP.RemoveBank(Passport, Amount)` | Passport, number | — | Remove dinheiro do banco |
-| `vRP.PaymentBank(Passport, Amount)` | Passport, number | bool | Paga com banco (verifica saldo) |
-| `vRP.PaymentMoney(Passport, Amount)` | Passport, number | bool | Paga com dinheiro em espécie |
-| `vRP.PaymentFull(Passport, Amount)` | Passport, number | bool | Tenta espécie, depois banco |
-| `vRP.PaymentDirty(Passport, Amount)` | Passport, number | bool | Paga com dinheiro sujo |
-| `vRP.WithdrawCash(Passport, Amount)` | Passport, number | bool | Saque bancário |
-| `vRP.PaymentGems(Passport, Amount)` | Passport, number | bool | Paga com gemas |
-| `vRP.GetCoins(Passport)` | Passport | number | Obtém coins |
-| `vRP.AddCoins(Passport, Amount)` | Passport, number | bool | Adiciona coins |
-| `vRP.RemCoins(Passport, Amount)` | Passport, number | bool | Remove coins |
+| `vRP.GetBank(source)` | source | number | Bank balance |
+| `vRP.GiveBank(Passport, Amount)` | Passport, number | — | Adds money to bank |
+| `vRP.RemoveBank(Passport, Amount)` | Passport, number | — | Removes money from bank |
+| `vRP.PaymentBank(Passport, Amount)` | Passport, number | bool | Pays with bank (checks balance) |
+| `vRP.PaymentMoney(Passport, Amount)` | Passport, number | bool | Pays with cash |
+| `vRP.PaymentFull(Passport, Amount)` | Passport, number | bool | Tries cash, then bank |
+| `vRP.PaymentDirty(Passport, Amount)` | Passport, number | bool | Pays with dirty money |
+| `vRP.WithdrawCash(Passport, Amount)` | Passport, number | bool | Bank withdrawal |
+| `vRP.PaymentGems(Passport, Amount)` | Passport, number | bool | Pays with gems |
+| `vRP.GetCoins(Passport)` | Passport | number | Gets coins |
+| `vRP.AddCoins(Passport, Amount)` | Passport, number | bool | Adds coins |
+| `vRP.RemCoins(Passport, Amount)` | Passport, number | bool | Removes coins |
 
-### Inventário
+### Inventory
 
-| Função | Parâmetros | Retorno | Descrição |
+| Function | Parameters | Return | Description |
 |--------|------------|---------|-----------|
-| `vRP.GiveItem(Passport, Item, Amount, Notify, Slot)` | ... | — | Dá item (sem durabilidade) |
-| `vRP.GenerateItem(Passport, Item, Amount, Notify, Slot)` | ... | — | Dá item (com durabilidade/charges) |
-| `vRP.TakeItem(Passport, Item, Amount, Notify, Slot)` | ... | bool | Remove item (retorna sucesso) |
-| `vRP.RemoveItem(Passport, Item, Amount, Notify)` | ... | — | Remove item (sem retorno) |
-| `vRP.ItemAmount(Passport, Item)` | Passport, string | number | Quantidade do item |
-| `vRP.ConsultItem(Passport, Item, Amount)` | ... | bool | Verifica se tem a quantidade |
-| `vRP.InventoryWeight(Passport)` | Passport | number | Peso atual |
-| `vRP.GetWeight(Passport)` | Passport | number | Peso máximo |
-| `vRP.SetWeight(Passport, Amount)` | Passport, number | — | Adiciona ao peso máximo |
-| `vRP.MaxItens(Passport, Item, Amount)` | ... | bool | Verifica limite máximo do item |
-| `vRP.ClearInventory(Passport)` | Passport | — | Limpa inventário |
+| `vRP.GiveItem(Passport, Item, Amount, Notify, Slot)` | ... | — | Gives item (no durability) |
+| `vRP.GenerateItem(Passport, Item, Amount, Notify, Slot)` | ... | — | Gives item (with durability/charges) |
+| `vRP.TakeItem(Passport, Item, Amount, Notify, Slot)` | ... | bool | Removes item (returns success) |
+| `vRP.RemoveItem(Passport, Item, Amount, Notify)` | ... | — | Removes item (no return) |
+| `vRP.ItemAmount(Passport, Item)` | Passport, string | number | Item amount |
+| `vRP.ConsultItem(Passport, Item, Amount)` | ... | bool | Checks if has amount |
+| `vRP.InventoryWeight(Passport)` | Passport | number | Current weight |
+| `vRP.GetWeight(Passport)` | Passport | number | Max weight |
+| `vRP.SetWeight(Passport, Amount)` | Passport, number | — | Adds to max weight |
+| `vRP.MaxItens(Passport, Item, Amount)` | ... | bool | Checks item max limit |
+| `vRP.ClearInventory(Passport)` | Passport | — | Clears inventory |
 
-### Grupos/Permissões
+### Groups/Permissions
 
-| Função | Parâmetros | Retorno | Descrição |
+| Function | Parameters | Return | Description |
 |--------|------------|---------|-----------|
-| `vRP.HasPermission(Passport, Permission, Level)` | ... | bool | Verifica permissão direta |
-| `vRP.HasGroup(Passport, Permission, Level)` | ... | bool | Verifica grupo (inclui parents) |
-| `vRP.HasService(Passport, Permission)` | ... | bool | Verifica se está em serviço |
-| `vRP.SetPermission(Passport, Permission, Level, Mode)` | ... | — | Define permissão |
-| `vRP.RemovePermission(Passport, Permission)` | ... | — | Remove permissão |
-| `vRP.ServiceToggle(Source, Passport, Permission, Silenced)` | ... | — | Toggle serviço |
-| `vRP.NumPermission(Permission, Level)` | ... | table, number | Players no serviço |
-| `vRP.CheckGroup(Passport, Type)` | ... | bool | Verifica grupo por tipo |
-| `vRP.HasAction(Passport)` | Passport | bool | Verifica ação policial |
-| `vRP.SetAction(Passport, Status)` | ... | — | Define status de ação |
+| `vRP.HasPermission(Passport, Permission, Level)` | ... | bool | Checks direct permission |
+| `vRP.HasGroup(Passport, Permission, Level)` | ... | bool | Checks group (includes parents) |
+| `vRP.HasService(Passport, Permission)` | ... | bool | Checks if in service |
+| `vRP.SetPermission(Passport, Permission, Level, Mode)` | ... | — | Sets permission |
+| `vRP.RemovePermission(Passport, Permission)` | ... | — | Removes permission |
+| `vRP.ServiceToggle(Source, Passport, Permission, Silenced)` | ... | — | Toggles service |
+| `vRP.NumPermission(Permission, Level)` | ... | table, number | Players in service |
+| `vRP.CheckGroup(Passport, Type)` | ... | bool | Checks group by type |
+| `vRP.HasAction(Passport)` | Passport | bool | Checks police action |
+| `vRP.SetAction(Passport, Status)` | ... | — | Sets action status |
 
-### Sobrevivência
+### Survival
 
-| Função | Parâmetros | Descrição |
+| Function | Parameters | Description |
 |--------|------------|-----------|
-| `vRP.UpgradeHunger(Passport, Amount)` | ... | Aumenta fome |
-| `vRP.DowngradeHunger(Passport, Amount)` | ... | Diminui fome |
-| `vRP.UpgradeThirst(Passport, Amount)` | ... | Aumenta sede |
-| `vRP.DowngradeThirst(Passport, Amount)` | ... | Diminui sede |
-| `vRP.UpgradeInfection(Passport, Amount)` | ... | Aumenta infecção |
-| `vRP.DowngradeInfection(Passport, Amount)` | ... | Diminui infecção |
-| `vRP.Revive(source, Health)` | ... | Revive jogador |
+| `vRP.UpgradeHunger(Passport, Amount)` | ... | Increases hunger |
+| `vRP.DowngradeHunger(Passport, Amount)` | ... | Decreases hunger |
+| `vRP.UpgradeThirst(Passport, Amount)` | ... | Increases thirst |
+| `vRP.DowngradeThirst(Passport, Amount)` | ... | Decreases thirst |
+| `vRP.UpgradeInfection(Passport, Amount)` | ... | Increases infection |
+| `vRP.DowngradeInfection(Passport, Amount)` | ... | Decreases infection |
+| `vRP.Revive(source, Health)` | ... | Revives player |
 
-### Banco de Dados
-
-```lua
--- Registrar query preparada
-vRP.Prepare("nome/query", "SELECT * FROM tabela WHERE id = @id")
-
--- Executar query
-local result = vRP.Query("nome/query", { id = 123 })
-```
-
-Usa **oxmysql** internamente. Parâmetros com `@nome`.
-
-### Dados Persistentes
+### Database
 
 ```lua
--- Server Data (entitydata — dados globais)
-local data = vRP.GetSrvData("ChaveUnica")
-vRP.SetSrvData("ChaveUnica", { campo = "valor" })
+-- Register prepared query
+vRP.Prepare("name/query", "SELECT * FROM table WHERE id = @id")
 
--- Player Data (playerdata — dados por jogador)
-local data = vRP.UserData(Passport, "chave")
-vRP.setUData(Passport, "chave", json.encode(dados))
+-- Execute query
+local result = vRP.Query("name/query", { id = 123 })
 ```
 
-### Utilitários Globais
+Uses **oxmysql** internally. Parameters with `@name`.
 
-| Função | Descrição |
+### Persistent Data
+
+```lua
+-- Server Data (entitydata — global data)
+local data = vRP.GetSrvData("UniqueKey")
+vRP.SetSrvData("UniqueKey", { field = "value" })
+
+-- Player Data (playerdata — data per player)
+local data = vRP.UserData(Passport, "key")
+vRP.setUData(Passport, "key", json.encode(data))
+```
+
+### Global Utilities
+
+| Function | Description |
 |--------|-----------|
-| `parseInt(value)` | Converte para inteiro (mín. 0) |
-| `parseFormat(value)` | Formata número com separador de milhar |
-| `splitString(str, symbol)` | Divide string por separador |
-| `SplitOne(name)` | Primeiro elemento do split |
-| `sanitizeString(str, chars, allow)` | Filtra caracteres |
-| `CompleteTimers(seconds)` | Formata tempo completo em HTML |
-| `MinimalTimers(seconds)` | Formata tempo resumido |
-| `CountTable(table)` | Conta itens na tabela |
-| `async(func)` | Executa função assíncrona |
+| `parseInt(value)` | Converts to integer (min. 0) |
+| `parseFormat(value)` | Formats number with thousand separator |
+| `splitString(str, symbol)` | Splits string by separator |
+| `SplitOne(name)` | First element of split |
+| `sanitizeString(str, chars, allow)` | Filters characters |
+| `CompleteTimers(seconds)` | Formats full time in HTML |
+| `MinimalTimers(seconds)` | Formats summarized time |
+| `CountTable(table)` | Counts items in table |
+| `async(func)` | Executes asynchronous function |
 
-## Comunicação Client-Server
+## Client-Server Communication
 
-### Eventos de Notificação
+### Notification Events
 
 ```lua
--- Server-side: notificação simples
-TriggerClientEvent("Notify", source, "success", "Mensagem.", false, 5000)
--- Tipos: "success", "important", "negado"
+-- Server-side: simple notification
+TriggerClientEvent("Notify", source, "success", "Message.", false, 5000)
+-- Types: "success", "important", "negado" (denied)
 
--- Server-side: notificação de item
-TriggerClientEvent("NotifyItens", source, { "+", "itemIndex", "quantidade", "Nome do Item" })
--- "+" para ganho, "-" para perda
+-- Server-side: item notification
+TriggerClientEvent("NotifyItens", source, { "+", "itemIndex", "amount", "Item Name" })
+-- "+" for gain, "-" for loss
 ```
 
-### Eventos Importantes
+### Important Events
 
-| Evento | Lado | Descrição |
+| Event | Side | Description |
 |--------|------|-----------|
-| `"Connect"` | Server | Jogador escolheu personagem `(Passport, Source)` |
-| `"Disconnect"` | Server | Jogador desconectou `(Passport, Source)` |
-| `"CharacterChosen"` | Server | Personagem escolhido `(Passport, source)` |
-| `"vRP:Active"` | Client | Jogador ativado `(source, Passport, Nome)` |
+| `"Connect"` | Server | Player chose character `(Passport, Source)` |
+| `"Disconnect"` | Server | Player disconnected `(Passport, Source)` |
+| `"CharacterChosen"` | Server | Character chosen `(Passport, source)` |
+| `"vRP:Active"` | Client | Player activated `(source, Passport, Name)` |
 
-## Regras Críticas de Performance (Resumo)
+## Critical Performance Rules (Summary)
 
-Seguir SEMPRE estas regras ao escrever código:
+ALWAYS follow these rules when writing code:
 
-1. **Tunnel vs Evento:** Use `TriggerServerEvent`/`TriggerClientEvent` quando NÃO precisa de retorno. Use Tunnel apenas quando PRECISA de retorno.
-2. **Sleep dinâmico:** NUNCA `Wait(0)` fixo. Ajuste baseado no estado (dist < 20 = `0`, dist < 50 = `500`, senão = `1000`+).
-3. **Chamadas no mesmo ambiente:** Chame funções diretamente. NUNCA use `TriggerEvent()` para chamar no mesmo side.
-4. **Sem chamadas remotas em loops:** Não use Tunnel/Eventos em loops < 5 segundos. Prefira batch ou delta.
-5. **Payloads pequenos:** Envie apenas a mudança, não dados completos. Limite de ~8KB por evento.
-6. **Cache:** Use `exports.cacheaside:Get()` para consultas repetidas ao banco. Nunca query no banco em loop.
-7. **SafeEvent (server):** Todo evento que dá dinheiro/item/vantagem DEVE passar por `exports["cerberus"]:SafeEvent(source, "nomeEvento", { time = N })`.
-8. **SetCooldown (client):** Ações repetitivas no client (abrir menu, usar item) devem usar `exports["cerberus"]:SetCooldown("nome", ms)`.
-9. **Tabelas > if/else:** Para 3+ condições, use tabela de lookup (O(1)) ao invés de cadeias if/elseif.
-10. **Proteger nil:** Sempre verificar variáveis antes de concatenar. Usar `or ""` como fallback.
+1. **Tunnel vs Event:** Use `TriggerServerEvent`/`TriggerClientEvent` when you do NOT need a return. Use Tunnel only when you NEED a return.
+2. **Dynamic Sleep:** NEVER fixed `Wait(0)`. Adjust based on state (dist < 20 = `0`, dist < 50 = `500`, else = `1000`+).
+3. **Calls in same environment:** Call functions directly. NEVER use `TriggerEvent()` to call on the same side.
+4. **No remote calls in loops:** Do not use Tunnel/Events in loops < 5 seconds. Prefer batch or delta.
+5. **Small Payloads:** Send only the change, not full data. Limit of ~8KB per event.
+6. **Cache:** Use `exports.cacheaside:Get()` for repeated database queries. Never query the database in a loop.
+7. **SafeEvent (server):** Every event that gives money/item/advantage MUST pass through `exports["cerberus"]:SafeEvent(source, "eventName", { time = N })`.
+8. **SetCooldown (client):** Repetitive actions on client (open menu, use item) must use `exports["cerberus"]:SetCooldown("name", ms)`.
+9. **Tables > if/else:** For 3+ conditions, use lookup table (O(1)) instead of if/elseif chains.
+10. **Protect nil:** Always check variables before concatenating. Use `or ""` as fallback.
 
-## Construção de UI (React + Vite)
+## UI Construction (React + Vite)
 
 Stack: React 18 + TypeScript + Vite + Tailwind CSS + Zustand.
 
-**Regras fundamentais:**
-- `base: "./"` no vite.config.ts (OBRIGATÓRIO para FiveM)
-- Usar `rem` para TODOS os tamanhos — NUNCA `px` para layout
-- Media queries no `html` font-size para escalar com resolução do jogador
-- **Tailwind v4 usa OKLCH** e o CEF do FiveM não suporta. **Use Tailwind v3.4.17**.
-- PROIBIDO: `backdrop-filter: blur()`, `filter: blur()`, `filter: drop-shadow()` — causam queda de FPS
-- PROIBIDO: framer-motion, GSAP, react-spring — libs de animação pesadas
-- Usar CSS transitions/keyframes puras para animações
-- Módulos independentes (Notify, Progress) fora do VisibilityProvider
-- Interface principal dentro do VisibilityProvider com NuiFocus
-- `overflow: hidden` e `user-select: none` globais
-- `isEnvBrowser()` para mock de dados no dev
-- Comunicação: `observe()` para ouvir NUI, `Post.create()` para enviar callbacks
+**Fundamental Rules:**
+- `base: "./"` in vite.config.ts (MANDATORY for FiveM)
+- Use `rem` for ALL sizes — NEVER `px` for layout
+- Media queries in `html` font-size to scale with player resolution
+- **Tailwind v4 uses OKLCH** and FiveM CEF does not support it. **Use Tailwind v3.4.17**.
+- FORBIDDEN: `backdrop-filter: blur()`, `filter: blur()`, `filter: drop-shadow()` — cause FPS drop
+- FORBIDDEN: framer-motion, GSAP, react-spring — heavy animation libs
+- Use pure CSS transitions/keyframes for animations
+- Independent modules (Notify, Progress) outside VisibilityProvider
+- Main interface inside VisibilityProvider with NuiFocus
+- Global `overflow: hidden` and `user-select: none`
+- `isEnvBrowser()` for data mocking in dev
+- Communication: `observe()` to listen to NUI, `Post.create()` to send callbacks
 
-Para guia completo de UI: [ui-guide.md](ui-guide.md)
+For complete UI guide: [ui-guide.md](ui-guide.md)
 
-## Referências Adicionais
+## Additional References
 
-- Para guia de construção de UI (React + Vite + FiveM): [ui-guide.md](ui-guide.md)
-- Para boas práticas detalhadas (performance, segurança, cache): [best-practices.md](best-practices.md)
-- Para API completa e detalhada: [reference.md](reference.md)
-- Para exemplos de código: [examples.md](examples.md)
-- Para templates de resources: [templates.md](templates.md)
-- Para padrões e convenções: [patterns.md](patterns.md)
+- For UI construction guide (React + Vite + FiveM): [ui-guide.md](ui-guide.md)
+- For detailed best practices (performance, security, cache): [best-practices.md](best-practices.md)
+- For complete and detailed API: [reference.md](reference.md)
+- For code examples: [examples.md](examples.md)
+- For resource templates: [templates.md](templates.md)
+- For patterns and conventions: [patterns.md](patterns.md)
 
-## Recursos Externos (Download)
+## External Resources (Download)
 
-Use estes repositórios oficiais quando o projeto mencionar dependências:
+Use these official repositories when the project mentions dependencies:
 
-- `cacheaside` (cache em memória): `git@github.com:proelias7/cacheaside.git`
+- `cacheaside` (in-memory cache): `git@github.com:proelias7/cacheaside.git`
 - `cerberus` (anti-exploit + cooldowns): `git@github.com:proelias7/cerberus.git`
 
-## Compatibilidade vRPex
+## vRPex Compatibility
 
-A vRP Creative Network possui aliases de compatibilidade com a vRP clássica:
+The vRP Creative Network has compatibility aliases with classic vRP:
 
-| vRPex (antigo) | Creative Network (atual) |
+| vRPex (old) | Creative Network (current) |
 |----------------|--------------------------|
 | `getUserId` | `Passport` |
 | `getUserSource` | `Source` |
@@ -292,4 +292,4 @@ A vRP Creative Network possui aliases de compatibilidade com a vRP clássica:
 | `query` / `execute` | `Query` |
 | `prepare` | `Prepare` |
 
-**SEMPRE use os nomes nativos da Creative Network** (coluna direita), não os aliases.
+**ALWAYS use the native Creative Network names** (right column), not the aliases.

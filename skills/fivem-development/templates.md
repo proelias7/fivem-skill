@@ -1,11 +1,11 @@
-# Templates de Resources — vRP Creative Network
+# Resource Templates — vRP
 
-## Template 1: Resource Básico (Server Only)
+## Template 1: Basic Resource (Server Only)
 
-### Estrutura
+### Structure
 
 ```
-meu-resource/
+my-resource/
 ├── fxmanifest.lua
 └── server/
     └── main.lua
@@ -38,17 +38,17 @@ vRPC = Tunnel.getInterface("vRP")
 -- MAIN
 -------------------------------------------------------------------------
 
--- Seu código aqui
+-- Your code here
 ```
 
 ---
 
-## Template 2: Resource Client + Server
+## Template 2: Client + Server Resource
 
-### Estrutura
+### Structure
 
 ```
-meu-resource/
+my-resource/
 ├── fxmanifest.lua
 ├── client/
 │   └── main.lua
@@ -91,18 +91,18 @@ vRPC = Tunnel.getInterface("vRP")
 local src = {}
 local cln = {}
 
-Proxy.addInterface("meu_resource", src)
-Tunnel.bindInterface("meu_resource", cln)
+Proxy.addInterface("my_resource", src)
+Tunnel.bindInterface("my_resource", cln)
 -------------------------------------------------------------------------
 -- FUNCTIONS
 -------------------------------------------------------------------------
 
--- Funções server-side que o client pode chamar via Tunnel
-function cln.MinhaFuncao()
+-- Server-side functions that client can call via Tunnel
+function cln.MyFunction()
     local source = source
     local Passport = vRP.Passport(source)
     if not Passport then return end
-    -- lógica
+    -- logic
 end
 ```
 
@@ -116,28 +116,28 @@ local Tunnel = module("vrp", "lib/Tunnel")
 local Proxy = module("vrp", "lib/Proxy")
 
 vRPS = Tunnel.getInterface("vRP")
-SRC = Tunnel.getInterface("meu_resource")
+SRC = Tunnel.getInterface("my_resource")
 
 local cln = {}
-Tunnel.bindInterface("meu_resource", cln)
+Tunnel.bindInterface("my_resource", cln)
 -------------------------------------------------------------------------
 -- FUNCTIONS
 -------------------------------------------------------------------------
 
--- Funções client-side que o server pode chamar via Tunnel
-function cln.MinhaFuncaoClient()
-    -- lógica client
+-- Client-side functions that server can call via Tunnel
+function cln.MyClientFunction()
+    -- client logic
 end
 ```
 
 ---
 
-## Template 3: Resource com NUI
+## Template 3: Resource with NUI
 
-### Estrutura
+### Structure
 
 ```
-meu-resource/
+my-resource/
 ├── fxmanifest.lua
 ├── client/
 │   └── main.lua
@@ -187,16 +187,16 @@ local Tunnel = module("vrp", "lib/Tunnel")
 local Proxy = module("vrp", "lib/Proxy")
 
 vRPS = Tunnel.getInterface("vRP")
-SRC = Tunnel.getInterface("meu_resource")
+SRC = Tunnel.getInterface("my_resource")
 
 local cln = {}
-Tunnel.bindInterface("meu_resource", cln)
+Tunnel.bindInterface("my_resource", cln)
 -------------------------------------------------------------------------
 -- NUI
 -------------------------------------------------------------------------
 local isOpen = false
 
-function AbrirNUI(data)
+function OpenNUI(data)
     if not isOpen then
         isOpen = true
         SetNuiFocus(true, true)
@@ -204,7 +204,7 @@ function AbrirNUI(data)
     end
 end
 
-function FecharNUI()
+function CloseNUI()
     if isOpen then
         isOpen = false
         SetNuiFocus(false, false)
@@ -212,20 +212,20 @@ function FecharNUI()
     end
 end
 
-RegisterNUICallback("fechar", function(data, cb)
-    FecharNUI()
+RegisterNUICallback("close", function(data, cb)
+    CloseNUI()
     cb("ok")
 end)
 
-RegisterNUICallback("acao", function(data, cb)
-    SRC.ProcessarAcao(data)
+RegisterNUICallback("action", function(data, cb)
+    SRC.ProcessAction(data)
     cb("ok")
 end)
 -------------------------------------------------------------------------
 -- CLIENT TUNNEL
 -------------------------------------------------------------------------
-function cln.AbrirInterface(data)
-    AbrirNUI(data)
+function cln.OpenInterface(data)
+    OpenNUI(data)
 end
 ```
 
@@ -240,27 +240,27 @@ local Tunnel = module("vrp", "lib/Tunnel")
 
 vRP = Proxy.getInterface("vRP")
 vRPC = Tunnel.getInterface("vRP")
-CLN = Tunnel.getInterface("meu_resource")
+CLN = Tunnel.getInterface("my_resource")
 
 local src = {}
 local cln = {}
 
-Proxy.addInterface("meu_resource", src)
-Tunnel.bindInterface("meu_resource", cln)
+Proxy.addInterface("my_resource", src)
+Tunnel.bindInterface("my_resource", cln)
 -------------------------------------------------------------------------
 -- TUNNEL FUNCTIONS
 -------------------------------------------------------------------------
-function cln.ProcessarAcao(data)
+function cln.ProcessAction(data)
     local source = source
     local Passport = vRP.Passport(source)
     if not Passport then return end
-    -- processar ação do NUI
+    -- process NUI action
 end
 -------------------------------------------------------------------------
--- ABRIR INTERFACE
+-- OPEN INTERFACE
 -------------------------------------------------------------------------
-function src.Abrir(source)
-    CLN.AbrirInterface(source, { mensagem = "Olá!" })
+function src.Open(source)
+    CLN.OpenInterface(source, { message = "Hello!" })
 end
 ```
 
@@ -268,7 +268,7 @@ end
 
 ```html
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -278,11 +278,11 @@ end
     <div id="app" style="display:none;">
         <div class="container">
             <div class="header">
-                <h2>Título</h2>
-                <button id="btn-fechar">✕</button>
+                <h2>Title</h2>
+                <button id="btn-close">✕</button>
             </div>
             <div class="content">
-                <!-- Conteúdo -->
+                <!-- Content -->
             </div>
         </div>
     </div>
@@ -361,7 +361,7 @@ body {
 
 ```javascript
 const app = document.getElementById("app");
-const resourceName = window.GetParentResourceName ? GetParentResourceName() : "meu_resource";
+const resourceName = window.GetParentResourceName ? GetParentResourceName() : "my_resource";
 
 window.addEventListener("message", function(event) {
     const data = event.data;
@@ -369,7 +369,7 @@ window.addEventListener("message", function(event) {
     switch (data.action) {
         case "open":
             app.style.display = "flex";
-            // Processar data.data
+            // Process data.data
             break;
         case "close":
             app.style.display = "none";
@@ -377,15 +377,15 @@ window.addEventListener("message", function(event) {
     }
 });
 
-document.getElementById("btn-fechar").addEventListener("click", fechar);
+document.getElementById("btn-close").addEventListener("click", close);
 
 document.addEventListener("keydown", function(e) {
-    if (e.key === "Escape") fechar();
+    if (e.key === "Escape") close();
 });
 
-function fechar() {
+function close() {
     app.style.display = "none";
-    post("fechar", {});
+    post("close", {});
 }
 
 function post(event, data) {
@@ -399,12 +399,12 @@ function post(event, data) {
 
 ---
 
-## Template 4: Resource com Config Separada
+## Template 4: Resource with Separate Config
 
-### Estrutura
+### Structure
 
 ```
-meu-resource/
+my-resource/
 ├── fxmanifest.lua
 ├── config/
 │   └── config.lua
@@ -443,13 +443,13 @@ Config = {}
 Config.Debug = false
 Config.CooldownMs = 5000
 
-Config.Locais = {
-    { coords = vector3(-1038.0, -2739.0, 20.0), label = "Loja 1", blip = 52 },
-    { coords = vector3(-706.0, -914.0, 19.0),   label = "Loja 2", blip = 52 },
+Config.Locations = {
+    { coords = vector3(-1038.0, -2739.0, 20.0), label = "Shop 1", blip = 52 },
+    { coords = vector3(-706.0, -914.0, 19.0),   label = "Shop 2", blip = 52 },
 }
 
-Config.Precos = {
+Config.Prices = {
     ["water"]       = 50,
-    ["barracereal"] = 100,
+    ["cerealbar"]   = 100,
 }
 ```
