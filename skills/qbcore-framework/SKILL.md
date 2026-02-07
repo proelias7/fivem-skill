@@ -1,5 +1,5 @@
 ---
-name: qbcore-development
+name: qbcore-framework
 description: Develops resources for FiveM using the QBCore Framework. Covers resource creation, Core Object usage, Player management, Callbacks, Events, Items, Jobs, Gangs, Database (oxmysql), and best practices. Use when the user works with FiveM, QBCore, Lua scripts for QBCore servers, or mentions `QBCore.Functions`, `GetCoreObject`, `CitizenID`, or any system of the QBCore Framework.
 ---
 
