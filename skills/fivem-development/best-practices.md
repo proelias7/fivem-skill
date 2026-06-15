@@ -1,15 +1,15 @@
-# Best Practices — vRP Creative Network
+# FiveM Best Practices
 
 **Author:** Elias Araújo
-**Focus:** Performance, Optimization, and Security
+**Focus:** Performance, Optimization, and Security (framework-agnostic)
 
 ---
 
 ## 1. Client/Server Communication
 
-### 1.1 Tunnel vs Events — Golden Rule
+### 1.1 Callback vs Events — Golden Rule
 
-> **Tunnel** = when you NEED a return
+> **Callback/Tunnel** = when you NEED a return
 > **Event** = when you DO NOT need a return
 
 **Performance Hierarchy (from lightest to heaviest):**
@@ -17,28 +17,28 @@
 | Method | Performance | When to use |
 |--------|-------------|-------------|
 | `TriggerServerEvent` | Lightest | Action without return (preferred) |
-| `vSERVER._function()` | Medium | Fire-and-forget via Tunnel (function already exists) |
-| `vSERVER.function()` | Heaviest | When return is needed |
+| `ServerCallback._function()` | Medium | Fire-and-forget via callback (function already exists) |
+| `ServerCallback.function()` | Heaviest | When return is needed |
 
 ```lua
--- CORRECT: return needed → Tunnel
-local inventory = vSERVER.getUserInventory()
+-- CORRECT: return needed → callback/Tunnel
+local inventory = ServerCallback.getUserInventory()
 
 -- CORRECT: NO return needed → Event
 TriggerServerEvent("airdrop:start")
 
--- AVOID: Tunnel without using return (generates unnecessary overhead)
-vSERVER.startEvent()
+-- AVOID: callback without using return (generates unnecessary overhead)
+ServerCallback.startEvent()
 ```
 
-**Why is Tunnel heavier?** Each call generates:
+**Why is callback/Tunnel heavier?** Each call generates:
 - Argument serialization
 - Promise creation (future)
 - Callback allocation
 - Timeout control (30s)
 
-**Problems with Tunnel without return:**
-1. **Deadlocks** — vRP waits for a response that never comes
+**Problems with callback without return:**
+1. **Deadlocks** — system waits for a response that never comes
 2. **Overhead** — high cost for simple action
 3. **Saturation** — accumulated callbacks degrade the main thread
 
@@ -46,13 +46,13 @@ vSERVER.startEvent()
 
 ```lua
 -- WITH underscore: do not prepare callback
-vSERVER._startEvent()
+ServerCallback._startEvent()
 
 -- WITHOUT underscore: prepares callback and waits for return
-vSERVER.startEvent()
+ServerCallback.startEvent()
 ```
 
-Even with `_`, the Tunnel still performs serialization and RPC processing. **Native event is always lighter.**
+Even with `_`, the callback still performs serialization and RPC processing. **Native event is always lighter.**
 
 ### 1.3 Calls in the Same Environment
 
@@ -70,7 +70,7 @@ tryDelete(vehNet, vehPlate)
 
 -- Expose to other contexts if necessary:
 RegisterServerEvent("garages:tryDelete", tryDelete)  -- client→server
-MyTunnel.tryDelete = tryDelete                       -- tunnel
+MyCallback.tryDelete = tryDelete                       -- callback
 ```
 
 | Method | Environment | Performance |
@@ -78,27 +78,27 @@ MyTunnel.tryDelete = tryDelete                       -- tunnel
 | `function()` | Same | Instant |
 | `TriggerEvent()` | Same | Goes through queue |
 | `TriggerServerEvent()` | Client→Server | Network + queue |
-| `Tunnel` | Client↔Server | Network + RPC |
+| `Callback/Tunnel` | Client↔Server | Network + RPC |
 
 ### 1.4 Avoid Remote Calls in Loops
 
 ```lua
--- WRONG: Tunnel in high frequency loop
+-- WRONG: callback in high frequency loop
 while true do
-    vSERVER.updatePosition()
+    ServerCallback.updatePosition()
     Wait(100)
 end
 
 -- CORRECT: larger interval
 while true do
-    TriggerServerEvent("player:position", GetEntityCoords(ped))
+    TriggerServerEvent("player:position", GetEntityCoords(PlayerPedId()))
     Wait(5000)
 end
 
 -- BETTER: send only when necessary
 local lastPosition = nil
 while true do
-    local pos = GetEntityCoords(ped)
+    local pos = GetEntityCoords(PlayerPedId())
     if lastPosition == nil or #(pos - lastPosition) > 10.0 then
         TriggerServerEvent("player:position", pos)
         lastPosition = pos
@@ -109,7 +109,7 @@ end
 -- ALTERNATIVE: data batch
 local positions = {}
 while true do
-    table.insert(positions, GetEntityCoords(ped))
+    table.insert(positions, GetEntityCoords(PlayerPedId()))
     if #positions >= 10 then
         TriggerServerEvent("player:positions_batch", positions)
         positions = {}
@@ -127,7 +127,7 @@ end
 CreateThread(function()
     while true do
         Wait(0)  -- RUNS 60x/s, ALWAYS
-        if IsPedArmed(ped, 6) then
+        if IsPedArmed(PlayerPedId(), 6) then
             DisableControlAction(1, 140, true)
         end
     end
@@ -200,10 +200,10 @@ end
 
 **Signs of problem:** `Network overflow` in console, players disconnecting, lag spikes.
 
-### 1.7 Signs of Tunnel Problems
+### 1.7 Signs of Callback/Tunnel Problems
 
-If you see errors like `index (rp/lib/Tunnel.lua:334)`:
-- **Cause:** Tunnel being used without return or in loop
+If you see errors related to Tunnel/callback timeouts:
+- **Cause:** Callback being used without return or in loop
 - **Symptoms:** Internal loops, stuck callbacks
 - **Solution:** Change to events
 
@@ -217,18 +217,18 @@ Database queries are expensive operations. Use cache for repeatedly queried data
 
 ```lua
 -- WRONG: query every time
-exports("checkRelation", function(Passport)
-    local Consult = vRP.Query("findRelationship", { Passport = Passport })
+exports("checkRelation", function(playerId)
+    local result = MySQL.query.await("SELECT * FROM relationship WHERE player_id = ?", { playerId })
 end)
 
 -- CORRECT: using cacheaside
-exports("checkRelation", function(Passport)
-    local Consult = exports.cacheaside:Get("relationship:findRelationship", Passport, {
-        query = { "SELECT * FROM relationship WHERE Passport = ?", { Passport } },
+exports("checkRelation", function(playerId)
+    local Consult = exports.cacheaside:Get("relationship:findRelationship", playerId, {
+        query = { "SELECT * FROM relationship WHERE player_id = ?", { playerId } },
         default = {}
     })
     if Consult[1] and Consult[1]["status"] == 3 then
-        return true, Consult[1]["OtherPassport"]
+        return true, Consult[1]["other_id"]
     end
     return false
 end)
@@ -265,11 +265,8 @@ exports.cacheaside:Get("namespace", "key", {
 
 **Invalidating cache:**
 ```lua
--- Delete (next query fetches from DB)
-exports.cacheaside:Delete("relationship:findRelationship", Passport)
-
--- Update directly (avoids new query)
-exports.cacheaside:Set("relationship:findRelationship", Passport, newValue, 300)
+exports.cacheaside:Delete("relationship:findRelationship", playerId)
+exports.cacheaside:Set("relationship:findRelationship", playerId, newValue, 300)
 ```
 
 ---
@@ -280,9 +277,9 @@ exports.cacheaside:Set("relationship:findRelationship", Passport, newValue, 300)
 
 ```lua
 -- WRONG: or chain
-if vRP.HasPermission(Passport, "Cor")
-or vRP.HasPermission(Passport, "Police32")
-or vRP.HasPermission(Passport, "Diamante")
+if hasPermission(source, "Cor")
+or hasPermission(source, "Police32")
+or hasPermission(source, "Diamante")
 -- ... 15 more lines ...
 then end
 
@@ -292,16 +289,16 @@ local weaponColorPerms = {
     "Boost", "Admin", "Rubi", "DoadorFacT201"
 }
 
-local function hasPermission(Passport, list)
+local function hasAnyPermission(source, list)
     for _, perm in ipairs(list) do
-        if vRP.HasPermission(Passport, perm) then
+        if hasPermission(source, perm) then
             return true
         end
     end
     return false
 end
 
-if hasPermission(Passport, weaponColorPerms) then
+if hasAnyPermission(source, weaponColorPerms) then
     -- action
 end
 ```
@@ -341,18 +338,18 @@ end
 ### 3.4 Protect Against nil
 
 ```lua
--- WRONG: crash if Identity is nil
-"Name: " .. Identity.name .. " " .. Identity.name2
+-- WRONG: crash if playerData is nil
+"Name: " .. playerData.firstName .. " " .. playerData.lastName
 
 -- CORRECT: check and protect
-local Identity = vRP.Identity(Passport)
-if not Identity then
-    TriggerClientEvent('Notify', source, 'negado', 'Identity not found')
+local playerData = GetPlayerData(source)
+if not playerData then
+    TriggerClientEvent('Notify', source, 'negado', 'Player not found')
     return
 end
 
 -- Or use fallback
-local name = (Identity.name or "") .. " " .. (Identity.name2 or "")
+local name = (playerData.firstName or "") .. " " .. (playerData.lastName or "")
 ```
 
 ---
@@ -396,12 +393,11 @@ exports["cerberus"]:SafeEvent(source, eventName, options)
 
 **Basic Example:**
 ```lua
-function cRP.paymentMethod(locate)
+RegisterServerEvent("register:paymentMethod")
+AddEventHandler("register:paymentMethod", function(locate)
     local source = source
-    local Passport = vRP.Passport(source)
-    if not Passport then return end
+    if not source then return end
 
-    -- Blocks if called more than 1x every 10s
     if exports["cerberus"]:SafeEvent(source, "register:paymentMethod", {
         data = "Robbery: " .. tostring(locate),
         time = 10,
@@ -412,13 +408,12 @@ function cRP.paymentMethod(locate)
     end
 
     local randPrice = math.random(15000, 16000)
-    vRP._GenerateItem(Passport, "dollars2", randPrice, true)
-end
+    GivePlayerMoney(source, randPrice)  -- use your framework's money function
+end)
 ```
 
 **Example with Fine Control (no ban, with notification):**
 ```lua
--- For sensitive actions but that should not ban automatically
 if exports["cerberus"]:SafeEvent(source, "requestInventory", {
     time = 2,
     noBan = true,
@@ -431,7 +426,6 @@ end
 
 **Silent Mode Example (tracks but doesn't log until threshold):**
 ```lua
--- Monitors silently, only logs when reaching 5 suspicions
 if exports["cerberus"]:SafeEvent(source, "shop:buyItem", {
     time = 5,
     silentLog = true,
@@ -473,13 +467,11 @@ exports["cerberus"]:SetCooldown(name, time, hits)
 
 ```lua
 -- MODE 1: Time-based (blocks by time)
--- Blocks for 3 seconds after first call
 if exports["cerberus"]:SetCooldown("open:inventory", 3000) then
     return
 end
 
 -- MODE 2: Hit-based (blocks after N attempts in period)
--- Allows 3 attempts, then blocks for 5 seconds
 if exports["cerberus"]:SetCooldown("use:item", 5000, 3) then
     return
 end
@@ -487,15 +479,13 @@ end
 
 **Complete client example:**
 ```lua
--- client/main.lua
 RegisterNUICallback("buy", function(data, cb)
-    -- Rate limit: max 1 purchase every 2 seconds
     if exports["cerberus"]:SetCooldown("shop:buy", 2000) then
         cb("blocked")
         return
     end
 
-    SRC.Buy(data.item)
+    TriggerServerEvent("shop:buy", data.item)
     cb("ok")
 end)
 ```
@@ -510,7 +500,6 @@ end)
 | **Purpose** | Anti-exploit (detects cheaters) | Rate-limit (limits spam) |
 | **Action on detect** | Blocks and/or bans | Blocks temporarily |
 | **Time** | Seconds | Milliseconds |
-| **Passport** | Obtained internally | Not necessary |
 | **Logs** | Logs internally | Does not log |
 
 **When to use which:**
@@ -530,4 +519,4 @@ end)
 >
 > **Rule (source = -1):** Any server event that can be triggered with `source = -1` MUST be protected by `SafeEvent` with `noBan = true` to avoid server crashes if a cheat floods it.
 >
-> **Rule (DB access from client):** Any direct database interaction triggered by a client event or Tunnel call MUST be protected by `SafeEvent` with `noBan = true` to prevent flood/crash scenarios.
+> **Rule (DB access from client):** Any direct database interaction triggered by a client event or callback MUST be protected by `SafeEvent` with `noBan = true` to prevent flood/crash scenarios.

@@ -287,7 +287,7 @@ AddEventHandler("my:event", function(data)
 end)
 ```
 
-> For detailed security (Cerberus SafeEvent, SetCooldown, anti-exploit), see [best-practices.md](best-practices.md)
+> For detailed security (Cerberus SafeEvent, SetCooldown, anti-exploit), use skill `fivem-development`
 
 ## Performance Patterns
 
@@ -372,7 +372,7 @@ return rewards[type] or 0
 "Name: " .. (Identity.name or "Unknown")
 ```
 
-> For detailed performance and optimization, see [best-practices.md](best-practices.md)
+> For detailed performance and optimization, use skill `fivem-development`
 
 ## fxmanifest.lua Patterns
 

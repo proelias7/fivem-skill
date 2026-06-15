@@ -18,77 +18,115 @@ npx skills add proelias7/fivem-skill -a cursor
 npx skills add proelias7/fivem-skill --list
 ```
 
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Best Practices** | Performance, security, client/server communication (framework-agnostic) |
+| **Asset Discovery** | PlebMasters Forge integration + common props, vehicles, peds, weapons |
+| **Framework Bridge** | Auto-detection of vRP, QBCore, Qbox, ESX + abstraction layer |
+| **Dynamic Docs Fetch** | Anti-hallucination policy + WebFetch from official sources |
+| **Cerberus v2.0** | SafeEvent (server anti-exploit) + SetCooldown (client rate-limit) |
+| **cacheaside** | In-memory cache with TTL for database queries |
+| **NUI (React + Vite)** | Shared UI skill for all frameworks |
+
 ## Supported Frameworks
 
-### 1. vRP (Creative / vRPEX)
+### 1. vRP (Creative / vRPEX) — skill `vrp-framework`
 | Area | Description |
 |------|-----------|
 | **Core** | Proxy/Tunnel architecture, Passport/Source/Datatable |
 | **API** | Player, Money, Inventory, Groups, Survival, Database |
-| **Features** | Dynamic sleep, cacheaside, Cerberus v2.0 security |
 | **Modules** | Identity, Inventory, Vehicles, Groups, Money |
 
-### 2. QBCore Framework
+### 2. QBCore Framework — skill `qbcore-framework`
 | Area | Description |
 |------|-----------|
 | **Core** | `GetCoreObject()`, PlayerData, MetaData |
 | **API** | `QBCore.Functions`, `Player.Functions`, Callbacks |
-| **Features** | Server Callbacks, Useable Items, Job Loops |
 | **Modules** | Jobs, Gangs, Items, Commands, Events |
 
-### 3. Qbox Project (qbx_core)
+### 3. Qbox Project (qbx_core) — skill `qbox-framework`
 | Area | Description |
 |------|-----------|
 | **Core** | Exports-first (`exports.qbx_core`), Modules, Bridge |
 | **API** | `GetPlayer`, `Notify`, `UpsertPlayerData` |
-| **Ox Integration** | `ox_lib` (UI/Callbacks), `ox_inventory`, `oxmysql` |
+| **Ox Integration** | `ox_lib`, `ox_inventory`, `oxmysql` |
 
-### 4. ESX Framework (Legacy)
+### 4. ESX Framework (Legacy) — skill `esx-framework`
 | Area | Description |
 |------|-----------|
 | **Core** | `ESX.GetCoreObject()`, xPlayer, Shared Object |
 | **API** | `xPlayer.addMoney`, `xPlayer.setJob`, `ESX.RegisterServerCallback` |
-| **Features** | Menu-based UI (default), Ox Inventory support, OneSync |
+| **Features** | Menu-based UI, Ox Inventory support, OneSync |
 
 ## File Structure
 
 ```
 skills/
-├── fivem-development/          # vRP Framework (Legacy name: fivem-development)
-│   ├── SKILL.md                # vRP Entry point
-│   ├── reference.md            # vRP Full reference
+├── fivem-development/          # Best practices (framework-agnostic)
+│   ├── SKILL.md                # Entry point + fetch policy + performance rules
+│   ├── best-practices.md       # Performance, security, cache, cerberus
+│   ├── asset-discovery.md      # PlebMasters + props/vehicles/peds/weapons
+│   └── framework-detection.md  # Auto-detection + multi-framework bridge
+│
+├── vrp-framework/              # vRP Creative Network
+│   ├── SKILL.md                # vRP Entry point + API summary
+│   ├── reference.md            # Full vRP reference
+│   ├── examples.md             # vRP code examples
+│   ├── templates.md            # vRP resource templates
+│   └── patterns.md             # vRP patterns and conventions
+│
+├── fivem-react-nui/            # NUI Interface (React + Vite) — shared by all frameworks
+│   ├── SKILL.md                # NUI Entry point
 │   └── ui-guide.md             # React + Vite UI Guide
 │
 ├── qbcore-framework/           # QBCore Framework
-│   ├── SKILL.md                # QBCore Entry point
-│   ├── reference.md            # QBCore API reference
-│   └── templates.md            # QBCore Templates
+│   ├── SKILL.md
+│   ├── reference.md
+│   └── templates.md
 │
 ├── qbox-framework/             # Qbox Framework
-│   ├── SKILL.md                # Qbox Entry point
-│   ├── reference.md            # Qbox API reference
-│   └── templates.md            # Qbox Templates
+│   ├── SKILL.md
+│   ├── reference.md
+│   └── templates.md
 │
 └── esx-framework/              # ESX Framework
-    ├── SKILL.md                # ESX Entry point
-    ├── reference.md            # ESX API reference
-    ├── examples.md             # ESX Code examples
-    ├── templates.md            # ESX Resource templates
-    └── best-practices.md       # ESX Best practices
+    ├── SKILL.md
+    ├── reference.md
+    ├── examples.md
+    ├── templates.md
+    └── best-practices.md
+
+.cursor/
+└── commands/
+    └── fivem-dev.md            # /fivem-dev slash command helper
 ```
 
 ## Stack Covered
 
 - **Language:** Lua 5.4 (server/client) + TypeScript/React (NUI)
 - **Frameworks:**
-    - vRP Creative Network (Proxy/Tunnel)
-    - QBCore Framework (Core Object/Callbacks)
-    - Qbox Project (Exports/Ox Lib)
-    - ESX Framework (Shared Object/xPlayer)
+    - vRP Creative Network (Proxy/Tunnel) — `vrp-framework`
+    - QBCore Framework (Core Object/Callbacks) — `qbcore-framework`
+    - Qbox Project (Exports/Ox Lib) — `qbox-framework`
+    - ESX Framework (Shared Object/xPlayer) — `esx-framework`
 - **Database:** oxmysql (All)
-- **Cache:** cacheaside (vRP)
-- **Anti-exploit:** Cerberus v2.0
-- **UI:** React 18 + Vite + Tailwind CSS + Zustand
+- **Cache:** cacheaside (shared)
+- **Anti-exploit:** Cerberus v2.0 (shared)
+- **UI:** React 18 + Vite + Tailwind CSS v3 + Zustand (`fivem-react-nui`)
+
+## Documentation Sources
+
+| Source | URL | Usage |
+|--------|-----|-------|
+| FiveM Natives | https://docs.fivem.net/natives/ | Native functions |
+| Native Mirror | https://github.com/proelias7/fivem-natives | Offline reference |
+| QBox | https://docs.qbox.re/ | QBox framework |
+| QBCore | https://docs.qbcore.org/ | QBCore framework |
+| ESX | https://docs.esx-framework.org/ | ESX framework |
+| ox_lib | https://overextended.dev/ox_lib | Utility library |
+| PlebMasters | https://forge.plebmasters.de/ | GTA V assets |
 
 ## Compatibility
 
