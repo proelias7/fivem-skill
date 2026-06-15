@@ -11,7 +11,7 @@ const DEFAULT_SKILLS = [
   "fivem-react-nui",
 ];
 
-const DEFAULT_AGENTS = ["cursor", "claude", "codex"];
+const DEFAULT_AGENTS = ["cursor"];
 
 const COMMAND_FILE = "fivem-dev.md";
 const COMMAND_SKILL_NAME = "fivem-dev";
@@ -169,6 +169,89 @@ function wantsInteractive(options) {
   return Boolean(process.stdin.isTTY && process.stdout.isTTY);
 }
 
+function ensureNonInteractiveChoice(options) {
+  if (options.yes || options.explicitAgents) {
+    return;
+  }
+
+  if (process.stdin.isTTY && process.stdout.isTTY) {
+    return;
+  }
+
+  console.error(
+    "Non-interactive terminal detected. Choose one:\n" +
+      "  npx github:proelias7/fivem-skill -y\n" +
+      "  npx github:proelias7/fivem-skill --cursor\n" +
+      "  npx github:proelias7/fivem-skill --agent cursor,claude\n",
+  );
+  process.exit(1);
+}
+
+function getManagedSkillNames(skills, includeCommand) {
+  const names = new Set(skills);
+  if (includeCommand) {
+    names.add(COMMAND_SKILL_NAME);
+  }
+  return names;
+}
+
+function isDirEmpty(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return false;
+  }
+
+  return fs.readdirSync(dirPath).length === 0;
+}
+
+function pruneEmptyDirsUpward(dirPath, stopAt) {
+  let current = dirPath;
+
+  while (current.startsWith(stopAt) && current !== stopAt) {
+    if (!fs.existsSync(current) || !isDirEmpty(current)) {
+      break;
+    }
+
+    fs.rmdirSync(current);
+    current = path.dirname(current);
+  }
+}
+
+function cleanUnselectedAgents(targetRoot, selectedAgentIds, managedSkills) {
+  for (const [agentId, agent] of Object.entries(AGENTS)) {
+    if (selectedAgentIds.includes(agentId)) {
+      continue;
+    }
+
+    if (agent.commandsDir && agent.commandMode === "file") {
+      const commandPath = path.join(targetRoot, agent.commandsDir, COMMAND_FILE);
+      if (fs.existsSync(commandPath)) {
+        fs.unlinkSync(commandPath);
+      }
+
+      pruneEmptyDirsUpward(
+        path.dirname(commandPath),
+        targetRoot,
+      );
+    }
+
+    const skillRoots = [path.join(targetRoot, agent.skillsDir)];
+    if (agent.altSkillsDir) {
+      skillRoots.push(path.join(targetRoot, agent.altSkillsDir));
+    }
+
+    for (const skillRoot of skillRoots) {
+      for (const skillName of managedSkills) {
+        const skillPath = path.join(skillRoot, skillName);
+        if (fs.existsSync(skillPath)) {
+          fs.rmSync(skillPath, { recursive: true, force: true });
+        }
+      }
+
+      pruneEmptyDirsUpward(skillRoot, targetRoot);
+    }
+  }
+}
+
 function getSkillDescription(skillName) {
   const skillPath = path.join(PACKAGE_ROOT, "skills", skillName, "SKILL.md");
 
@@ -187,22 +270,24 @@ function getSkillDescription(skillName) {
 }
 
 async function promptSelections() {
-  const { checkbox, confirm } = await import("@inquirer/prompts");
+  const { checkbox, confirm, isCancel } = await import("@inquirer/prompts");
   const allSkills = listAllSkills();
 
   console.log("FiveM Skills Installer\n");
+  console.log("Tip: Space to toggle, Enter to confirm.\n");
 
   const selectedAgents = await checkbox({
     message: "Select agents",
     choices: Object.entries(AGENTS).map(([value, agent]) => ({
       name: agent.label,
       value,
-      checked: DEFAULT_AGENTS.includes(value),
+      checked: value === "cursor",
     })),
     loop: false,
+    required: true,
   });
 
-  if (selectedAgents.length === 0) {
+  if (isCancel(selectedAgents) || selectedAgents.length === 0) {
     return null;
   }
 
@@ -214,9 +299,10 @@ async function promptSelections() {
       checked: DEFAULT_SKILLS.includes(name),
     })),
     loop: false,
+    required: true,
   });
 
-  if (selectedSkills.length === 0) {
+  if (isCancel(selectedSkills) || selectedSkills.length === 0) {
     return null;
   }
 
@@ -225,9 +311,13 @@ async function promptSelections() {
     default: true,
   });
 
+  if (isCancel(installCommand)) {
+    return null;
+  }
+
   return {
-    agents: selectedAgents,
-    skills: selectedSkills,
+    agents: [...new Set(selectedAgents)],
+    skills: [...new Set(selectedSkills)],
     command: installCommand,
   };
 }
@@ -379,7 +469,15 @@ async function main() {
     options.agents = selections.agents;
     options.skills = selections.skills;
     options.command = selections.command;
+
+    console.log(
+      `\nSelected: ${selections.agents.map((id) => AGENTS[id].label).join(", ")}`,
+    );
+    console.log(`Skills: ${selections.skills.join(", ")}`);
+    console.log(`Helper fivem-dev: ${selections.command ? "yes" : "no"}\n`);
   } else {
+    ensureNonInteractiveChoice(options);
+
     if (!options.agents) {
       options.agents = [...DEFAULT_AGENTS];
     }
@@ -391,13 +489,23 @@ async function main() {
 
   const skills = options.skills;
   const agents = resolveAgents(options.agents);
+  const managedSkills = getManagedSkillNames(skills, options.command);
 
   if (skills.length === 0) {
     console.error("Error: no skills selected.");
     process.exit(1);
   }
 
-  console.log(`\nInstalling to: ${options.target}\n`);
+  cleanUnselectedAgents(
+    options.target,
+    agents.map((agent) => agent.id),
+    managedSkills,
+  );
+
+  console.log(`\nInstalling to: ${options.target}`);
+  console.log(
+    `Agents: ${agents.map((agent) => agent.label).join(", ")}\n`,
+  );
 
   for (const agent of agents) {
     console.log(`[${agent.label}]`);
