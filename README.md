@@ -4,6 +4,38 @@ Agent Skill specialized in FiveM development with support for **vRP**, **QBCore*
 
 ## Installation
 
+### Cursor, Claude Code & Codex — install to project (recommended)
+
+From your **FiveM project root**, run:
+
+```bash
+# Interactive — select agents and skills with checkboxes
+npx github:proelias7/fivem-skill
+
+# Skip prompts, use defaults (vrp + fivem + react-nui, all agents)
+npx github:proelias7/fivem-skill -y
+
+# Non-interactive flags
+npx github:proelias7/fivem-skill --codex --skills vrp-framework
+npx github:proelias7/fivem-skill --all -y
+```
+
+This copies skills and the FiveM helper to:
+
+| Agent | Skills | Helper |
+|-------|--------|--------|
+| Cursor | `.cursor/skills/` | `.cursor/commands/fivem-dev.md` → `/fivem-dev` |
+| Claude Code | `.claude/skills/` | `.claude/commands/fivem-dev.md` → `/fivem-dev` |
+| Codex | `.agents/skills/` + `.codex/skills/` | `fivem-dev/SKILL.md` → `$fivem-dev` |
+
+Local development (from this repo):
+
+```bash
+node scripts/install.js --target /path/to/your-fivem-project
+```
+
+### Via skills CLI (installs to `.agents/skills/`)
+
 ```bash
 # Install via npx skills (Cursor, Claude Code, Codex, Copilot, etc.)
 npx skills add proelias7/fivem-skill

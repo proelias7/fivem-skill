@@ -1,0 +1,34 @@
+{
+  "name": "fivem-skill",
+  "version": "1.0.0",
+  "description": "Install FiveM Agent Skills for Cursor, Claude Code, and Codex",
+  "bin": {
+    "fivem-skill": "./scripts/install.js"
+  },
+  "files": [
+    "scripts",
+    "skills",
+    ".cursor/commands"
+  ],
+  "dependencies": {
+    "@inquirer/prompts": "^7.5.1"
+  },
+  "keywords": [
+    "fivem",
+    "cursor",
+    "skills",
+    "vrp",
+    "qbcore",
+    "qbox",
+    "esx",
+    "nui"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/proelias7/fivem-skill.git"
+  },
+  "engines": {
+    "node": ">=16.7.0"
+  }
+}
