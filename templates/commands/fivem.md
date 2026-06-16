@@ -42,7 +42,7 @@ Use semantic search, grep, and file reads. Every path in the output must exist i
 
 - If **`reference.mdc`** exists at project root → read it and **merge/update** (preserve valid sections, replace outdated paths)
 - Read **`.cursor/fivem/reference.template.mdc`** for section structure (installed by fivem-skill)
-- Read **`.cursor/fivem/reference.example.mdc`** for depth/style reference (real-world example)
+- Read **`.cursor/fivem/reference.example.mdc`** for format/depth only (fictional sample — do not copy its paths)
 
 ### Step 3 — Write `reference.mdc`
 

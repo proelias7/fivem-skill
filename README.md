@@ -147,7 +147,7 @@ templates/
 │   └── fivem.md                # /fivem template (copied by installer)
 └── rules/
     ├── reference.template.mdc  # skeleton for /fivem reference
-    └── reference.example.mdc   # real-world depth/style example
+    └── reference.example.mdc   # fictional sample showing expected depth/format
 ```
 
 ## Stack Covered

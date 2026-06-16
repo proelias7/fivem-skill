@@ -1,237 +1,64 @@
 ---
-description: Referência Rise-core — itens (pelúcias/raspadinhas), webhooks, cacheaside e Cerberus SafeEvent (FiveM/vRP)
+description: MeuServidor — referência rápida FiveM (vRP)
 alwaysApply: true
 ---
 
-# Rise-core — referência rápida
+# MeuServidor — referência rápida
 
-Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP Creative Network).
+> **Exemplo ilustrativo** — não copie estes paths. Use o formato abaixo com dados reais do projeto atual.
+
+Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 
 ## Manutenção desta rule
 
-- Sempre que surgir um padrão novo (caminho de arquivo, convenção, anti‑bug, integração), **atualize este arquivo** para as próximas demandas.
+- Sempre que surgir um padrão novo (caminho, convenção, anti-bug, integração), **atualize este arquivo**.
 
-## Grupos / `SharedPermission` (`hasGroup` / `hasService`)
+## Framework / grupos / permissões
 
-- Em `vrp/config/groups.lua`, qualquer entrada em `Permissions` pode definir `["SharedPermission"] = { ["OutroGrupo"] = true, ... }`.
-- **`vRP.hasGroup`** (`vrp/modules/group.lua`): se `hasGroup` pelo `Parent` falhar e `Permissions[<grupo perguntado>]` existir, o servidor procura algum holder cujo jogador passe em `checkMemberGroup(Holder)` e cuja lista `SharedPermission` inclua o grupo perguntado; nesse caso retorna **true**. O **`Level`** (terceiro argumento), quando não `nil`, aplica‑se ao **holder** como na checagem original.
-- **`vRP.hasService`**: após o fluxo original (`Parent` + `Permissions[k].Service[passport]`), se existir holder com `SharedPermission` contendo o grupo perguntado e o passport estiver em **`Permissions[Holder].Service`**, retorna **true**.
-- Convenção própria **`SharedPermissions`** (ex.: MHJ em `groups.lua`) é campo diferente — não altera `hasGroup` nem `hasService`.
-- **rise_actions** (`resources/[Novos]/rise_actions`): em `groups.lua`, `PoliceSSP.Parent` inclui `Police` / `PoliceDip` / `PolicePrf`; por isso `vRP.hasGroup(_, "PoliceSSP")` fica true para qualquer PM nesses grupos. Staff, forçar resultado, abas admin do painel e reset MVP PM usam **`vRP.hasPermission(_, "PoliceSSP")`** (datatable direto) — helpers globais `RiseActionsMatchConfigGroup` / `RiseActionsHasDirectPoliceSSP` no topo de `server/server.lua`.
+- **Framework:** vRP Creative Network (`resources/[System]/vrp/`)
+- **Grupos:** `vrp/config/groups.lua` — checagens com `vRP.hasGroup` / `vRP.hasPermission`
+- **Convenção local:** recursos staff usam permissão direta, não só `Parent`
 
-## Itens
+## Itens / inventário
 
-- **Cadastro principal:** `resources/[System]/vrp/config/itemlist.lua` — cada item é `["itemid"]` com `index`, `name`, `type`, `weight`, etc.
-- Ao criar item usável (ex.: raspadinha, consumível com fluxo próprio), alinhar também:
-  - **Loja:** `resources/[Exclusive]/store/config/config.lua` (`config.shops` → `products`).
-  - **Raspadinhas:** `resources/[Novos]/scratchcard/src/shared/config.lua` (`Config.ScratchTypes`) se o item for prêmio ou tipo de jogo.
-  - **Uso no inventário:** `resources/[Novos]/inventory/src/server/core.lua` (handlers por `nameItem`), quando aplicável.
+- **Cadastro:** `resources/[System]/vrp/config/itemlist.lua`
+- **Uso (servidor):** `resources/[Novos]/inventory/src/server/core.lua` → bloco `inventory:useItem`
+- **Checklist novo item:** itemlist → handler no inventário → loja (opcional) → ícone NUI
 
-### Pelúcias (item usável + prop na mão)
+### Consumível simples (exemplo de subseção)
 
-Fluxo típico ao cadastrar uma pelúcia que o jogador “equipa” ao usar no inventário (ex.: props `dreamsstore_*`, `gotica_*`, `peluciaanim@joao`, etc.):
+1. Cadastrar em `itemlist.lua` (`type` = `"Usável"`, `weight` alinhado aos similares)
+2. Handler: `if nameItem == "energy_drink" then` → animação → `vRP.tryGetInventoryItem` → efeito → `return`
+3. **Anti-bug:** não esquecer `inventory:Close` antes de animação longa
 
-1. **`itemlist.lua`** (`resources/[System]/vrp/config/itemlist.lua`)  
-   - Adicionar `["itemid"]` com `index` igual ao id, `name` para exibição, `type` = `"Usável"`, `weight` coerente com outras pelúcias (muito uso de **0,25** no bloco `-- PELUCIAS`; itens próximos a `bmo`/`marceline` costumam **0,20**).  
-   - **Não** definir `["equipitem"] = true` salvo regra explícita — em `equipitem()` isso faz `equipitem` retornar `false` e o inventário bloqueia uso para quem não é polícia (`inventory:useItem`).
+## Economia / lojas / webhooks
 
-2. **Handler no inventário (servidor)** — `resources/[Novos]/inventory/src/server/core.lua`, dentro do fluxo de `inventory:useItem`, junto das outras pelúcias:  
-   - `if nameItem == "itemid" then`  
-   - `TriggerClientEvent("inventory:Close", source)`  
-   - `createObjectspl(source, dict, anim, propModelo, flag, bone, x, y, z, rx, ry, rz)`  
-   - `return`  
-   - **Assinatura** no topo do mesmo arquivo: `createObjectspl` repassa para `vRPC._createObjects` — usar **`flag` 49** na maior parte das pelúcias; os seis últimos argumentos são o offset/rotação do prop no osso (equivalente ao `PropPlacement` do RPEmotes).  
-   - Dict/anim/clip devem existir no cliente; se um clip “static” ou dict feminino não carregar, alinhar com variantes já usadas no próprio `core.lua` (ex.: donut `male@idle_a` + `idle_c`).
+- **Lojas:** `resources/[Exclusive]/store/config/config.lua` → `config.shops[].products`
+- **Webhook por loja:** campo `["webhook"]` em cada shop; fallback em `store/src/server/server.lua`
 
-3. **Asset no servidor**  
-   - O **nome do prop** (`propModelo`) precisa estar em resource **stream** / pack instalado na cidade; o repo pode não listar pastas dos props — sem modelo streamed o objeto não aparece.
+## Craft (sistema custom — exemplo)
 
-4. **Opcional**  
-   - **Loja:** `resources/[Exclusive]/store/config/config.lua` (`products`).  
-   - **Raspadinha:** `resources/[Novos]/scratchcard/src/shared/config.lua` — incluir o id na entrada `Config.ScratchTypes[<Tipo>]` da raspadinha desejada (fluxo completo em **Associar itens a uma raspadinha** abaixo).  
-   - **Ícone NUI:** pasta de imagens do inventário costuma seguir o `index` do item.  
-   - **Menu RPEmotes:** `resources/[Scripts]/rpemotes-reborn-1.8.4/client/AnimationListCustom.lua` (só se quiser o mesmo emote fora do inventário).
+- **Config:** `resources/[Exclusive]/craft/config/config.lua` (`config.craft` + `config.receita`)
+- **Fluxo:** ponto no mapa → permissão → receita consome ingredientes → `vRP.generateItem`
+- **Checklist:** item final e ingredientes no `itemlist` → entrada em `config.receita` → id listado em `config.craft[].itens`
 
-### Raspadinhas (scratchcard — eventos `rise-raspadinha`)
+## Integrações
 
-Exemplo real no projeto: **`raspadinhamoomoo7`** (“Raspadinha Phineas e Ferb”) usa o **tipo** de mesa `MooMooCafe7`.
+### cacheaside
 
-1. **`itemlist.lua`** — item **consumível** que o jogador usa para abrir a UI:  
-   - Novo id único, ex.: `["raspadinhamoomoo7"]`.  
-   - **`["index"]`** pode repetir o de outras raspadinhas da mesma **família visual** (ex.: várias `raspadinhamoomoo*` usam `index` = `"raspadinhamoomoo"` para o mesmo ícone/base na NUI do inventário).  
-   - `type` = `"Usável"`, `weight` típico **0,10** (alinhar às irmãs `raspadinhamoomoo3`…`6`).
+- Resource: `resources/[System]/[DEPENDENCIAS]/cacheaside/`
+- Padrão: `Get`/`Set` com TTL ~10s; só usar se `GetResourceState("cacheaside") == "started"`
 
-2. **`scratchcard` — tabela de prêmios** — [`resources/[Novos]/scratchcard/src/shared/config.lua`](resources/[Novos]/scratchcard/src/shared/config.lua):  
-   - Em `Config.ScratchTypes`, criar ou estender uma chave **tipo**, ex.: `["MooMooCafe7"]`.  
-   - Cada entrada `[nome_do_item_no_itemlist] = peso` participa de um **sorteio ponderado** no cliente (`BuildWeightedPool` / `PickWeighted` em `src/client/client.lua`). Os números são **pesos relativos** (não precisam somar 100); quanto maior, mais chance.  
-   - Todo **nome** aqui deve existir no **`itemlist`** — ao finalizar a raspadinha o servidor só entrega se `Config.ScratchTypes[ScratchType][Item]` existir (`src/server/server.lua`, evento `rise-raspadinha:GenerateReward`).  
-   - `Config.ScratchAmount` define quantas “cartas” aparecem na UI (mínimo efetivo 5 no client).
+### Cerberus — SafeEvent
 
-3. **Inventário (servidor)** — [`resources/[Novos]/inventory/src/server/core.lua`](resources/[Novos]/inventory/src/server/core.lua) em `inventory:useItem`: copiar o padrão das outras `raspadinhamoomoo*`:  
-   - `Active` + `Progress` ~1750ms, fechar inventário/botões, animação `mp_arresting` / `a_uncuff`, `Citizen.Wait(1750)`.  
-   - Se `vRP.tryGetInventoryItem(user_id, totalName, 1, true, Slot)` ok → **`TriggerClientEvent("rise-raspadinha:InitScratch", source, "<Tipo>")`** onde `"<Tipo>"` é **exatamente** a chave em `Config.ScratchTypes` (ex.: `"MooMooCafe7"` para `raspadinhamoomoo7`).  
-   - `inventory:Update`, `Notify`, `return`.
+- `exports["cerberus"]:SafeEvent(source, "eventoUnico", { time = 5 })` → `true` = bloquear
 
-4. **Loja (opcional)** — [`resources/[Exclusive]/store/config/config.lua`](resources/[Exclusive]/store/config/config.lua): incluir o id da raspadinha em `products` da loja desejada (ex.: `MooMooCafeRaspadinha` lista `raspadinhamoomoo7` com preço), permissão e **webhook** por loja.
+## NUI (React/Vite)
 
-5. **Fluxo runtime** (referência): cliente monta as cartas; na conclusão a NUI chama `finally` → `TriggerServerEvent("rise-raspadinha:GenerateReward", itemVencedor, ScratchType)`; servidor valida par `[tipo][item]` e `vRP.generateItem`. Fechar a UI pelo callback `close` **não** gera prêmio.
+- Source: `resources/[Novos]/painel/src/ui/project/`
+- Build: `pnpm install && pnpm run build` → `src/ui/build/` (usado pelo fxmanifest)
 
-### Associar itens a uma raspadinha (quando o tipo já existe)
+## Skills FiveM do projeto
 
-Use quando a raspadinha e o `InitScratch` já estão prontos e só faltam **novos prêmios** (pelúcias, combos, outra raspadinha recursiva, etc.):
-
-1. **Cadastrar cada prêmio no `itemlist.lua`** (`id` exatamente igual ao que será usado na tabela). Itens usáveis com fluxo próprio (pelúcias) precisam também do handler em `inventory/src/server/core.lua`, se ainda não existir.
-2. **Editar só** [`resources/[Novos]/scratchcard/src/shared/config.lua`](resources/[Novos]/scratchcard/src/shared/config.lua): dentro da chave do **tipo** já usada no `TriggerClientEvent(..., "<Tipo>")` (ex.: `MooMooCafe7` para `raspadinhamoomoo7`), adicionar linhas `[itemid] = peso`. O **nome da chave** do tipo não muda — senão o inventário abriria um pool vazio/errado.
-3. **Não é obrigatório** alterar loja nem o handler da raspadinha no inventário só por incluir prêmios — desde que o item premiado exista no `itemlist` e na mesma tabela `Config.ScratchTypes[Tipo]`, o servidor aceita em `rise-raspadinha:GenerateReward`.
-4. **Checklist anti‑bug:** mesmo `string` entre `InitScratch` e chave em `ScratchTypes`; todo id na tabela existe em `itemlist`; pesos > 0 (client ignora peso inválido).
-
-## Webhooks de log (compras / loja)
-
-- **Store — por loja:** `resources/[Exclusive]/store/config/config.lua`, campo `["webhook"]` em cada entrada de `config.shops`.
-- **Fallback global:** `resources/[Exclusive]/store/src/server/server.lua` (`defaultWebhook` + função `sandWebhook`) quando a loja não define `webhook`.
-- **Craft (por estabelecimento/permissão):** `resources/[Exclusive]/craft/config/webhook.lua`.
-- Resource auxiliar Discord: `resources/[System]/[DEPENDENCIAS]/webhook/` (ex.: `exports["webhook"]:Send`).
-
-## Craft (`resources/[Exclusive]/craft/config/config.lua`)
-
-Arquivo único com **duas tabelas**: `config.craft` (pontos no mapa) e `config.receita` (receitas globais por id de item).
-
-### 1. Ponto de craft — `config.craft`
-
-Chave = nome interno do craft (ex.: `Saikou`, `CraftOvao`). Campos:
-
-| Campo | Uso |
-|--------|-----|
-| `loc` | Lista `{ x, y, z }` — onde abre o menu (só xyz; heading da CDS não entra aqui). |
-| `permission` | Grupo vRP (`"Saikou"`) ou `nil` se público. Também aceita `"Admin@1"` ou tabela `{"Grupo1","Grupo2"}`. |
-| `checkservice` | (opcional) exige estar em serviço de algum dos grupos listados. |
-| `noCheckService` | (opcional) grupo que **não** precisa estar em serviço. |
-| `itens` | Lista de **ids** fabricáveis neste ponto — cada id **precisa existir** em `config.receita`. |
-
-Exemplo real (**Saikou** — CDS `-177.74, 301.48, 97.46`):
-
-```lua
-['Saikou'] = {
-    ['loc'] = {
-        { -177.74, 301.48, 97.46 },
-    },
-    ['permission'] = "Saikou",
-    ['itens'] = {
-        'combojaponesp',
-        'combojaponesm',
-        'combojaponesg',
-    },
-},
-```
-
-### 2. Receita — `config.receita`
-
-Chave = **item produzido** (mesmo id do `itemlist.lua`). Campos:
-
-| Campo | Uso |
-|--------|-----|
-| `time` | Segundos para craftar **1 unidade** (multiplica se `imputValue` e jogador escolhe quantidade). |
-| `quantidade` | Quantidade entregue por craft (geralmente `1`). |
-| `imputValue` | (opcional) `true` = jogador informa quantidade na UI. |
-| `receita` | Lista `{ 'ingrediente', qtd }` consumidos por unidade produzida. |
-
-Exemplo (**combojaponesm**):
-
-```lua
-['combojaponesm'] = {
-    ['time'] = 10,
-    ['imputValue'] = true,
-    ['quantidade'] = 1,
-    ['receita'] = {
-        { 'wheat', 4 },
-        { 'milkbottle', 4 },
-        { 'sugar', 4 },
-    }
-},
-```
-
-### Checklist ao criar craft novo
-
-1. Itens **produzidos** e **ingredientes** cadastrados em `resources/[System]/vrp/config/itemlist.lua`.
-2. Entrada em **`config.receita`** para cada item fabricável (chave = id do item final).
-3. Entrada em **`config.craft`** com `loc`, `permission` e `itens` listando os ids das receitas.
-4. (Opcional) Handler de **uso** no inventário se o item for consumível (`inventory/src/server/core.lua`).
-5. (Opcional) **Webhook** em `craft/config/webhook.lua` se quiser log Discord por estabelecimento.
-6. Reiniciar resource `craft` (ou servidor).
-
-### Referência Saikou (combos japoneses)
-
-| Item | Ingredientes |
-|------|----------------|
-| `combojaponesp` | 3× `wheat`, 3× `milkbottle`, 3× `sugar` |
-| `combojaponesm` | 4× `wheat`, 4× `milkbottle`, 4× `sugar` |
-| `combojaponesg` | 6× `wheat`, 6× `milkbottle`, 6× `sugar` |
-
-## cacheaside
-
-- **Resource:** `resources/[System]/[DEPENDENCIAS]/cacheaside/` (`fxmanifest`, `server/main.lua`).
-- **Exports:** `Set`, `Get`, `Delete`, `FlushNamespace`, `GetNamespace`.
-- **Padrão:** só usar se `GetResourceState("cacheaside") == "started"`.
-- **Persistência em memória + TTL:** ao iniciar o resource, `Get(namespace, key)` para hidratar; em `onResourceStop`, `Set(namespace, key, tabela, ttlSegundos)` (ex.: inventory/craft usam TTL ~10).
-- **`Get(namespace, key, opts?)`:** `opts` pode incluir `ttl`, `forceRefresh`, `default`, `query` (`{ "SELECT ...", { params } }` via oxmysql), `logger`.
-
-## Cerberus — SafeEvent (servidor)
-
-- **Implementação:** `resources/[System]/[DEPENDENCIAS]/cerberus/src/core/server/safeEvent.lua` (requer `config.modules.safeEvent` ativo no cerberus).
-- **Padrão:** antes de executar ação sensível disparada por evento do cliente:
-
-```lua
-if source and exports["cerberus"]:SafeEvent(source, "nomeUnicoDoEvento", {
-  time = 5,
-  data = nil,
-  noBan = false,
-  notification = false,
-  blockThreshold = nil,
-}) then
-  return
-end
-```
-
-- **Retorno `true`:** bloquear / tratar como suspeito (conforme opções). **`false`:** seguir fluxo normal.
-- Opções úteis: `time` (intervalo mínimo em segundos), `data` (string para log), `noBan`, `notification`, `blockThreshold`, `position`, `positionDist`, `logThreshold`, `silentLog`.
-- **Cliente:** cooldowns com `exports["cerberus"]:SetCooldown(...)` em fluxos de UI (inventário, target, craft, etc.).
-
-## Painel (/painel) — UI web
-
-- Fonte React/Vite: `resources/[Novos]/painel/src/ui/project/` — após alterar TSX, rodar `pnpm install` e `pnpm run build` em `src/ui/project` para gerar `src/ui/build/` (o FiveM usa o build).
-
-## survival (morte / NUI)
-
-- `resources/[Novos]/survival/src/client/core.lua`: `RegisterNUICallback` deve receber `(data, cb)` e chamar `cb("{}")` (ou JSON válido) para o `fetch` da UI não falhar com corpo vazio.
-- Não fechar só o React da tela de morte com **Escape** sem o Lua chamar `revivePlayer` — o client mantém `deathStatus` e o jogador fica sem UI e sem renascer (“zumbi”).
-- Após alterar `src/ui/project`, rodar `pnpm run build` em `survival/src/ui/project`.
-
-## ds-homes / inventário vRP
-
-- Itens com **durabilidade** ficam no inventário como `nome-timestamp` (ex.: `lockpick2-1739…`). `vRP.tryGetInventoryItem(user_id, "lockpick2", n)` **falha** se o slot for só o nome base; o fluxo correto é `getInventoryItemAmount` (aceita base) e depois `tryGetInventoryItem` com `consult[2]` (nome completo), como em `resources/[Scripts]/robberys/server-side/server.lua`. O `Adapter` em `resources/[Novos]/ds-homes/config/functions.lua` segue esse padrão em `tryGetInventoryItem`.
-
-## pedcam (câmera em peds custom — rise_misc)
-
-- Lista persistida: `resources/[Scripts]/rise_misc/src/scripts/pedcam/pedcam_models.json`.
-- Servidor: `src/scripts/pedcam/server/main.lua` — comando `/pedcam` (Admin nível 1, como safezone) abre menu **ox_lib** no cliente; persistência e sync com `rise_misc:pedcam:syncModels`.
-
-## safezone + Lafy (rise_misc)
-
-- **Cliente:** `resources/[Scripts]/rise_misc/src/scripts/safezone/client/core.lua` — `LocalPlayer.state.isLafyMuted`: dentro de safezone o Lafy fica mutado salvo se alguma zona ativa permitir som via **`allowLafySound`** no JSON da zona (menu criar/editar) ou nome em **`LAFY_ALLOWED_SAFEZONE_NAMES`** (whitelist Lua opcional).
-- **Servidor / DB:** `resources/[Scripts]/rise_misc/src/scripts/safezone/server/core.lua` — campo `allowLafySound` em `safezones.config` (default `false`).
-
-## Git — submódulos em `resources/[Addons]/`
-
-- Pastas como `[Rise-Vehicles]`, `[Rise-Clothing]`, `Rise-CfxMaps` são **repos separados** (submódulos). Em `.gitmodules` usam **`ignore = all`**: o `git status` do **Rise-core** não lista mudanças locais dentro deles (arquivos sujos, commits novos, untracked).
-- Trabalho do dia a dia: commit/push **dentro** do repo do addon. Só no Rise-core, quando quiser fixar uma versão para o time: `git add resources/[Addons]/…` (atualiza o ponteiro SHA) e commit no core.
-
-## Skill FiveM do projeto
-
-- Detalhes vRP/proxy/tunnel: `.cursor/skills/fivem-development/SKILL.md`.
-
-## Baú / porta-malas (stack chest)
-
-- Lógica vRP: `resources/[System]/vrp/modules/inventory.lua` — `vRP.tryChest`, `vRP.storeChest`, `vRP.updateChest`, `vRP.chestWeight`, **`vRP.sanitizeChestData`** (remove slots com `amount <= 0`, item inválido ou sem `itemBody`).
-- UI/API baú: `resources/[Novos]/inventory/src/server/chest.lua` (`APIC.requestChest`).
-- Mala: `resources/[Novos]/inventory/src/server/trunkchest.lua` (`APIC.RequestTrunkChest`).
-- O inventário do **jogador** já limpa slots inválidos em `APIC.requestInventory` (`core.lua`); baú/mala passaram a usar `sanitizeChestData` ao abrir para alinhar e persistir limpeza na memória `srvdata`.
+- `.cursor/skills/fivem-development/SKILL.md`
+- `.cursor/skills/vrp-framework/SKILL.md`
