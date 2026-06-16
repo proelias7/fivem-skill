@@ -278,56 +278,60 @@ function getSkillDescription(skillName) {
 }
 
 async function promptSelections() {
-  const { checkbox, confirm, isCancel } = await import("@inquirer/prompts");
+  const { checkbox, confirm } = await import("@inquirer/prompts");
+  const { CancelPromptError } = await import("@inquirer/core");
   const allSkills = listAllSkills();
 
   console.log("FiveM Skills Installer\n");
   console.log("Tip: Space to toggle, Enter to confirm.\n");
 
-  const selectedAgents = await checkbox({
-    message: "Select agents",
-    choices: Object.entries(AGENTS).map(([value, agent]) => ({
-      name: agent.label,
-      value,
-      checked: value === "cursor",
-    })),
-    loop: false,
-    required: true,
-  });
+  try {
+    const selectedAgents = await checkbox({
+      message: "Select agents",
+      choices: Object.entries(AGENTS).map(([value, agent]) => ({
+        name: agent.label,
+        value,
+        checked: value === "cursor",
+      })),
+      loop: false,
+      required: true,
+    });
 
-  if (isCancel(selectedAgents) || selectedAgents.length === 0) {
-    return null;
+    if (selectedAgents.length === 0) {
+      return null;
+    }
+
+    const selectedSkills = await checkbox({
+      message: "Select skills to install",
+      choices: allSkills.map((name) => ({
+        name: truncate(`${name} — ${getSkillDescription(name)}`, 90),
+        value: name,
+        checked: DEFAULT_SKILLS.includes(name),
+      })),
+      loop: false,
+      required: true,
+    });
+
+    if (selectedSkills.length === 0) {
+      return null;
+    }
+
+    const installCommand = await confirm({
+      message: "Install /fivem helper (/fivem and /fivem reference)?",
+      default: true,
+    });
+
+    return {
+      agents: [...new Set(selectedAgents)],
+      skills: [...new Set(selectedSkills)],
+      command: installCommand,
+    };
+  } catch (error) {
+    if (error instanceof CancelPromptError) {
+      return null;
+    }
+    throw error;
   }
-
-  const selectedSkills = await checkbox({
-    message: "Select skills to install",
-    choices: allSkills.map((name) => ({
-      name: truncate(`${name} — ${getSkillDescription(name)}`, 90),
-      value: name,
-      checked: DEFAULT_SKILLS.includes(name),
-    })),
-    loop: false,
-    required: true,
-  });
-
-  if (isCancel(selectedSkills) || selectedSkills.length === 0) {
-    return null;
-  }
-
-  const installCommand = await confirm({
-    message: "Install /fivem helper (/fivem and /fivem reference)?",
-    default: true,
-  });
-
-  if (isCancel(installCommand)) {
-    return null;
-  }
-
-  return {
-    agents: [...new Set(selectedAgents)],
-    skills: [...new Set(selectedSkills)],
-    command: installCommand,
-  };
 }
 
 function truncate(text, maxLength) {
