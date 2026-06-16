@@ -80,6 +80,28 @@ MyCallback.tryDelete = tryDelete                       -- callback
 | `TriggerServerEvent()` | Client→Server | Network + queue |
 | `Callback/Tunnel` | Client↔Server | Network + RPC |
 
+**No thin event wrappers.** Do not create a `local function` whose only job is one `TriggerEvent` / `TriggerServerEvent` with no extra logic — that adds indirection without reuse (common AI mistake after audits).
+
+```lua
+-- WRONG: wrapper that only fires an event
+local function finishSpawnSelection()
+    TriggerEvent("login:Spawn", false)
+end
+finishSpawnSelection()
+
+-- CORRECT: inline at the call site (1–2 uses)
+TriggerEvent("login:Spawn", false)
+
+-- CORRECT: real helper with shared logic (fade, camera, NUI, then notify)
+local function closeSpawnUiAndNotifyLogin()
+    SetNuiFocus(false, false)
+    destroySpawnCamera()
+    TriggerEvent("login:Spawn", false)
+end
+```
+
+If the handler lives in the **same file**, call the local function directly (§1.3) instead of `TriggerEvent`. Use `TriggerEvent` only for **other resources** or documented hooks — and inline it unless the same call appears **3+ times**.
+
 ### 1.4 Avoid Remote Calls in Loops
 
 ```lua

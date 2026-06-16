@@ -46,7 +46,8 @@ Checklist used:
 
 - [ ] No unnecessary callbacks when events suffice
 - [ ] No callbacks/events inside tight loops
-- [ ] No `TriggerEvent` for same-side calls
+- [ ] No `TriggerEvent` for same-side calls when a local function exists
+- [ ] No thin wrappers (`local function x() TriggerEvent(...) end`)
 - [ ] Repeated DB reads use `cacheaside`
 - [ ] Network payloads small (delta, not full tables)
 - [ ] Threads use dynamic `Wait` based on distance/state
@@ -56,6 +57,7 @@ Checklist used:
 | ID | Severity | File | Issue | Recommendation |
 |----|----------|------|-------|----------------|
 | C1 | Medium | `fxmanifest.lua` | Over-split server scripts | Merge into `server/server.lua` (see best-practices §3.5) |
+| C2 | Low | `client/core.lua:26-28` | `finishSpawnSelection()` only calls `TriggerEvent` | Remove wrapper; inline `TriggerEvent("login:Spawn", false)` at call sites, or one helper that also closes NUI/camera |
 
 Checklist used:
 
@@ -63,6 +65,7 @@ Checklist used:
 - [ ] State/constants at file top (§3.8)
 - [ ] No comment noise / banner blocks (§3.7)
 - [ ] Helpers reused, not duplicated globals (§3.6)
+- [ ] No thin event-only wrappers — inline `TriggerEvent` or one real helper (§1.3)
 - [ ] Lookup tables instead of long if/else (§3.2)
 - [ ] nil-safe string concat (§3.4)
 

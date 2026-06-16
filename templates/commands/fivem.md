@@ -87,13 +87,15 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 - Repeated DB queries without `cacheaside`
 - Large table payloads over network (> ~8KB risk)
 
-#### Patterns & clean code (§3.5–3.10)
+#### Patterns & clean code (§3.5–3.10, §1.3)
 
 - Over-split fxmanifest (many server/client files for one resource)
 - Globals for small helpers; duplicated logic
 - Comment noise, state declared mid-file
 - Long if/elseif chains where lookup table fits
 - Missing nil guards on concatenation
+- **Thin event wrappers** — `local function foo() TriggerEvent(...) end` with no other logic (inline the event or merge into a real helper)
+- **Same-side `TriggerEvent`** when a local function in the same file could be called directly
 
 #### NUI (when applicable)
 
@@ -138,6 +140,9 @@ In chat, provide:
 - **Do not** auto-fix during audit mode
 - Prefer concrete fix snippets in the plan, not vague advice
 - If scope is too large, audit one resource at a time and say so
+- **Do not recommend** creating a function whose body is only `TriggerEvent(...)` / `TriggerServerEvent(...)` — inline at call site, or expand into a helper that also closes NUI/camera/state (see best-practices §1.3)
+- **Do not recommend** `TriggerEvent` for logic that already exists as `local function` in the same file — call the function directly
+- When a fix needs a cross-resource hook (e.g. `login:Spawn`, `hookSelector`), show the **inlined** `TriggerEvent` in the plan, not a one-line wrapper alias
 
 ---
 
