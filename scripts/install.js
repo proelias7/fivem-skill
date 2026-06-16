@@ -13,8 +13,13 @@ const DEFAULT_SKILLS = [
 
 const DEFAULT_AGENTS = ["cursor"];
 
-const COMMAND_FILE = "fivem-dev.md";
-const COMMAND_SKILL_NAME = "fivem-dev";
+const COMMAND_FILE = "fivem.md";
+const COMMAND_SKILL_NAME = "fivem";
+const COMMAND_TEMPLATE = path.join("templates", "commands", COMMAND_FILE);
+const LEGACY_COMMAND_FILE = "fivem-dev.md";
+const LEGACY_COMMAND_SKILL = "fivem-dev";
+const REFERENCE_TEMPLATES_DIR = path.join("templates", "rules");
+const CURSOR_FIVEM_DIR = path.join(".cursor", "fivem");
 
 const AGENTS = {
   cursor: {
@@ -56,7 +61,7 @@ Options:
   --claude           Install for Claude Code only
   --codex            Install for Codex only
   --agent <list>     Comma-separated: cursor, claude, codex
-  --no-command       Skip fivem-dev helper
+  --no-command       Skip /fivem helper
   -i, --interactive  Force interactive mode
   -y, --yes          Skip prompts, use defaults
   -h, --help         Show this help
@@ -64,7 +69,7 @@ Options:
 Interactive mode (default in terminal):
   1. Select agents (Cursor, Claude, Codex)
   2. Select skills to install
-  3. Confirm fivem-dev helper
+  3. Confirm /fivem helper
 `);
 }
 
@@ -191,6 +196,7 @@ function getManagedSkillNames(skills, includeCommand) {
   const names = new Set(skills);
   if (includeCommand) {
     names.add(COMMAND_SKILL_NAME);
+    names.add(LEGACY_COMMAND_SKILL);
   }
   return names;
 }
@@ -223,13 +229,15 @@ function cleanUnselectedAgents(targetRoot, selectedAgentIds, managedSkills) {
     }
 
     if (agent.commandsDir && agent.commandMode === "file") {
-      const commandPath = path.join(targetRoot, agent.commandsDir, COMMAND_FILE);
-      if (fs.existsSync(commandPath)) {
-        fs.unlinkSync(commandPath);
+      for (const fileName of [COMMAND_FILE, LEGACY_COMMAND_FILE]) {
+        const commandPath = path.join(targetRoot, agent.commandsDir, fileName);
+        if (fs.existsSync(commandPath)) {
+          fs.unlinkSync(commandPath);
+        }
       }
 
       pruneEmptyDirsUpward(
-        path.dirname(commandPath),
+        path.join(targetRoot, agent.commandsDir),
         targetRoot,
       );
     }
@@ -307,7 +315,7 @@ async function promptSelections() {
   }
 
   const installCommand = await confirm({
-    message: "Install fivem-dev helper (/fivem-dev or $fivem-dev)?",
+    message: "Install /fivem helper (/fivem and /fivem reference)?",
     default: true,
   });
 
@@ -360,9 +368,9 @@ function copyDir(src, dest) {
 }
 
 function readCommandSource() {
-  const src = path.join(PACKAGE_ROOT, ".cursor", "commands", COMMAND_FILE);
+  const src = path.join(PACKAGE_ROOT, COMMAND_TEMPLATE);
   if (!fs.existsSync(src)) {
-    throw new Error(`Command file not found: ${COMMAND_FILE}`);
+    throw new Error(`Command template not found: ${COMMAND_TEMPLATE}`);
   }
   return fs.readFileSync(src, "utf8");
 }
@@ -402,7 +410,50 @@ function installSkill(skillName, targetRoot, agent) {
   return destinations.map((dest) => path.relative(targetRoot, dest));
 }
 
+function removeLegacyCommand(targetRoot, agent) {
+  if (agent.commandsDir && agent.commandMode === "file") {
+    const legacyPath = path.join(targetRoot, agent.commandsDir, LEGACY_COMMAND_FILE);
+    if (fs.existsSync(legacyPath)) {
+      fs.unlinkSync(legacyPath);
+    }
+  }
+
+  const legacySkillRoots = [path.join(targetRoot, agent.skillsDir)];
+  if (agent.altSkillsDir) {
+    legacySkillRoots.push(path.join(targetRoot, agent.altSkillsDir));
+  }
+
+  for (const skillRoot of legacySkillRoots) {
+    const legacySkillPath = path.join(skillRoot, LEGACY_COMMAND_SKILL);
+    if (fs.existsSync(legacySkillPath)) {
+      fs.rmSync(legacySkillPath, { recursive: true, force: true });
+    }
+  }
+}
+
+function installReferenceTemplates(targetRoot) {
+  const destDir = path.join(targetRoot, CURSOR_FIVEM_DIR);
+  const templates = ["reference.template.mdc", "reference.example.mdc"];
+  const installed = [];
+
+  for (const fileName of templates) {
+    const src = path.join(PACKAGE_ROOT, REFERENCE_TEMPLATES_DIR, fileName);
+    if (!fs.existsSync(src)) {
+      continue;
+    }
+
+    const dest = path.join(destDir, fileName);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(src, dest);
+    installed.push(path.relative(targetRoot, dest));
+  }
+
+  return installed;
+}
+
 function installCommand(targetRoot, agent) {
+  removeLegacyCommand(targetRoot, agent);
+
   const content = readCommandSource();
 
   if (agent.commandMode === "skill") {
@@ -437,10 +488,7 @@ function installCommand(targetRoot, agent) {
 
   const dest = path.join(targetRoot, agent.commandsDir, COMMAND_FILE);
   fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.copyFileSync(
-    path.join(PACKAGE_ROOT, ".cursor", "commands", COMMAND_FILE),
-    dest,
-  );
+  fs.copyFileSync(path.join(PACKAGE_ROOT, COMMAND_TEMPLATE), dest);
 
   return [path.relative(targetRoot, dest)];
 }
@@ -474,7 +522,7 @@ async function main() {
       `\nSelected: ${selections.agents.map((id) => AGENTS[id].label).join(", ")}`,
     );
     console.log(`Skills: ${selections.skills.join(", ")}`);
-    console.log(`Helper fivem-dev: ${selections.command ? "yes" : "no"}\n`);
+    console.log(`Helper /fivem: ${selections.command ? "yes" : "no"}\n`);
   } else {
     ensureNonInteractiveChoice(options);
 
@@ -522,6 +570,13 @@ async function main() {
       for (const dest of dests) {
         console.log(`  ✓ command → ${dest}`);
       }
+
+      if (agent.id === "cursor") {
+        const refs = installReferenceTemplates(options.target);
+        for (const dest of refs) {
+          console.log(`  ✓ template → ${dest}`);
+        }
+      }
     }
 
     console.log("");
@@ -529,7 +584,8 @@ async function main() {
 
   console.log("Done.");
   console.log("Restart Cursor / Claude Code / Codex or open a new session.");
-  console.log("Use /fivem-dev (Cursor, Claude) or $fivem-dev (Codex) for help.");
+  console.log("Use /fivem (Cursor, Claude) or $fivem (Codex).");
+  console.log("Run /fivem reference to generate reference.mdc at project root.");
 }
 
 main().catch((error) => {

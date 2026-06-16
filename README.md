@@ -12,7 +12,7 @@ From your **FiveM project root**, run:
 # Interactive — select agents and skills with checkboxes
 npx github:proelias7/fivem-skill
 
-# Skip prompts, use defaults (vrp + fivem + react-nui, all agents)
+# Skip prompts, use defaults (vrp + fivem + react-nui, Cursor only)
 npx github:proelias7/fivem-skill -y
 
 # Non-interactive flags
@@ -24,9 +24,20 @@ This copies skills and the FiveM helper to:
 
 | Agent | Skills | Helper |
 |-------|--------|--------|
-| Cursor | `.cursor/skills/` | `.cursor/commands/fivem-dev.md` → `/fivem-dev` |
-| Claude Code | `.claude/skills/` | `.claude/commands/fivem-dev.md` → `/fivem-dev` |
-| Codex | `.agents/skills/` + `.codex/skills/` | `fivem-dev/SKILL.md` → `$fivem-dev` |
+| Cursor | `.cursor/skills/` | `.cursor/commands/fivem.md` → `/fivem` and `/fivem reference` |
+| Claude Code | `.claude/skills/` | `.claude/commands/fivem.md` → `/fivem` |
+| Codex | `.agents/skills/` + `.codex/skills/` | `fivem/SKILL.md` → `$fivem` |
+
+The `/fivem reference` subcommand instructs the agent to scan your project and write **`reference.mdc`** at the project root (Cursor rule with `alwaysApply: true`). Templates ship to `.cursor/fivem/` for structure and examples.
+
+### Commands after install
+
+| Command | Action |
+|---------|--------|
+| `/fivem como criar item usável?` | FiveM help (natives, framework, skills) |
+| `/fivem reference` | Scan project → generate/update `reference.mdc` at project root |
+
+Re-run `/fivem reference` when you add major systems — the agent merges with the existing file.
 
 Local development (from this repo):
 
@@ -61,6 +72,7 @@ npx skills add proelias7/fivem-skill --list
 | **Cerberus v2.0** | SafeEvent (server anti-exploit) + SetCooldown (client rate-limit) |
 | **cacheaside** | In-memory cache with TTL for database queries |
 | **NUI (React + Vite)** | Shared UI skill for all frameworks |
+| **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
 
 ## Supported Frameworks
 
@@ -130,9 +142,12 @@ skills/
     ├── templates.md
     └── best-practices.md
 
-.cursor/
-└── commands/
-    └── fivem-dev.md            # /fivem-dev slash command helper
+templates/
+├── commands/
+│   └── fivem.md                # /fivem template (copied by installer)
+└── rules/
+    ├── reference.template.mdc  # skeleton for /fivem reference
+    └── reference.example.mdc   # real-world depth/style example
 ```
 
 ## Stack Covered

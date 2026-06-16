@@ -1,0 +1,67 @@
+---
+description: <NomeDoProjeto> — referência rápida FiveM (<framework>)
+alwaysApply: true
+---
+
+# <NomeDoProjeto> — referência rápida
+
+Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framework>).
+
+## Manutenção desta rule
+
+- Sempre que surgir um padrão novo (caminho de arquivo, convenção, anti-bug, integração), **atualize este arquivo** para as próximas demandas.
+
+## Framework / grupos / permissões
+
+- **Framework detectado:** ...
+- **Checagem de grupo/permissão:** arquivos e funções usadas neste projeto
+- **Convenções locais:** ...
+
+## Itens / inventário
+
+- **Cadastro principal:** `.../itemlist.lua` (ou equivalente ox_inventory)
+- **Uso no inventário:** handler em `.../inventory/...`
+- **Checklist ao criar item:** itemlist → handler → loja (opcional) → ícone NUI
+
+### <Categoria de item, se existir>
+
+1. Cadastro em `itemlist`
+2. Handler `inventory:useItem` ou equivalente
+3. Assets streamed (props/models)
+4. Checklist anti-bug
+
+## Economia / lojas / webhooks
+
+- **Lojas:** config path + campo `webhook`
+- **Fallback global:** ...
+- **Craft / outros logs:** ...
+
+## <Sistema custom 1>
+
+- **Arquivos:** ...
+- **Fluxo:** eventos, exports, NUI callbacks
+- **Checklist anti-bug:** ...
+
+## Integrações
+
+### cacheaside
+
+- Resource path, exports (`Set`, `Get`, ...), padrão TTL usado neste projeto
+
+### Cerberus — SafeEvent
+
+- Path do módulo, exemplo de uso em eventos sensíveis do servidor
+
+## NUI (React/Vite)
+
+- Source: `.../src/ui/project/`
+- Build: `pnpm install && pnpm run build` → pasta usada pelo FiveM
+
+## Git / submodules
+
+- (Se aplicável) pastas submodule, `ignore = all`, workflow de commit
+
+## Skills FiveM do projeto
+
+- `.cursor/skills/fivem-development/SKILL.md`
+- `.cursor/skills/vrp-framework/SKILL.md` (ou framework instalado)
