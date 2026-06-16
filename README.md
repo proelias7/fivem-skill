@@ -24,7 +24,7 @@ This copies skills and the FiveM helper to:
 
 | Agent | Skills | Helper |
 |-------|--------|--------|
-| Cursor | `.cursor/skills/` | `.cursor/commands/fivem.md` → `/fivem` and `/fivem reference` |
+| Cursor | `.cursor/skills/` | `.cursor/commands/fivem.md` → `/fivem`, `/fivem reference`, `/fivem audit` |
 | Claude Code | `.claude/skills/` | `.claude/commands/fivem.md` → `/fivem` |
 | Codex | `.agents/skills/` + `.codex/skills/` | `fivem/SKILL.md` → `$fivem` |
 
@@ -36,8 +36,12 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 |---------|--------|
 | `/fivem como criar item usável?` | FiveM help (natives, framework, skills) |
 | `/fivem reference` | Scan project → generate/update `reference.mdc` at project root |
+| `/fivem audit` | Audit resource for security, performance, patterns → correction plan |
+| `/fivem audit resources/[Novos]/myresource` | Audit specific path only |
 
 Re-run `/fivem reference` when you add major systems — the agent merges with the existing file.
+
+`/fivem audit` is **read-only**: writes `.cursor/fivem/audit-<resource>.md` with findings and a phased fix plan. Does not edit code until you approve.
 
 Local development (from this repo):
 
@@ -73,6 +77,7 @@ npx skills add proelias7/fivem-skill --list
 | **cacheaside** | In-memory cache with TTL for database queries |
 | **NUI (React + Vite)** | Shared UI skill for all frameworks |
 | **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
+| **Code Audit** | `/fivem audit` scans for security, performance, and pattern issues + correction plan |
 
 ## Supported Frameworks
 
@@ -145,6 +150,8 @@ skills/
 templates/
 ├── commands/
 │   └── fivem.md                # /fivem template (copied by installer)
+├── fivem/
+│   └── audit.template.md       # report structure for /fivem audit
 └── rules/
     ├── reference.template.mdc  # skeleton for /fivem reference
     └── reference.example.mdc   # fictional sample showing expected depth/format

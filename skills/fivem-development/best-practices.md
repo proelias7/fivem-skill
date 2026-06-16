@@ -352,6 +352,172 @@ end
 local name = (playerData.firstName or "") .. " " .. (playerData.lastName or "")
 ```
 
+### 3.5 Resource Layout — Monolith First
+
+**Default structure for a FiveM resource:**
+
+```
+resource_name/
+├── fxmanifest.lua
+├── shared/config.lua
+├── server/server.lua
+└── client/client.lua
+```
+
+Split into extra files **only when**:
+
+- A single file is genuinely hard to navigate (~800–1000+ lines **and** a clear domain boundary), **or**
+- Code is shared by multiple resources
+
+**Do not:**
+
+- Create one file per feature, panel, cache, or logger when a `local function` in `server.lua` suffices
+- Split client/server like React components — that pattern belongs in NUI (see skill `fivem-react-nui` → `ui-guide.md`), not in Lua scripts
+
+**fxmanifest:** keep `server_scripts` and `client_scripts` minimal.
+
+```lua
+-- BAD (over-split)
+server_scripts {
+    "server/discord.lua",
+    "server/cache.lua",
+    "server/panel_a.lua",
+    "server/panel_b.lua",
+    "server/server.lua",
+}
+
+-- GOOD (default)
+server_scripts {
+    "@vrp/lib/utils.lua",
+    "server/server.lua",
+}
+```
+
+### 3.6 Reuse Functions — Avoid Fake Modules
+
+Prefer `local function` in the same file over new globals or extra modules.
+
+| Situation | Do |
+|-----------|-----|
+| Helper used once in the same file | `local function` near the top |
+| Helper used in multiple handlers in the same file | One shared `local function` — do not duplicate |
+| Helper shared across resources | Separate file or shared lib — justified |
+| Small cache (names, cooldowns) | `local` table at file top |
+
+**Avoid** global tables (`MyResourceCache = {}`, `MyResourceLog = {}`) for small helpers. Use locals unless Tunnel or another script file must call the API.
+
+```lua
+-- WRONG: global module for a tiny helper
+IdentityCache = {}
+function IdentityCache.getName(id) ... end
+
+-- CORRECT: local helper in server.lua
+local identityNameCache = {}
+
+local function getIdentityName(passport)
+    ...
+end
+```
+
+Extract to another file only when the boundary is **stable, large, and reused** — not preemptively.
+
+### 3.7 Comments — Less Is More
+
+Code must be readable **without** comments. Agents often over-comment; avoid that.
+
+**Do not:**
+
+- Banner separators (`-------------------------------------------------------------------`)
+- Comment every function or block
+- Narrate obvious steps (`-- get player`, `-- check permission`, `-- return false`)
+
+**Do comment:**
+
+- Non-obvious business rules
+- Framework quirks (e.g. vRP `hasGroup` vs `hasPermission`)
+- Anti-bug traps that are not obvious from the code
+
+```lua
+-- WRONG
+-- Check if player has permission
+if vRP.hasGroup(passport, "Police") then
+    -- Give item
+    vRP.generateItem(passport, "bandage", 1)
+end
+
+-- CORRECT (no comment needed — names are clear)
+if vRP.hasGroup(passport, "Police") then
+    vRP.generateItem(passport, "bandage", 1)
+end
+
+-- CORRECT (comment adds real context)
+-- PoliceSSP.Parent includes Police/Dip; use hasPermission for direct SSP staff only
+if vRP.hasPermission(passport, "PoliceSSP") then
+    ...
+end
+```
+
+### 3.8 Variable and State Placement
+
+Declare **all** constants and state at the **top** of the file — never scatter new `local` blocks between event handlers.
+
+**Recommended file order:**
+
+1. Requires / Tunnel / Proxy
+2. Constants and state tables (`local ActiveActions = {}`, cooldowns, flags)
+3. Local helper functions
+4. Interface binding (`cRP = {}`, `Tunnel.bindInterface`)
+5. Event handlers and `RegisterNetEvent` / NUI callbacks
+
+```lua
+local Tunnel = module("vrp", "lib/Tunnel")
+local Proxy  = module("vrp", "lib/Proxy")
+
+vRP  = Proxy.getInterface("vRP")
+vRPC = Tunnel.getInterface("vRP")
+
+local PANEL_COOLDOWN_MS = 5000
+local activeActions     = {}
+local panelOpen         = false
+
+local function trim(s)
+    return tostring(s or ""):gsub("^%s*(.-)%s*$", "%1")
+end
+
+local function canOpenPanel(source)
+    ...
+end
+
+RegisterNetEvent("myresource:openPanel", function()
+    if not canOpenPanel(source) then return end
+    ...
+end)
+```
+
+**Wrong:** declaring `local lastOpen = 0` halfway down the file between two `RegisterNetEvent` blocks.
+
+### 3.9 Agent Checklist (Before Finishing Code)
+
+Before delivering Lua for a FiveM resource, verify:
+
+- [ ] Could this stay in one `server.lua` and one `client.lua`?
+- [ ] Is every extra file justified by size **and** a clear domain boundary?
+- [ ] Were comments removed that only repeat what the code says?
+- [ ] Are state tables and constants grouped at the top?
+- [ ] Were helpers reused instead of duplicated or split into unnecessary globals?
+
+### 3.10 Anti-Pattern Snapshot
+
+Typical **AI over-engineering** mistakes — **do not generate code like this:**
+
+- **Many server files** for one resource (`discord.lua`, `cache.lua`, `panel_a.lua`, `panel_b.lua`, plus a huge `server.lua`)
+- **Many client files** for one resource (`client.lua`, `hud.lua`, `spectate.lua`, …)
+- **Globals everywhere** instead of locals (`MyResourceCache`, cross-file helper tables)
+- **Comment noise** — banner blocks and `---` on every helper
+- **State mixed with handlers** — variables and helpers declared mid-file
+
+When in doubt: **one server file, one client file, locals at top, fewer comments, reuse functions.**
+
 ---
 
 ## 4. Security (Cerberus v2.0)

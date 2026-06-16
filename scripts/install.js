@@ -19,6 +19,7 @@ const COMMAND_TEMPLATE = path.join("templates", "commands", COMMAND_FILE);
 const LEGACY_COMMAND_FILE = "fivem-dev.md";
 const LEGACY_COMMAND_SKILL = "fivem-dev";
 const REFERENCE_TEMPLATES_DIR = path.join("templates", "rules");
+const FIVEM_TEMPLATES_DIR = path.join("templates", "fivem");
 const CURSOR_FIVEM_DIR = path.join(".cursor", "fivem");
 
 const AGENTS = {
@@ -317,7 +318,7 @@ async function promptSelections() {
     }
 
     const installCommand = await confirm({
-      message: "Install /fivem helper (/fivem and /fivem reference)?",
+      message: "Install /fivem helper (/fivem, /fivem reference, /fivem audit)?",
       default: true,
     });
 
@@ -437,11 +438,15 @@ function removeLegacyCommand(targetRoot, agent) {
 
 function installReferenceTemplates(targetRoot) {
   const destDir = path.join(targetRoot, CURSOR_FIVEM_DIR);
-  const templates = ["reference.template.mdc", "reference.example.mdc"];
+  const templates = [
+    [REFERENCE_TEMPLATES_DIR, "reference.template.mdc"],
+    [REFERENCE_TEMPLATES_DIR, "reference.example.mdc"],
+    [FIVEM_TEMPLATES_DIR, "audit.template.md"],
+  ];
   const installed = [];
 
-  for (const fileName of templates) {
-    const src = path.join(PACKAGE_ROOT, REFERENCE_TEMPLATES_DIR, fileName);
+  for (const [srcDir, fileName] of templates) {
+    const src = path.join(PACKAGE_ROOT, srcDir, fileName);
     if (!fs.existsSync(src)) {
       continue;
     }
@@ -590,6 +595,7 @@ async function main() {
   console.log("Restart Cursor / Claude Code / Codex or open a new session.");
   console.log("Use /fivem (Cursor, Claude) or $fivem (Codex).");
   console.log("Run /fivem reference to generate reference.mdc at project root.");
+  console.log("Run /fivem audit [scope] for security/perf/pattern audit + fix plan.");
 }
 
 main().catch((error) => {

@@ -14,6 +14,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 2. **Framework-agnostic thinking** — Understand patterns, adapt to the active framework
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
+5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
 
 ---
 
@@ -65,6 +66,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | GTA V asset (prop, vehicle, ped model) | **READ** [asset-discovery.md](asset-discovery.md) + PlebMasters |
 | Resource structure, manifest | **READ** local skills |
 | Best practices, patterns | **READ** [best-practices.md](best-practices.md) |
+| Code structure / clean Lua | **READ** [best-practices.md](best-practices.md) §3.5–3.9 |
 
 ### Documentation Sources
 
@@ -78,6 +80,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | ESX API | skill `esx-framework` / https://docs.esx-framework.org/ | ESX projects |
 | ox_lib | https://overextended.dev/ox_lib | ox_lib utilities |
 | Props/Vehicles/Peds | https://forge.plebmasters.de/ | Asset discovery |
+| Code structure / clean Lua | [best-practices.md](best-practices.md) §3.5+ | Before writing or refactoring Lua resources |
 
 ### WebFetch Examples
 
@@ -109,6 +112,18 @@ WebFetch(
 | ox_lib | `lib.*`, `exports.ox_lib` | Fetch from overextended.dev/ox_lib |
 | Asset Discovery | "model for...", "prop name", "vehicle spawn" | Read asset-discovery.md |
 | Local Knowledge | fxmanifest, threads, patterns | Read best-practices.md |
+| New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
+| Code audit | "audit", "review security", "check performance", exploit | User runs `/fivem audit` — read-only plan, no auto-fix |
+
+---
+
+## Before Writing Lua
+
+When **creating or editing** a FiveM resource (server/client Lua):
+
+1. **READ** [best-practices.md](best-practices.md) **sections 3.5–3.9** (monolith layout, reuse, comments, variable placement, checklist)
+2. Default to **one `server.lua` and one `client.lua`** unless split is clearly justified
+3. Do **not** over-comment or over-split files — see best-practices.md §3.10 (anti-patterns)
 
 ---
 
@@ -145,20 +160,22 @@ For auto-detection and multi-framework bridge pattern, see [framework-detection.
 
 ## Resource Structure
 
+Prefer monolith layout. See [best-practices.md](best-practices.md) §3.5 for when to split files.
+
 ```
 resource_name/
 ├── fxmanifest.lua
-├── config.lua
-├── client/
-│   └── main.lua
-├── server/
-│   └── main.lua
-├── shared/
-│   └── config.lua
-└── html/              # NUI (optional)
+├── shared/config.lua
+├── server/server.lua      # default: all server logic here
+└── client/client.lua      # default: all client logic here
+```
+
+Optional NUI (see skill `fivem-react-nui`):
+
+```
+└── html/ or src/ui/
     ├── index.html
-    ├── style.css
-    └── script.js
+    └── ...
 ```
 
 ---
@@ -167,6 +184,10 @@ resource_name/
 
 | Don't | Do |
 |-------|-----|
+| Split every feature into its own Lua file | Keep `server.lua` / `client.lua` unless clearly justified |
+| Comment every line or use banner blocks | Comment only non-obvious rules and framework quirks |
+| Global helper modules for tiny utilities | `local function` at file top; reuse |
+| Declare state mid-file between handlers | Constants and state tables at the top |
 | `while true do Wait(0)` | Use appropriate wait or events |
 | Trust client data | Always validate on server |
 | Hardcode framework | Detect dynamically |

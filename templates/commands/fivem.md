@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — docs, natives, project reference (/fivem reference)"
-argument-hint: "<question> | reference"
+description: "FiveM helper — docs, reference, audit (/fivem reference | audit)"
+argument-hint: "<question> | reference | audit [scope]"
 ---
 
 # FiveM
@@ -14,7 +14,130 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | Input | Mode |
 |-------|------|
 | `reference` or `reference ...` | **Reference** — generate/update `reference.mdc` at project root |
+| `audit` or `audit ...` | **Audit** — scan code, report issues, output correction plan |
 | empty or anything else | **Help** — answer FiveM development questions |
+
+**Audit scope** (optional after `audit`):
+
+- `audit` alone → resource/folder from user `@` mention, open files, or ask which resource to audit
+- `audit resources/[Novos]/myresource` → audit that path only
+- `audit server.lua` → audit file if path exists
+
+---
+
+## Mode: Audit
+
+**Read-only analysis.** Do **not** edit code unless the user explicitly asks to implement fixes after reviewing the plan.
+
+Audit the target Lua/JS resource(s) for **security**, **performance**, and **patterns**. Deliver a structured report + prioritized correction plan.
+
+### Step 1 — Load standards
+
+Read from `.cursor/skills/` (or `.claude/skills/`):
+
+| Skill file | Sections |
+|------------|----------|
+| `fivem-development/best-practices.md` | §1 Communication, §2 Cache, §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus |
+| Framework skill (`vrp-framework`, etc.) | If detected |
+| `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
+
+Read **`.cursor/fivem/audit.template.md`** for report structure.
+
+If **`reference.mdc`** exists at project root → read for project-specific conventions.
+
+### Step 2 — Discover scope
+
+1. Resolve target from `$ARGUMENTS` after `audit` or from user context (`@folder`, open file)
+2. Read `fxmanifest.lua` for the resource(s)
+3. Read all `server/**/*.lua`, `client/**/*.lua`, `shared/**/*.lua`, and NUI scripts in scope
+4. Grep for high-risk patterns:
+
+```text
+RegisterNetEvent / RegisterServerEvent / AddEventHandler
+RegisterNUICallback
+TriggerServerEvent / TriggerClientEvent
+exports["cerberus"]
+SafeEvent
+vRP.generateItem / addMoney / tryGetInventoryItem
+while true do Wait(0)
+TriggerEvent(  (same-environment abuse)
+MySQL / oxmysql / exports.oxmysql
+```
+
+### Step 3 — Evaluate (evidence required)
+
+Every finding **must** cite `file:line` or exact symbol — no generic warnings without code proof.
+
+#### Security
+
+- Events that grant money, items, XP, vehicles, or bypass restrictions without server validation
+- Missing `exports["cerberus"]:SafeEvent` on advantage-giving server events
+- Client/NUI data used without server re-validation
+- Missing permission checks (`hasGroup`, `hasPermission`, job checks)
+- `source = -1` flood risk on server events
+- SQL built from unsanitized client strings
+- Webhooks/tokens in client or shared files exposed to NUI
+
+#### Performance
+
+- `Wait(0)` / tight loops without dynamic sleep
+- Callbacks/Tunnel where events would suffice (no return needed)
+- Callbacks or `TriggerServerEvent` inside loops < 5s interval
+- Same-side `TriggerEvent` instead of direct function call
+- Repeated DB queries without `cacheaside`
+- Large table payloads over network (> ~8KB risk)
+
+#### Patterns & clean code (§3.5–3.10)
+
+- Over-split fxmanifest (many server/client files for one resource)
+- Globals for small helpers; duplicated logic
+- Comment noise, state declared mid-file
+- Long if/elseif chains where lookup table fits
+- Missing nil guards on concatenation
+
+#### NUI (when applicable)
+
+- NUI callbacks without `cb("{}")` or valid JSON
+- Missing Cerberus `SetCooldown` on repetitive client actions
+- Heavy UI libraries (MUI, framer-motion, etc.)
+
+Assign severity:
+
+| Level | When |
+|-------|------|
+| **Critical** | Exploit / free items or money / crash / ban bypass |
+| **High** | Likely abuse or serious perf regression |
+| **Medium** | Should fix; maintainability or moderate risk |
+| **Low** | Style, minor perf, polish |
+
+### Step 4 — Write report
+
+Save to **`.cursor/fivem/audit-<resource-name>.md`** (slug from folder name, e.g. `audit-inventory.md`).
+
+Use structure from `audit.template.md`:
+
+1. Summary table (severity counts)
+2. Findings tables: Security, Performance, Patterns, NUI (if any)
+3. **Correction plan** — phased checklist (Phase 1 Critical → Phase 4 Low)
+4. Files reviewed + skills referenced
+
+Write report in **Portuguese** if codebase/comments are PT-BR; otherwise match project language.
+
+### Step 5 — Reply to user
+
+In chat, provide:
+
+- Short executive summary (3–5 bullets)
+- Top 3 fixes by priority
+- Path to full report: `.cursor/fivem/audit-<name>.md`
+- Ask: *"Quer que eu implemente o Phase 1?"* (or equivalent) — **wait for approval before editing code**
+
+### Audit rules
+
+- **Never invent** findings — every row needs file evidence
+- **Do not** auto-fix during audit mode
+- Prefer concrete fix snippets in the plan, not vague advice
+- If scope is too large, audit one resource at a time and say so
 
 ---
 
@@ -106,6 +229,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - Asset (prop, vehicle, ped) → Read skill `fivem-development` (`asset-discovery.md`) + PlebMasters
    - NUI/React UI → Read skill `fivem-react-nui`
    - Patterns/best practices → Read skill `fivem-development` (`best-practices.md`)
+   - Code audit → suggest `/fivem audit [scope]`
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 
 2. **Read the relevant skill** from `.cursor/skills/` (or `.claude/skills/`)
