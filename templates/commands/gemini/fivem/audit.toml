@@ -1,0 +1,31 @@
+description = "Audit resource for security, performance, patterns — correction plan only"
+
+prompt = """
+**Read-only audit.** Do NOT edit code unless the user explicitly approves after reviewing the plan.
+
+**Scope (optional):** {{args}}
+If empty, use @ mention, open files, or ask which resource to audit.
+
+## Load standards
+
+Read `.gemini/skills/fivem-development/best-practices.md` (§1–4, §3.5–3.10), framework skill if detected, `fivem-react-nui` if NUI in scope.
+Read `.gemini/fivem/audit.template.md` for report structure.
+Read `reference.mdc` at project root if present.
+
+## Analyze
+
+Read fxmanifest, server/client/shared Lua, NUI scripts in scope.
+Grep: RegisterNetEvent, RegisterNUICallback, SafeEvent, generateItem/addMoney, Wait(0), TriggerEvent, oxmysql.
+
+Every finding MUST cite `file:line`. Severity: Critical / High / Medium / Low.
+
+Check: Cerberus SafeEvent, server validation, permissions, perf (Wait, callbacks in loops, cacheaside), clean code (§3.5–3.10), no thin event wrappers (§1.3).
+
+## Output
+
+Save report to **`.gemini/fivem/audit-<resource-name>.md`** using audit.template.md structure + phased correction plan.
+
+Reply with executive summary, top 3 fixes, report path. Ask if user wants Phase 1 implemented — wait for approval.
+
+Do NOT recommend functions whose only body is TriggerEvent(...). Inline cross-resource events at call site.
+"""

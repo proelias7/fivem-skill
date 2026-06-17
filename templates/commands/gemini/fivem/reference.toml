@@ -1,0 +1,22 @@
+description = "Map project and generate reference.mdc at project root"
+
+prompt = """
+Generate or update **`reference.mdc` in the project root** (same level as `resources/`, `server.cfg`, or main `fxmanifest.lua`).
+
+Read structure from `.gemini/fivem/reference.template.mdc` and depth from `.gemini/fivem/reference.example.mdc`.
+Read skills from `.gemini/skills/` or `.agents/skills/`.
+If `reference.mdc` already exists, merge/update — do not duplicate valid sections.
+
+Frontmatter:
+
+---
+description: <ProjectName> — referência rápida FiveM (<framework>)
+alwaysApply: true
+---
+
+Discover framework, item paths, shops/webhooks, custom systems, cacheaside, Cerberus, NUI build paths, git/submodules.
+Every path must exist in the repo — never invent.
+Write in Portuguese if the codebase is PT-BR.
+
+After writing, reply with: framework detected, sections documented, paths needing manual review.
+"""

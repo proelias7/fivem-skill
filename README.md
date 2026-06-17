@@ -16,6 +16,7 @@ npx github:proelias7/fivem-skill
 npx github:proelias7/fivem-skill -y
 
 # Non-interactive flags
+npx github:proelias7/fivem-skill --gemini -y
 npx github:proelias7/fivem-skill --codex --skills vrp-framework
 npx github:proelias7/fivem-skill --all -y
 ```
@@ -27,6 +28,9 @@ This copies skills and the FiveM helper to:
 | Cursor | `.cursor/skills/` | `.cursor/commands/fivem.md` → `/fivem`, `/fivem reference`, `/fivem audit` |
 | Claude Code | `.claude/skills/` | `.claude/commands/fivem.md` → `/fivem` |
 | Codex | `.agents/skills/` + `.codex/skills/` | `fivem/SKILL.md` → `$fivem` |
+| Gemini CLI | `.gemini/skills/` (+ `.agents/skills/` alias) | `.gemini/commands/` → `/fivem`, `/fivem:reference`, `/fivem:audit` |
+
+Templates for reference/audit ship to `.cursor/fivem/` (Cursor) and `.gemini/fivem/` (Gemini). After install on Gemini, run `/commands reload`.
 
 The `/fivem reference` subcommand instructs the agent to scan your project and write **`reference.mdc`** at the project root (Cursor rule with `alwaysApply: true`). Templates ship to `.cursor/fivem/` for structure and examples.
 
@@ -149,9 +153,14 @@ skills/
 
 templates/
 ├── commands/
-│   └── fivem.md                # /fivem template (copied by installer)
+│   ├── fivem.md                # Cursor / Claude command template
+│   └── gemini/                 # Gemini CLI TOML commands
+│       ├── fivem.toml          # /fivem
+│       └── fivem/
+│           ├── reference.toml  # /fivem:reference
+│           └── audit.toml      # /fivem:audit
 ├── fivem/
-│   └── audit.template.md       # report structure for /fivem audit
+│   └── audit.template.md
 └── rules/
     ├── reference.template.mdc  # skeleton for /fivem reference
     └── reference.example.mdc   # fictional sample showing expected depth/format

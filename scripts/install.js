@@ -20,7 +20,11 @@ const LEGACY_COMMAND_FILE = "fivem-dev.md";
 const LEGACY_COMMAND_SKILL = "fivem-dev";
 const REFERENCE_TEMPLATES_DIR = path.join("templates", "rules");
 const FIVEM_TEMPLATES_DIR = path.join("templates", "fivem");
-const CURSOR_FIVEM_DIR = path.join(".cursor", "fivem");
+const GEMINI_COMMANDS_DIR = path.join("templates", "commands", "gemini");
+const AGENT_FIVEM_DIRS = {
+  cursor: path.join(".cursor", "fivem"),
+  gemini: path.join(".gemini", "fivem"),
+};
 
 const AGENTS = {
   cursor: {
@@ -28,6 +32,7 @@ const AGENTS = {
     skillsDir: path.join(".cursor", "skills"),
     commandsDir: path.join(".cursor", "commands"),
     commandMode: "file",
+    fivemTemplatesDir: AGENT_FIVEM_DIRS.cursor,
   },
   claude: {
     label: "Claude Code",
@@ -41,11 +46,19 @@ const AGENTS = {
     altSkillsDir: path.join(".codex", "skills"),
     commandMode: "skill",
   },
+  gemini: {
+    label: "Gemini CLI",
+    skillsDir: path.join(".gemini", "skills"),
+    altSkillsDir: path.join(".agents", "skills"),
+    commandsDir: path.join(".gemini", "commands"),
+    commandMode: "toml",
+    fivemTemplatesDir: AGENT_FIVEM_DIRS.gemini,
+  },
 };
 
 function printHelp() {
   console.log(`
-Install FiveM skills for Cursor, Claude Code, and/or Codex.
+Install FiveM skills for Cursor, Claude Code, Codex, and/or Gemini CLI.
 
 Usage:
   npx github:proelias7/fivem-skill              Interactive mode (checkbox menus)
@@ -61,14 +74,15 @@ Options:
   --cursor           Install for Cursor only
   --claude           Install for Claude Code only
   --codex            Install for Codex only
-  --agent <list>     Comma-separated: cursor, claude, codex
+  --gemini           Install for Gemini CLI only
+  --agent <list>     Comma-separated: cursor, claude, codex, gemini
   --no-command       Skip /fivem helper
   -i, --interactive  Force interactive mode
   -y, --yes          Skip prompts, use defaults
   -h, --help         Show this help
 
 Interactive mode (default in terminal):
-  1. Select agents (Cursor, Claude, Codex)
+  1. Select agents (Cursor, Claude, Codex, Gemini CLI)
   2. Select skills to install
   3. Confirm /fivem helper
 `);
@@ -135,6 +149,12 @@ function parseArgs(argv) {
       continue;
     }
 
+    if (arg === "--gemini") {
+      options.agents = ["gemini"];
+      options.explicitAgents = true;
+      continue;
+    }
+
     if (arg === "--agent" || arg === "-a") {
       const value = argv[i + 1] || "";
       options.agents = value
@@ -188,7 +208,7 @@ function ensureNonInteractiveChoice(options) {
     "Non-interactive terminal detected. Choose one:\n" +
       "  npx github:proelias7/fivem-skill -y\n" +
       "  npx github:proelias7/fivem-skill --cursor\n" +
-      "  npx github:proelias7/fivem-skill --agent cursor,claude\n",
+      "  npx github:proelias7/fivem-skill --agent cursor,claude,gemini\n",
   );
   process.exit(1);
 }
@@ -241,6 +261,28 @@ function cleanUnselectedAgents(targetRoot, selectedAgentIds, managedSkills) {
         path.join(targetRoot, agent.commandsDir),
         targetRoot,
       );
+    }
+
+    if (agent.commandsDir && agent.commandMode === "toml") {
+      const commandPaths = [
+        path.join(targetRoot, agent.commandsDir, "fivem.toml"),
+        path.join(targetRoot, agent.commandsDir, "fivem"),
+      ];
+
+      for (const commandPath of commandPaths) {
+        if (fs.existsSync(commandPath)) {
+          fs.rmSync(commandPath, { recursive: true, force: true });
+        }
+      }
+
+      pruneEmptyDirsUpward(
+        path.join(targetRoot, agent.commandsDir),
+        targetRoot,
+      );
+    }
+
+    if (agent.fivemTemplatesDir) {
+      cleanFivemTemplates(targetRoot, agent.fivemTemplatesDir);
     }
 
     const skillRoots = [path.join(targetRoot, agent.skillsDir)];
@@ -436,8 +478,8 @@ function removeLegacyCommand(targetRoot, agent) {
   }
 }
 
-function installReferenceTemplates(targetRoot) {
-  const destDir = path.join(targetRoot, CURSOR_FIVEM_DIR);
+function installFivemTemplates(targetRoot, relativeDestDir) {
+  const destDir = path.join(targetRoot, relativeDestDir);
   const templates = [
     [REFERENCE_TEMPLATES_DIR, "reference.template.mdc"],
     [REFERENCE_TEMPLATES_DIR, "reference.example.mdc"],
@@ -457,6 +499,60 @@ function installReferenceTemplates(targetRoot) {
     installed.push(path.relative(targetRoot, dest));
   }
 
+  return installed;
+}
+
+function cleanFivemTemplates(targetRoot, relativeDestDir) {
+  const templateFiles = [
+    "reference.template.mdc",
+    "reference.example.mdc",
+    "audit.template.md",
+  ];
+
+  for (const fileName of templateFiles) {
+    const filePath = path.join(targetRoot, relativeDestDir, fileName);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+  }
+
+  pruneEmptyDirsUpward(path.join(targetRoot, relativeDestDir), targetRoot);
+}
+
+function installTomlCommands(targetRoot, agent) {
+  const src = path.join(PACKAGE_ROOT, GEMINI_COMMANDS_DIR);
+  const dest = path.join(targetRoot, agent.commandsDir);
+
+  if (!fs.existsSync(src)) {
+    throw new Error(`Gemini command templates not found: ${GEMINI_COMMANDS_DIR}`);
+  }
+
+  fs.mkdirSync(dest, { recursive: true });
+  fs.cpSync(src, dest, { recursive: true, force: true });
+
+  const installed = [];
+
+  function collect(relativeDir) {
+    const current = path.join(dest, relativeDir);
+    for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
+      const nextRelative = relativeDir
+        ? path.join(relativeDir, entry.name)
+        : entry.name;
+
+      if (entry.isDirectory()) {
+        collect(nextRelative);
+        continue;
+      }
+
+      if (entry.name.endsWith(".toml")) {
+        installed.push(
+          path.join(agent.commandsDir, nextRelative).replace(/\\/g, "/"),
+        );
+      }
+    }
+  }
+
+  collect("");
   return installed;
 }
 
@@ -493,6 +589,10 @@ function installCommand(targetRoot, agent) {
     }
 
     return destinations.map((dest) => path.relative(targetRoot, dest));
+  }
+
+  if (agent.commandMode === "toml") {
+    return installTomlCommands(targetRoot, agent);
   }
 
   const dest = path.join(targetRoot, agent.commandsDir, COMMAND_FILE);
@@ -580,8 +680,8 @@ async function main() {
         console.log(`  ✓ command → ${dest}`);
       }
 
-      if (agent.id === "cursor") {
-        const refs = installReferenceTemplates(options.target);
+      if (agent.fivemTemplatesDir) {
+        const refs = installFivemTemplates(options.target, agent.fivemTemplatesDir);
         for (const dest of refs) {
           console.log(`  ✓ template → ${dest}`);
         }
@@ -592,9 +692,10 @@ async function main() {
   }
 
   console.log("Done.");
-  console.log("Restart Cursor / Claude Code / Codex or open a new session.");
-  console.log("Use /fivem (Cursor, Claude) or $fivem (Codex).");
-  console.log("Run /fivem reference to generate reference.mdc at project root.");
+  console.log("Restart your agent IDE/CLI or open a new session.");
+  console.log("Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit");
+  console.log("Gemini: run /commands reload after install.");
+  console.log("Run /fivem reference (or /fivem:reference) to generate reference.mdc at project root.");
   console.log("Run /fivem audit [scope] for security/perf/pattern audit + fix plan.");
 }
 

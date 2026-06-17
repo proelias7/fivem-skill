@@ -33,7 +33,7 @@ Audit the target Lua/JS resource(s) for **security**, **performance**, and **pat
 
 ### Step 1 — Load standards
 
-Read from `.cursor/skills/` (or `.claude/skills/`):
+Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.claude/skills/`, or `.agents/skills/`):
 
 | Skill file | Sections |
 |------------|----------|
@@ -41,7 +41,7 @@ Read from `.cursor/skills/` (or `.claude/skills/`):
 | Framework skill (`vrp-framework`, etc.) | If detected |
 | `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
 
-Read **`.cursor/fivem/audit.template.md`** for report structure.
+Read **`<agent>/fivem/audit.template.md`** for report structure (`.cursor/fivem/` or `.gemini/fivem/`).
 
 If **`reference.mdc`** exists at project root → read for project-specific conventions.
 
@@ -114,7 +114,7 @@ Assign severity:
 
 ### Step 4 — Write report
 
-Save to **`.cursor/fivem/audit-<resource-name>.md`** (slug from folder name, e.g. `audit-inventory.md`).
+Save to **`<agent>/fivem/audit-<resource-name>.md`** (e.g. `.cursor/fivem/audit-inventory.md` or `.gemini/fivem/audit-inventory.md`).
 
 Use structure from `audit.template.md`:
 
@@ -169,8 +169,8 @@ Use semantic search, grep, and file reads. Every path in the output must exist i
 ### Step 2 — Read existing context
 
 - If **`reference.mdc`** exists at project root → read it and **merge/update** (preserve valid sections, replace outdated paths)
-- Read **`.cursor/fivem/reference.template.mdc`** for section structure (installed by fivem-skill)
-- Read **`.cursor/fivem/reference.example.mdc`** for format/depth only (fictional sample — do not copy its paths)
+- Read **`<agent>/fivem/reference.template.mdc`** for section structure (installed by fivem-skill)
+- Read **`<agent>/fivem/reference.example.mdc`** for format/depth only (fictional sample — do not copy its paths)
 
 ### Step 3 — Write `reference.mdc`
 
@@ -237,7 +237,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - Code audit → suggest `/fivem audit [scope]`
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 
-2. **Read the relevant skill** from `.cursor/skills/` (or `.claude/skills/`)
+2. **Read the relevant skill** from the agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.)
 
 3. **Fetch current documentation** with WebFetch when needed (never invent natives or APIs)
 
