@@ -1,26 +1,28 @@
-description = "Build 3D knowledge graph from learned topic memories"
+description = "Build 3D knowledge graph and open in browser (live)"
 
 prompt = """
-Build the **3D knowledge graph** HTML from `.gemini/fivem/memory/` and `topic-catalog.md`.
+Build the **3D knowledge graph** and **open the browser** from `.gemini/fivem/memory/` and `topic-catalog.md`.
 
-Run from the FiveM project root:
+Run from the FiveM project root **in background** (server stays alive):
 
 ```bash
-node .gemini/fivem/build-knowledge-graph.js --target <project-root> --agent gemini
+node .gemini/fivem/build-knowledge-graph.js --target <project-root> --agent gemini --serve --open
 ```
 
 Without local script:
 
 ```bash
-npx --package github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini
+npx --package github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini --serve --open
 ```
 
 Do NOT use `npx fivem-graph` alone — not published on npm.
 
-Output: **`.gemini/fivem/knowledge-graph.html`** — open in browser (file:// works).
+- `--serve` — live updates every 3s when memory/ changes
+- `--open` — opens http://127.0.0.1:3939 automatically
+- Do NOT wait for process exit — runs until Ctrl+C
 
-Reply with counts: learned nodes (green), catalog orphans (gray), links inferred.
-Suggest re-running after `/fivem:learn` sessions.
+Reply with counts: learned (green), catalog orphans (gray), links.
+Tell user browser opened and server is running. Stop with Ctrl+C in terminal.
 
 Do NOT edit memory files — only run the build script.
 If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.

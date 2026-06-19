@@ -767,7 +767,7 @@ async function main() {
     "Run /fivem learn <topic> to scan the codebase and save topic memory under <agent>/fivem/memory/.",
   );
   console.log(
-    "Run /fivem graph (or node .cursor/fivem/build-knowledge-graph.js --target .) for 3D knowledge map.",
+    "Run /fivem graph — opens browser at http://127.0.0.1:3939 with --serve --open (live, auto-refresh).",
   );
 }
 

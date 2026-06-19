@@ -222,30 +222,35 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 
 ## Mode: Graph
 
-Build a **3D knowledge graph** HTML from learned topic memories and catalog orphans.
+Build a **3D knowledge graph** and **open it in the browser** with live updates.
 
-### Step 1 — Run build script
+### Step 1 — Run build script (background)
 
-Execute from the FiveM project root:
+Execute from the FiveM project root. **Run in background** — the server stays alive:
 
 ```bash
-node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor
+node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open
 ```
 
-Gemini: `node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini`
+Gemini: `node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini --serve --open`
 
 Without local script (via GitHub package):
 
 ```bash
-npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
+npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor --serve --open
 ```
 
 **Do not** use `npx fivem-graph` alone — that package name is not published on npm.
 
+- `--serve` — live server (polls `memory/` every 3s)
+- `--open` — opens default browser automatically
+- **Do not wait** for the process to exit — it runs until Ctrl+C
+
 ### Step 2 — Confirm output
 
-- File: **`<agent>/fivem/knowledge-graph.html`**
-- Open in browser (`file://` path works — no server needed)
+- Browser opens: **`http://127.0.0.1:3939`**
+- Terminal shows learned / orphan / link counts
+- New `/fivem learn` topics appear within ~3s while server runs
 
 ### Step 3 — Reply
 
@@ -255,11 +260,12 @@ Report counts from script output:
 - **Catalog orphans** (gray) — topics in `topic-catalog.md` not yet learned
 - **Links** — inferred from shared paths, cross-mentions, catalog hints
 
-Suggest opening the HTML file. Re-run after new `/fivem learn` sessions.
+Tell user the browser was opened and the server is running in background. To stop: Ctrl+C in the terminal running the script.
 
 ### Graph rules
 
 - **Do not** edit memory files during graph mode — only run the script
+- **Always** use `--serve --open` for `/fivem graph`
 - If `<agent>/fivem/` is missing → user must run fivem-skill installer first
 
 ---

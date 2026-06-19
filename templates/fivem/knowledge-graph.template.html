@@ -118,6 +118,25 @@
       line-height: 1.6;
     }
 
+    .live-badge {
+      display: none;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(45, 212, 191, 0.15);
+      color: var(--learned);
+      width: fit-content;
+    }
+
+    .live-badge.on { display: inline-block; }
+
+    .live-status {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+      min-height: 2.5em;
+    }
+
     .detail {
       border-top: 1px solid var(--border);
       padding-top: 12px;
@@ -197,6 +216,8 @@
       <div>
         <h1>Graph view</h1>
         <p class="subtitle">Mapa mental 3D dos tópicos aprendidos com `/fivem learn`</p>
+        <span class="live-badge" id="live-badge">Ao vivo</span>
+        <p class="live-status" id="live-status"></p>
       </div>
 
       <div>
@@ -240,13 +261,15 @@
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
   <script>
-    const GRAPH_DATA = /*__GRAPH_DATA__*/;
+    const LIVE_MODE = /*__LIVE_MODE__*/;
+    let GRAPH_DATA = /*__GRAPH_DATA__*/;
 
     const COLORS = {
       learned: "#2dd4bf",
       catalog: "#6b7280",
       highlight: "#f59e0b",
       dim: "#333333",
+      link: "#525252",
     };
 
     const searchInput = document.getElementById("search");
@@ -254,10 +277,26 @@
     const toggleLearnedOnly = document.getElementById("toggle-learned-only");
     const statsEl = document.getElementById("stats");
     const detailEl = document.getElementById("detail");
+    const liveBadge = document.getElementById("live-badge");
+    const liveStatus = document.getElementById("live-status");
 
     let selectedNode = null;
     let highlightNodes = new Set();
     let highlightLinks = new Set();
+    let lastSignature = GRAPH_DATA.meta?.signature || "";
+
+    function setLiveStatus(message) {
+      if (liveStatus) {
+        liveStatus.textContent = message;
+      }
+    }
+
+    if (LIVE_MODE && liveBadge) {
+      liveBadge.classList.add("on");
+      setLiveStatus("Conectado — atualiza a cada 3s quando memory/ mudar.");
+    } else {
+      setLiveStatus("Snapshot estático. Rode com --serve para tempo real.");
+    }
 
     function nodeColor(node) {
       if (selectedNode && node.id === selectedNode.id) return COLORS.highlight;
@@ -369,6 +408,62 @@
         refreshGraph();
       });
 
+    function applyGraphData(nextData) {
+      const prevSelectedId = selectedNode?.id;
+      GRAPH_DATA = nextData;
+      lastSignature = GRAPH_DATA.meta?.signature || lastSignature;
+
+      if (prevSelectedId) {
+        const stillThere = GRAPH_DATA.nodes.find((node) => node.id === prevSelectedId);
+        if (stillThere) {
+          selectedNode = stillThere;
+          highlightNodes = new Set([stillThere.id]);
+          highlightLinks = new Set();
+          GRAPH_DATA.links.forEach((link) => {
+            const sourceId = link.source.id || link.source;
+            const targetId = link.target.id || link.target;
+            if (sourceId === stillThere.id || targetId === stillThere.id) {
+              highlightNodes.add(sourceId);
+              highlightNodes.add(targetId);
+              highlightLinks.add(link);
+            }
+          });
+          renderDetail(stillThere);
+        } else {
+          selectedNode = null;
+          highlightNodes = new Set();
+          highlightLinks = new Set();
+          renderDetail(null);
+        }
+      }
+
+      refreshGraph();
+    }
+
+    async function pollLiveGraph() {
+      if (!LIVE_MODE) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/graph", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const nextData = await response.json();
+        if (nextData.meta?.signature !== lastSignature) {
+          applyGraphData(nextData);
+          const counts = nextData.meta?.counts || {};
+          setLiveStatus(
+            `Atualizado ${new Date().toLocaleTimeString()} — ${counts.learned || 0} aprendidos, ${counts.catalog || 0} órfãos`,
+          );
+        }
+      } catch (error) {
+        setLiveStatus(`Erro ao atualizar: ${error.message}`);
+      }
+    }
+
     function refreshGraph() {
       const data = filteredData();
       updateStats(data);
@@ -380,6 +475,10 @@
     toggleLearnedOnly.addEventListener("change", refreshGraph);
 
     refreshGraph();
+
+    if (LIVE_MODE) {
+      setInterval(pollLiveGraph, 3000);
+    }
   </script>
 </body>
 </html>

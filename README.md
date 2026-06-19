@@ -52,7 +52,7 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 | `/fivem audit resources/[Novos]/myresource` | Audit specific path only |
 | `/fivem learn craft` | Scan codebase → save topic memory at `<agent>/fivem/memory/craft.md` |
 | `/fivem learn list` | List learned topics (`memory/_index.md`) + suggested catalog |
-| `/fivem graph` | Build 3D knowledge map → `<agent>/fivem/knowledge-graph.html` |
+| `/fivem graph` | Open 3D knowledge map in browser (live, auto-refresh) |
 
 Re-run `/fivem reference` when you add major systems — the agent merges with the existing file.
 
@@ -67,8 +67,8 @@ Re-run `/fivem graph` after learning new topics to refresh the 3D map.
 `/fivem graph` runs a Node script and opens an interactive 3D graph (learned topics in green, catalog orphans in gray):
 
 ```bash
-node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor
-# or: npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
+node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open
+# Opens http://127.0.0.1:3939 — live updates every 3s
 ```
 
 Local development (from this repo):
