@@ -1,0 +1,25 @@
+description = "Build 3D knowledge graph from learned topic memories"
+
+prompt = """
+Build the **3D knowledge graph** HTML from `.gemini/fivem/memory/` and `topic-catalog.md`.
+
+Run from the FiveM project root:
+
+```bash
+node scripts/build-knowledge-graph.js --target <project-root> --agent gemini
+```
+
+Or if fivem-skill is available:
+
+```bash
+npx fivem-graph --target <project-root> --agent gemini
+```
+
+Output: **`.gemini/fivem/knowledge-graph.html`** — open in browser (file:// works).
+
+Reply with counts: learned nodes (green), catalog orphans (gray), links inferred.
+Suggest re-running after `/fivem:learn` sessions.
+
+Do NOT edit memory files — only run the build script.
+If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
+"""

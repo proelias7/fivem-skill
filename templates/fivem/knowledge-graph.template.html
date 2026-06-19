@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FiveM — Mapa mental 3D</title>
+  <style>
+    :root {
+      --bg: #1e1e1e;
+      --panel: #252525;
+      --border: #3a3a3a;
+      --text: #dcddde;
+      --muted: #999;
+      --accent: #7c3aed;
+      --learned: #2dd4bf;
+      --catalog: #6b7280;
+      --link: #525252;
+      --highlight: #f59e0b;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .sidebar h1 {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .sidebar .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .section-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    input[type="search"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    input[type="search"]:focus {
+      outline: 1px solid var(--accent);
+      border-color: var(--accent);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      padding: 6px 0;
+    }
+
+    .toggle-row input { accent-color: var(--accent); }
+
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot.learned { background: var(--learned); }
+    .dot.catalog { background: var(--catalog); }
+
+    .stats {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .detail {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      min-height: 120px;
+    }
+
+    .detail h2 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .detail p {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    .detail .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .badge.learned {
+      background: rgba(45, 212, 191, 0.15);
+      color: var(--learned);
+    }
+
+    .badge.catalog {
+      background: rgba(107, 114, 128, 0.2);
+      color: #cbd5e1;
+    }
+
+    .detail button {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .detail button:hover { border-color: var(--accent); }
+
+    .empty-detail {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    #graph {
+      position: relative;
+      background: radial-gradient(circle at center, #242424 0%, #171717 100%);
+    }
+
+    .graph-hint {
+      position: absolute;
+      bottom: 12px;
+      right: 16px;
+      font-size: 11px;
+      color: var(--muted);
+      pointer-events: none;
+      text-align: right;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div>
+        <h1>Graph view</h1>
+        <p class="subtitle">Mapa mental 3D dos tópicos aprendidos com `/fivem learn`</p>
+      </div>
+
+      <div>
+        <div class="section-title">Filters</div>
+        <input type="search" id="search" placeholder="Search topics..." />
+      </div>
+
+      <div>
+        <label class="toggle-row">
+          <span>Orphans (catalog)</span>
+          <input type="checkbox" id="toggle-orphans" checked />
+        </label>
+        <label class="toggle-row">
+          <span>Learned only</span>
+          <input type="checkbox" id="toggle-learned-only" />
+        </label>
+      </div>
+
+      <div>
+        <div class="section-title">Groups</div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot learned"></span> Learned — memory/*.md</div>
+          <div class="legend-item"><span class="dot catalog"></span> Catalog — not learned yet</div>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+
+      <div class="detail" id="detail">
+        <p class="empty-detail">Clique em um nó para ver detalhes. Arraste para girar; scroll para zoom.</p>
+      </div>
+    </aside>
+
+    <div id="graph">
+      <div class="graph-hint">
+        Drag: rotate · Scroll: zoom · Click: select node
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
+  <script>
+    const GRAPH_DATA = /*__GRAPH_DATA__*/;
+
+    const COLORS = {
+      learned: "#2dd4bf",
+      catalog: "#6b7280",
+      highlight: "#f59e0b",
+      dim: "#333333",
+    };
+
+    const searchInput = document.getElementById("search");
+    const toggleOrphans = document.getElementById("toggle-orphans");
+    const toggleLearnedOnly = document.getElementById("toggle-learned-only");
+    const statsEl = document.getElementById("stats");
+    const detailEl = document.getElementById("detail");
+
+    let selectedNode = null;
+    let highlightNodes = new Set();
+    let highlightLinks = new Set();
+
+    function nodeColor(node) {
+      if (selectedNode && node.id === selectedNode.id) return COLORS.highlight;
+      if (highlightNodes.size && !highlightNodes.has(node.id)) return COLORS.dim;
+      return node.group === "learned" ? COLORS.learned : COLORS.catalog;
+    }
+
+    function linkColor(link) {
+      return highlightLinks.has(link) ? "#a78bfa" : COLORS.link;
+    }
+
+    function filteredData() {
+      const query = searchInput.value.trim().toLowerCase();
+      const showOrphans = toggleOrphans.checked;
+      const learnedOnly = toggleLearnedOnly.checked;
+
+      let nodes = GRAPH_DATA.nodes.filter((node) => {
+        if (learnedOnly && node.group !== "learned") return false;
+        if (!showOrphans && node.group === "catalog") return false;
+        if (query && !node.name.toLowerCase().includes(query) && !node.id.includes(query)) {
+          return false;
+        }
+        return true;
+      });
+
+      const nodeIds = new Set(nodes.map((node) => node.id));
+      const links = GRAPH_DATA.links.filter(
+        (link) => nodeIds.has(link.source.id || link.source) && nodeIds.has(link.target.id || link.target),
+      );
+
+      return { nodes, links };
+    }
+
+    function renderDetail(node) {
+      if (!node) {
+        detailEl.innerHTML = '<p class="empty-detail">Clique em um nó para ver detalhes. Arraste para girar; scroll para zoom.</p>';
+        return;
+      }
+
+      const badgeClass = node.group === "learned" ? "learned" : "catalog";
+      const badgeLabel = node.group === "learned" ? "Aprendido" : "Catálogo (órfão)";
+
+      detailEl.innerHTML = `
+        <span class="badge ${badgeClass}">${badgeLabel}</span>
+        <h2>${node.name}</h2>
+        ${node.file ? `<p><strong>Arquivo:</strong> ${node.file}</p>` : ""}
+        ${node.updated ? `<p><strong>Atualizado:</strong> ${node.updated}</p>` : ""}
+        ${node.framework ? `<p><strong>Framework:</strong> ${node.framework}</p>` : ""}
+        ${node.triggers ? `<p><strong>Triggers:</strong> ${node.triggers}</p>` : ""}
+        ${node.group === "catalog" ? `<p>Execute <code>/fivem learn ${node.id}</code> para gerar a memória.</p>` : ""}
+        ${node.file ? `<button type="button" id="copy-path">Copiar path</button>` : ""}
+      `;
+
+      const copyBtn = document.getElementById("copy-path");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          navigator.clipboard.writeText(node.file).then(() => {
+            copyBtn.textContent = "Copiado!";
+            setTimeout(() => { copyBtn.textContent = "Copiar path"; }, 1200);
+          });
+        });
+      }
+    }
+
+    function updateStats(data) {
+      const learned = data.nodes.filter((n) => n.group === "learned").length;
+      const catalog = data.nodes.filter((n) => n.group === "catalog").length;
+      statsEl.innerHTML = `
+        <strong>Visible</strong><br />
+        ${learned} learned · ${catalog} orphans · ${data.links.length} links<br /><br />
+        <strong>Total</strong><br />
+        ${GRAPH_DATA.meta.counts.learned} learned · ${GRAPH_DATA.meta.counts.catalog} orphans · ${GRAPH_DATA.meta.counts.links} links
+      `;
+    }
+
+    const Graph = ForceGraph3D()(document.getElementById("graph"))
+      .backgroundColor("#171717")
+      .showNavInfo(false)
+      .nodeLabel((node) => node.name)
+      .nodeVal((node) => (node.group === "learned" ? 8 : 4))
+      .nodeColor(nodeColor)
+      .linkColor(linkColor)
+      .linkOpacity(0.45)
+      .linkWidth(0.6)
+      .linkDirectionalParticles(0)
+      .onNodeClick((node) => {
+        selectedNode = node;
+        highlightNodes = new Set([node.id]);
+        highlightLinks = new Set();
+
+        GRAPH_DATA.links.forEach((link) => {
+          const sourceId = link.source.id || link.source;
+          const targetId = link.target.id || link.target;
+          if (sourceId === node.id || targetId === node.id) {
+            highlightNodes.add(sourceId);
+            highlightNodes.add(targetId);
+            highlightLinks.add(link);
+          }
+        });
+
+        renderDetail(node);
+        refreshGraph();
+      })
+      .onBackgroundClick(() => {
+        selectedNode = null;
+        highlightNodes = new Set();
+        highlightLinks = new Set();
+        renderDetail(null);
+        refreshGraph();
+      });
+
+    function refreshGraph() {
+      const data = filteredData();
+      updateStats(data);
+      Graph.graphData(data);
+    }
+
+    searchInput.addEventListener("input", refreshGraph);
+    toggleOrphans.addEventListener("change", refreshGraph);
+    toggleLearnedOnly.addEventListener("change", refreshGraph);
+
+    refreshGraph();
+  </script>
+</body>
+</html>

@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Install FiveM Agent Skills for Cursor, Claude Code, and Codex",
   "bin": {
-    "fivem-skill": "./scripts/install.js"
+    "fivem-skill": "./scripts/install.js",
+    "fivem-graph": "./scripts/build-knowledge-graph.js"
   },
   "files": [
     "scripts",

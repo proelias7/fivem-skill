@@ -52,14 +52,24 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 | `/fivem audit resources/[Novos]/myresource` | Audit specific path only |
 | `/fivem learn craft` | Scan codebase → save topic memory at `<agent>/fivem/memory/craft.md` |
 | `/fivem learn list` | List learned topics (`memory/_index.md`) + suggested catalog |
+| `/fivem graph` | Build 3D knowledge map → `<agent>/fivem/knowledge-graph.html` |
 
 Re-run `/fivem reference` when you add major systems — the agent merges with the existing file.
 
 Re-run `/fivem learn <topic>` when configs or handlers for that topic change.
 
+Re-run `/fivem graph` after learning new topics to refresh the 3D map.
+
 `/fivem audit` is **read-only**: writes `.cursor/fivem/audit-<resource>.md` with findings and a phased fix plan. Does not edit code until you approve.
 
 `/fivem learn` is **scan + markdown only**: writes `<agent>/fivem/memory/<topic>.md`, updates `_index.md`, and adds a link row in `reference.mdc` — does not edit Lua/JS.
+
+`/fivem graph` runs a Node script and opens an interactive 3D graph (learned topics in green, catalog orphans in gray):
+
+```bash
+node scripts/build-knowledge-graph.js --target . --agent cursor
+# or: npx fivem-graph --target . --agent cursor
+```
 
 Local development (from this repo):
 
@@ -96,6 +106,7 @@ npx skills add proelias7/fivem-skill --list
 | **NUI (React + Vite)** | Shared UI skill for all frameworks |
 | **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
 | **Topic Memory** | `/fivem learn <topic>` scans the repo and saves `<agent>/fivem/memory/<topic>.md` |
+| **3D Knowledge Graph** | `/fivem graph` builds interactive HTML map of learned + catalog topics |
 | **Code Audit** | `/fivem audit` scans for security, performance, and pattern issues + correction plan |
 
 ## Supported Frameworks
@@ -174,12 +185,17 @@ templates/
 │       └── fivem/
 │           ├── reference.toml  # /fivem:reference
 │           ├── audit.toml      # /fivem:audit
-│           └── learn.toml      # /fivem:learn
+│           ├── learn.toml      # /fivem:learn
+│           └── graph.toml      # /fivem:graph
 ├── fivem/
 │   ├── audit.template.md
 │   ├── memory.template.md
 │   ├── memory-index.template.md
-│   └── topic-catalog.md
+│   ├── topic-catalog.md
+│   └── knowledge-graph.template.html
+├── scripts/
+│   ├── install.js
+│   └── build-knowledge-graph.js
 └── rules/
     ├── reference.template.mdc  # skeleton for /fivem reference
     └── reference.example.mdc   # fictional sample showing expected depth/format

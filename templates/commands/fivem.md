@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — docs, reference, audit, learn (/fivem reference | audit | learn)"
-argument-hint: "<question> | reference | audit [scope] | learn <topic>"
+description: "FiveM helper — docs, reference, audit, learn, graph (/fivem reference | audit | learn | graph)"
+argument-hint: "<question> | reference | audit [scope] | learn <topic> | graph"
 ---
 
 # FiveM
@@ -17,6 +17,7 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | `audit` or `audit ...` | **Audit** — scan code, report issues, output correction plan |
 | `learn` or `learn <topic>` | **Learn** — generate/update topic memory in `<agent>/fivem/memory/` |
 | `learn list` | **Learn** — list topics in `_index.md` + catalog |
+| `graph` | **Graph** — build 3D knowledge map HTML from learned memories |
 | empty or anything else | **Help** — answer FiveM development questions |
 
 **Audit scope** (optional after `audit`):
@@ -208,6 +209,7 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 - Summary of what was learned (3–5 bullets)
 - Path: `<agent>/fivem/memory/<topic>.md`
 - If codebase changed heavily since last learn → suggest re-running `/fivem learn <topic>`
+- Suggest `/fivem graph` to refresh the 3D knowledge map
 
 ### Learn rules
 
@@ -215,6 +217,48 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 - **Do not** edit Lua/JS during learn mode
 - Cursor Agent: use **AskQuestion** if critical context is missing; otherwise ask in chat
 - Write in **Portuguese** if codebase/comments are PT-BR
+
+---
+
+## Mode: Graph
+
+Build a **3D knowledge graph** HTML from learned topic memories and catalog orphans.
+
+### Step 1 — Run build script
+
+Execute from the FiveM project root (adjust agent path if using Gemini):
+
+```bash
+node scripts/build-knowledge-graph.js --target <project-root> --agent cursor
+```
+
+If `fivem-skill` is installed via npx, use the package path or:
+
+```bash
+npx fivem-graph --target <project-root> --agent cursor
+```
+
+For Gemini projects: `--agent gemini` (output under `.gemini/fivem/`).
+
+### Step 2 — Confirm output
+
+- File: **`<agent>/fivem/knowledge-graph.html`**
+- Open in browser (`file://` path works — no server needed)
+
+### Step 3 — Reply
+
+Report counts from script output:
+
+- **Learned** nodes (green) — existing `memory/*.md`
+- **Catalog orphans** (gray) — topics in `topic-catalog.md` not yet learned
+- **Links** — inferred from shared paths, cross-mentions, catalog hints
+
+Suggest opening the HTML file. Re-run after new `/fivem learn` sessions.
+
+### Graph rules
+
+- **Do not** edit memory files during graph mode — only run the script
+- If `<agent>/fivem/` is missing → user must run fivem-skill installer first
 
 ---
 

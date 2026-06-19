@@ -15,7 +15,7 @@ You are a FiveM development expert. Help with the user's FiveM scripting questio
 3. Read `reference.mdc` at project root if it exists (project conventions).
 4. Fetch official docs when unsure (docs.fivem.net/natives, framework docs). Never invent APIs.
 
-For project mapping use `/fivem:reference`. For security/perf audit use `/fivem:audit`. For topic memory use `/fivem:learn <topic>`.
+For project mapping use `/fivem:reference`. For security/perf audit use `/fivem:audit`. For topic memory use `/fivem:learn <topic>`. For 3D knowledge map use `/fivem:graph`.
 
 Detect framework from fxmanifest dependencies: vrp, qb-core, qbx_core, es_extended.
 """
