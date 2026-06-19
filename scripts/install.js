@@ -509,7 +509,24 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     installed.push(memoryIndex);
   }
 
+  const graphScript = installGraphBuildScript(targetRoot, relativeDestDir);
+  if (graphScript) {
+    installed.push(graphScript);
+  }
+
   return installed;
+}
+
+function installGraphBuildScript(targetRoot, relativeDestDir) {
+  const src = path.join(PACKAGE_ROOT, "scripts", "build-knowledge-graph.js");
+  if (!fs.existsSync(src)) {
+    return null;
+  }
+
+  const dest = path.join(targetRoot, relativeDestDir, "build-knowledge-graph.js");
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(src, dest);
+  return path.relative(targetRoot, dest);
 }
 
 function seedMemoryIndex(targetRoot, relativeDestDir) {
@@ -545,6 +562,7 @@ function cleanFivemTemplates(targetRoot, relativeDestDir) {
     "memory-index.template.md",
     "topic-catalog.md",
     "knowledge-graph.template.html",
+    "build-knowledge-graph.js",
   ];
 
   for (const fileName of templateFiles) {
@@ -749,7 +767,7 @@ async function main() {
     "Run /fivem learn <topic> to scan the codebase and save topic memory under <agent>/fivem/memory/.",
   );
   console.log(
-    "Run /fivem graph (or node scripts/build-knowledge-graph.js) for 3D knowledge map.",
+    "Run /fivem graph (or node .cursor/fivem/build-knowledge-graph.js --target .) for 3D knowledge map.",
   );
 }
 

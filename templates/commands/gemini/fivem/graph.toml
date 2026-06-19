@@ -6,14 +6,16 @@ Build the **3D knowledge graph** HTML from `.gemini/fivem/memory/` and `topic-ca
 Run from the FiveM project root:
 
 ```bash
-node scripts/build-knowledge-graph.js --target <project-root> --agent gemini
+node .gemini/fivem/build-knowledge-graph.js --target <project-root> --agent gemini
 ```
 
-Or if fivem-skill is available:
+Without local script:
 
 ```bash
-npx fivem-graph --target <project-root> --agent gemini
+npx --package github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini
 ```
+
+Do NOT use `npx fivem-graph` alone — not published on npm.
 
 Output: **`.gemini/fivem/knowledge-graph.html`** — open in browser (file:// works).
 

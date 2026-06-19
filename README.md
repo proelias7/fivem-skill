@@ -67,8 +67,8 @@ Re-run `/fivem graph` after learning new topics to refresh the 3D map.
 `/fivem graph` runs a Node script and opens an interactive 3D graph (learned topics in green, catalog orphans in gray):
 
 ```bash
-node scripts/build-knowledge-graph.js --target . --agent cursor
-# or: npx fivem-graph --target . --agent cursor
+node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor
+# or: npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
 ```
 
 Local development (from this repo):

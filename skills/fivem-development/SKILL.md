@@ -116,7 +116,7 @@ WebFetch(
 | New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
 | Code audit | "audit", "review security", "check performance", exploit | User runs `/fivem audit` — read-only plan, no auto-fix |
 | Project memory | `/fivem learn`, "learn craft", topic memory | User runs `/fivem learn <topic>` — writes `<agent>/fivem/memory/<topic>.md` |
-| Knowledge graph | `/fivem graph`, "mapa mental", "grafo 3D" | User runs `/fivem graph` or `npx fivem-graph` — writes `<agent>/fivem/knowledge-graph.html` |
+| Knowledge graph | `/fivem graph`, "mapa mental", "grafo 3D" | Run `node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor` — writes `<agent>/fivem/knowledge-graph.html` |
 | Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>` |
 
 ---

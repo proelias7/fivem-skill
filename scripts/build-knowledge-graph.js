@@ -4,12 +4,6 @@ const fs = require("fs");
 const path = require("path");
 
 const PACKAGE_ROOT = path.join(__dirname, "..");
-const TEMPLATE_PATH = path.join(
-  PACKAGE_ROOT,
-  "templates",
-  "fivem",
-  "knowledge-graph.template.html",
-);
 const DATA_PLACEHOLDER = "/*__GRAPH_DATA__*/";
 
 const AGENT_FIVEM_DIRS = {
@@ -21,10 +15,15 @@ function printHelp() {
   console.log(`
 Build 3D knowledge graph from FiveM topic memories.
 
-Usage:
-  node scripts/build-knowledge-graph.js --target /path/to/fivem-project
-  node scripts/build-knowledge-graph.js --target . --agent cursor
-  node scripts/build-knowledge-graph.js --target . --agent gemini
+Usage (from FiveM project root — after fivem-skill install):
+  node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor
+  node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini
+
+From fivem-skill repo:
+  node scripts/build-knowledge-graph.js --target /path/to/fivem-project --agent cursor
+
+Via npx (without local script copy):
+  npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
 
 Options:
   --target <dir>   Project root (default: current directory)
@@ -348,12 +347,27 @@ function buildGraphData(targetRoot, agentId) {
   };
 }
 
-function buildHtml(graphData) {
-  if (!fs.existsSync(TEMPLATE_PATH)) {
-    throw new Error(`Template not found: ${TEMPLATE_PATH}`);
+function resolveTemplatePath(fivemDir) {
+  const candidates = [
+    path.join(fivemDir, "knowledge-graph.template.html"),
+    path.join(__dirname, "knowledge-graph.template.html"),
+    path.join(PACKAGE_ROOT, "templates", "fivem", "knowledge-graph.template.html"),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
   }
 
-  const template = fs.readFileSync(TEMPLATE_PATH, "utf8");
+  throw new Error(
+    "Template knowledge-graph.template.html not found. Re-run: npx github:proelias7/fivem-skill --cursor -y",
+  );
+}
+
+function buildHtml(graphData, fivemDir) {
+  const templatePath = resolveTemplatePath(fivemDir);
+  const template = fs.readFileSync(templatePath, "utf8");
   const json = JSON.stringify(graphData, null, 2);
 
   if (!template.includes(DATA_PLACEHOLDER)) {
@@ -394,7 +408,7 @@ function main() {
   }
 
   const graphData = buildGraphData(options.target, options.agent);
-  const html = buildHtml(graphData);
+  const html = buildHtml(graphData, fivemDir);
   const outputPath = path.join(fivemDir, "knowledge-graph.html");
 
   fs.writeFileSync(outputPath, html, "utf8");

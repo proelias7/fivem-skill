@@ -226,19 +226,21 @@ Build a **3D knowledge graph** HTML from learned topic memories and catalog orph
 
 ### Step 1 — Run build script
 
-Execute from the FiveM project root (adjust agent path if using Gemini):
+Execute from the FiveM project root:
 
 ```bash
-node scripts/build-knowledge-graph.js --target <project-root> --agent cursor
+node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor
 ```
 
-If `fivem-skill` is installed via npx, use the package path or:
+Gemini: `node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini`
+
+Without local script (via GitHub package):
 
 ```bash
-npx fivem-graph --target <project-root> --agent cursor
+npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
 ```
 
-For Gemini projects: `--agent gemini` (output under `.gemini/fivem/`).
+**Do not** use `npx fivem-graph` alone — that package name is not published on npm.
 
 ### Step 2 — Confirm output
 
