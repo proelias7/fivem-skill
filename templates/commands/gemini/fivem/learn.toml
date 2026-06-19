@@ -25,10 +25,13 @@ Extract config paths, handlers, events, checklist, one real code example.
 
 ## Write
 
-1. Save `.gemini/fivem/memory/<topic>.md` (~40–120 lines, PT-BR if codebase is PT-BR)
+1. Save `.gemini/fivem/memory/<topic>.md` (~25–60 lines, **compact technical English**, `lang: en-compact`)
+   - Sections: Files, Recipe, Example, Pitfalls, Skills
+   - No prose; keep repo literals verbatim (paths, events, ids)
+   - **Do not** write memory in Portuguese — agent-internal context only
 2. Update `.gemini/fivem/memory/_index.md` (create from template if missing)
 3. If `reference.mdc` exists → add/update row in `## Memórias por tópico` (one line per topic; keep reference lean)
 
-Reply: summary bullets, memory path, suggest re-learn if code changed heavily.
+Reply in the **user's language** (summary bullets, memory path, suggest re-learn if code changed heavily).
 Never invent paths or APIs.
 """

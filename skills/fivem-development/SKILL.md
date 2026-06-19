@@ -15,7 +15,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
-6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `memory/<topic>.md` = detailed recipe for one flow. Run `/fivem learn <topic>` before repeating the same scan; read memory first in Help mode. Run `/fivem graph` to visualize learned topics in 3D.
+6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`, user's project language); `memory/<topic>.md` = compact agent-internal recipe (`lang: en-compact`, technical English, ~25–60 lines). Run `/fivem learn <topic>` before repeating the same scan; run `/fivem memory health [fix]` after refactors to catch stale paths/events and compact drift; read memory first in Help mode; reply to the user in their language. Run `/fivem graph` to visualize learned topics in 3D.
 
 ---
 
@@ -115,7 +115,8 @@ WebFetch(
 | Local Knowledge | fxmanifest, threads, patterns | Read best-practices.md |
 | New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
 | Code audit | "audit", "review security", "check performance", exploit | User runs `/fivem audit` — read-only plan, no auto-fix |
-| Project memory | `/fivem learn`, "learn craft", topic memory | User runs `/fivem learn <topic>` — writes `<agent>/fivem/memory/<topic>.md` |
+| Project memory | `/fivem learn`, "learn craft", topic memory | User runs `/fivem learn <topic>` — writes compact English `<agent>/fivem/memory/<topic>.md` |
+| Memory health | `/fivem memory health`, stale memory, memória desatualizada | User runs `/fivem memory health [fix] [topic]` — verifies paths/events vs repo, index/reference sync, token format; optional compact rewrite |
 | Knowledge graph | `/fivem graph`, "mapa mental", "grafo 3D" | Run `node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open` in background — opens browser at http://127.0.0.1:3939 |
 | Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>` |
 

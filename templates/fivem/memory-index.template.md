@@ -1,16 +1,11 @@
-# Índice de memórias — FiveM
+# Memory index
 
-Memórias por tópico geradas com `/fivem learn <topic>`. Leia o arquivo antes de reler a base inteira.
+Route only — read `memory/<topic>.md` before rescanning repo. Internal format: compact English (`lang: en-compact`).
 
-| Tópico | Arquivo | Triggers | Atualizado |
-|--------|---------|----------|------------|
-| _(nenhum ainda)_ | — | — | — |
+| Topic | File | Triggers | Updated |
+|-------|------|----------|---------|
+| _(none yet)_ | — | — | — |
 
-## Catálogo sugerido
+Catalog: `<agent>/fivem/topic-catalog.md` (`craft`, `item`, `loja`, `nui`, `grupos`, …)
 
-Ver `<agent>/fivem/topic-catalog.md` para tópicos comuns (`craft`, `item`, `raspadinha`, `loja`, `nui`, `grupos`).
-
-## Comandos
-
-- `/fivem learn <topic>` — gerar ou atualizar memória
-- `/fivem learn list` — listar este índice + catálogo
+Commands: `/fivem learn <topic>` · `/fivem learn list` · `/fivem memory health [fix] [topic]`

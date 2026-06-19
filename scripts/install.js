@@ -361,7 +361,7 @@ async function promptSelections() {
 
     const installCommand = await confirm({
       message:
-        "Install /fivem helper (/fivem, /fivem reference, /fivem audit, /fivem learn, /fivem graph)?",
+        "Install /fivem helper (/fivem, /fivem reference, /fivem audit, /fivem learn, /fivem memory health, /fivem graph)?",
       default: true,
     });
 
@@ -487,6 +487,7 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     [FIVEM_TEMPLATES_DIR, "audit.template.md"],
     [FIVEM_TEMPLATES_DIR, "memory.template.md"],
     [FIVEM_TEMPLATES_DIR, "memory-index.template.md"],
+    [FIVEM_TEMPLATES_DIR, "memory-health.template.md"],
     [FIVEM_TEMPLATES_DIR, "topic-catalog.md"],
     [FIVEM_TEMPLATES_DIR, "knowledge-graph.template.html"],
   ];
@@ -560,6 +561,7 @@ function cleanFivemTemplates(targetRoot, relativeDestDir) {
     "audit.template.md",
     "memory.template.md",
     "memory-index.template.md",
+    "memory-health.template.md",
     "topic-catalog.md",
     "knowledge-graph.template.html",
     "build-knowledge-graph.js",
@@ -756,7 +758,7 @@ async function main() {
   console.log("Done.");
   console.log("Restart your agent IDE/CLI or open a new session.");
   console.log(
-    "Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn, /fivem:graph",
+    "Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn, /fivem:memory, /fivem:graph",
   );
   console.log("Gemini: run /commands reload after install.");
   console.log(
@@ -764,7 +766,10 @@ async function main() {
   );
   console.log("Run /fivem audit [scope] for security/perf/pattern audit + fix plan.");
   console.log(
-    "Run /fivem learn <topic> to scan the codebase and save topic memory under <agent>/fivem/memory/.",
+    "Run /fivem learn <topic> to scan the codebase and save compact English topic memory under <agent>/fivem/memory/.",
+  );
+  console.log(
+    "Run /fivem memory health [fix] [topic] to verify memories vs codebase and optionally compact-rewrite stale topics.",
   );
   console.log(
     "Run /fivem graph — opens browser at http://127.0.0.1:3939 with --serve --open (live, auto-refresh).",

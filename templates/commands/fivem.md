@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — docs, reference, audit, learn, graph (/fivem reference | audit | learn | graph)"
-argument-hint: "<question> | reference | audit [scope] | learn <topic> | graph"
+description: "FiveM helper — docs, reference, audit, learn, memory health, graph"
+argument-hint: "<question> | reference | audit [scope] | learn <topic> | memory health [fix] [topic] | graph"
 ---
 
 # FiveM
@@ -17,6 +17,8 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | `audit` or `audit ...` | **Audit** — scan code, report issues, output correction plan |
 | `learn` or `learn <topic>` | **Learn** — generate/update topic memory in `<agent>/fivem/memory/` |
 | `learn list` | **Learn** — list topics in `_index.md` + catalog |
+| `memory health` or `memory health fix` | **Memory health** — verify memories vs codebase + integration + token format |
+| `memory health <topic>` or `memory health <topic> fix` | **Memory health** — single topic (optional auto-fix) |
 | `graph` | **Graph** — build 3D knowledge map HTML from learned memories |
 | empty or anything else | **Help** — answer FiveM development questions |
 
@@ -183,11 +185,13 @@ Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.):
 
 ### Step 4 — Write memory
 
-Save to **`<agent>/fivem/memory/<topic>.md`** using `memory.template.md` structure (~40–120 lines):
+Save to **`<agent>/fivem/memory/<topic>.md`** using `memory.template.md` structure (**~25–60 lines**, token-efficient):
 
-- Frontmatter: `topic`, `updated`, `framework`
-- Sections: Arquivos, Checklist, Exemplo real, Anti-bugs, Skills relacionadas
-- Warning: only verified repo paths
+- Frontmatter: `topic`, `updated`, `framework`, `lang: en-compact`
+- Sections: `Files`, `Recipe`, `Example`, `Pitfalls`, `Skills` — **compact technical English only**
+- No prose, no tables unless essential; bullet lists and short imperative lines
+- Keep repo literals verbatim: paths, events, item ids, permissions, resource names
+- **Do not** write memory in Portuguese — memory is agent-internal context, not user-facing
 
 ### Step 5 — Update index
 
@@ -206,6 +210,8 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 
 ### Step 7 — Reply
 
+Reply to the user in **their language** (usually PT-BR if they write in PT-BR):
+
 - Summary of what was learned (3–5 bullets)
 - Path: `<agent>/fivem/memory/<topic>.md`
 - If codebase changed heavily since last learn → suggest re-running `/fivem learn <topic>`
@@ -216,7 +222,126 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 - **Never invent** paths, events, or APIs
 - **Do not** edit Lua/JS during learn mode
 - Cursor Agent: use **AskQuestion** if critical context is missing; otherwise ask in chat
-- Write in **Portuguese** if codebase/comments are PT-BR
+- **Memory file:** compact technical English (`lang: en-compact`) — token-efficient agent context
+- **Chat reply:** user's language — do not mirror memory language in the reply
+
+---
+
+## Mode: Memory health
+
+Verify **topic memories** against the live codebase and **integration** (`_index.md`, `reference.mdc`). Optionally **auto-fix** stale content and **compact token format**.
+
+**Read-only by default.** With `fix` → rewrite markdown only (memories, index, reference links, health report). **Do not edit Lua/JS.**
+
+### Step 1 — Parse scope
+
+After `memory health` (case-insensitive):
+
+| Input | Scope | Fix |
+|-------|-------|-----|
+| `memory health` | all `memory/*.md` | no |
+| `memory health fix` | all | yes |
+| `memory health craft` | topic `craft` only | no |
+| `memory health craft fix` | topic `craft` only | yes |
+
+If no `memory/` files exist → reply suggesting `/fivem learn <topic>` first; stop.
+
+### Step 2 — Load context
+
+| File | Purpose |
+|------|---------|
+| `<agent>/fivem/memory-health.template.md` | Report structure |
+| `<agent>/fivem/memory.template.md` | Target compact format |
+| `<agent>/fivem/memory/_index.md` | Index integration |
+| `<agent>/fivem/topic-catalog.md` | Catalog orphans (info) |
+| `reference.mdc` | Section `## Memórias por tópico` |
+| `<agent>/fivem/memory/<topic>.md` | Each topic to verify |
+
+### Step 3 — Verify each memory (evidence required)
+
+For every topic file, extract and validate:
+
+#### Paths
+
+- Backtick strings that look like repo paths (`/`, `\`, or extensions `.lua`, `.js`, `.tsx`, `.json`, `.cfg`)
+- **Missing file** → Stale/Broken (critical if listed under `Files:` or `Recipe:`)
+
+#### Events / symbols
+
+Grep repo for symbols mentioned in memory:
+
+```text
+RegisterNetEvent / RegisterServerEvent / AddEventHandler
+TriggerServerEvent / TriggerClientEvent (quoted event names)
+exports["..."] / exports['...']
+vRP.* / QBCore.* / ESX.* / lib.*
+function names referenced in Recipe steps
+```
+
+- **Zero matches** for a quoted event or export used as a step → Stale
+- **Zero matches** for primary handler/event in `Files:` or `Recipe:` → Broken
+
+#### Integration
+
+| Check | Drift |
+|-------|-------|
+| `_index.md` row | topic in index but no `memory/<topic>.md` |
+| `memory/*.md` file | file exists but missing from `_index.md` |
+| `reference.mdc` table | link to missing memory file |
+| `reference.mdc` | topic in memory folder but no row in `## Memórias por tópico` |
+
+#### Token format
+
+| Issue | Flag |
+|-------|------|
+| Missing `lang: en-compact` in frontmatter | Token |
+| > 60 lines (or < 10 with empty sections) | Token |
+| PT-BR narrative sections (`Arquivos principais`, `Checklist`, `Anti-bugs`, `Memória —`) | Token |
+| Long prose paragraphs (> 2 lines) | Token |
+| Missing core sections: `Files`, `Recipe`, `Pitfalls` | Token |
+
+**Verdict per topic:** `OK` | `Stale` (partial drift) | `Broken` (critical path/event missing)
+
+### Step 4 — Write report
+
+Save **`<agent>/fivem/memory-health.md`** using `memory-health.template.md`:
+
+- Summary counts (OK / Stale / Broken / Integration / Token)
+- Per-topic table + detail blocks with grep evidence
+- Integration section
+- Recommended actions
+
+Write report in **user's language**; memory files stay compact English.
+
+### Step 5 — Fix mode (when `fix` in args)
+
+Only after verification — **never invent** replacements:
+
+1. **Prune** lines referencing missing paths/events (grep-confirmed dead refs)
+2. **Rewrite** to `memory.template.md` — compact English, `lang: en-compact`, ~25–60 lines
+3. **Re-scan** repo for that topic (catalog hints + surviving valid paths) to refresh `Files`, `Recipe`, `Example`, `Pitfalls`
+4. **Sync** `_index.md` (topic | file | triggers | updated) and `reference.mdc` one-row links
+5. **Broken topics** mostly empty after prune → keep minimal stub + flag **re-learn**: `/fivem learn <topic>` — do not guess new APIs
+
+Update frontmatter `updated` on changed memories.
+
+### Step 6 — Reply
+
+Reply in **user's language**:
+
+- Summary table (topics × verdict)
+- Path: `<agent>/fivem/memory-health.md`
+- Auto-fixed topics (fix mode)
+- Topics needing `/fivem learn <topic>` (manual)
+- Suggest `/fivem graph` if memories changed
+
+### Memory health rules
+
+- **Never invent** paths, events, or APIs
+- **Do not** edit Lua/JS — markdown only
+- Every finding needs **file evidence** or **grep result**
+- Fix mode optimizes **tokens** and **accuracy** — not a full codebase rescan unless topic is rescanned in step 5
+- Cursor Agent: use **AskQuestion** before deleting an entire topic memory; otherwise ask in chat
 
 ---
 
@@ -276,7 +401,7 @@ Generate or update **`reference.mdc` in the project root** (same level as `resou
 
 This file is a **Cursor rule** (`alwaysApply: true`) with project-specific paths, flows, and anti-bug notes for future sessions.
 
-Keep it **lean**: detailed flows for recurring topics belong in `<agent>/fivem/memory/<topic>.md` via `/fivem learn <topic>` — do not paste full craft/item recipes here.
+Keep it **lean**: detailed flows for recurring topics belong in `<agent>/fivem/memory/<topic>.md` via `/fivem learn <topic>` — do not paste full craft/item recipes here. Memory files use compact technical English (`lang: en-compact`); only link to them from this rule.
 
 ### Step 1 — Discover the project
 
@@ -348,7 +473,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
 
 ### Instructions
 
-0. **Before scanning the whole codebase** — read `<agent>/fivem/memory/_index.md`. If a memory exists for the detected topic (craft, item, loja, etc.), read **`memory/<topic>.md` first** and answer from it when sufficient.
+0. **Before scanning the whole codebase** — read `<agent>/fivem/memory/_index.md`. If a memory exists for the detected topic (craft, item, loja, etc.), read **`memory/<topic>.md` first** and answer from it when sufficient. Memories are stored in **compact technical English** (`lang: en-compact`) for token efficiency — **translate/adapt to the user's language in your reply**, do not paste memory verbatim unless showing code paths.
 
 1. **Analyze the query** to determine what the user needs:
    - Native function → Fetch from https://docs.fivem.net/natives/
@@ -368,7 +493,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
 
 3. **Fetch current documentation** with WebFetch when needed (never invent natives or APIs)
 
-4. **Answer** with code examples, best practices, and common pitfalls
+4. **Answer** in the **user's language** with code examples, best practices, and common pitfalls — even when the source memory is English
 
 ### Framework Detection
 

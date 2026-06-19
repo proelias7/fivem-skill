@@ -2,44 +2,28 @@
 topic: {{TOPIC}}
 updated: {{DATE}}
 framework: {{FRAMEWORK}}
+lang: en-compact
 ---
 
-# Memória — {{TOPIC}}
+# {{TOPIC}}
 
-> Receita deste projeto. Gerado por `/fivem learn {{TOPIC}}`. Só inclua paths verificados no repositório.
+Files:
+- config: `...`
+- handler: `...`
+- webhook: `...` (if any)
 
-## Arquivos principais
-
-| Papel | Caminho |
-|-------|---------|
-| Config principal | `...` |
-| Handler / runtime | `...` |
-| Log / webhook (se houver) | `...` |
-
-## Checklist (este projeto)
-
+Recipe:
 1. ...
 2. ...
 3. ...
 
-## Exemplo real na base
-
-Copiar um fluxo que **já existe** no repo (nome do resource, ids, permissões):
-
+Example:
 ```lua
--- trecho ou tabela resumida — paths reais
+-- short verified snippet only
 ```
 
-## Anti-bugs locais
-
+Pitfalls:
 - ...
 - ...
 
-## Skills relacionadas
-
-- `.cursor/skills/fivem-development/` (ou `.gemini/skills/`)
-- Framework skill instalada no projeto
-
-## Atualização
-
-Re-escaneie com `/fivem learn {{TOPIC}}` se configs ou handlers mudarem.
+Skills: fivem-development, {{FRAMEWORK}}-framework
