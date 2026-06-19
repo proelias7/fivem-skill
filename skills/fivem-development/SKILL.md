@@ -15,6 +15,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
+6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `memory/<topic>.md` = detailed recipe for one flow. Run `/fivem learn <topic>` before repeating the same scan; read memory first in Help mode.
 
 ---
 
@@ -114,6 +115,8 @@ WebFetch(
 | Local Knowledge | fxmanifest, threads, patterns | Read best-practices.md |
 | New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
 | Code audit | "audit", "review security", "check performance", exploit | User runs `/fivem audit` — read-only plan, no auto-fix |
+| Project memory | `/fivem learn`, "learn craft", topic memory | User runs `/fivem learn <topic>` — writes `<agent>/fivem/memory/<topic>.md` |
+| Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>` |
 
 ---
 

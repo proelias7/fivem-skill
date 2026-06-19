@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — docs, reference, audit (/fivem reference | audit)"
-argument-hint: "<question> | reference | audit [scope]"
+description: "FiveM helper — docs, reference, audit, learn (/fivem reference | audit | learn)"
+argument-hint: "<question> | reference | audit [scope] | learn <topic>"
 ---
 
 # FiveM
@@ -15,6 +15,8 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 |-------|------|
 | `reference` or `reference ...` | **Reference** — generate/update `reference.mdc` at project root |
 | `audit` or `audit ...` | **Audit** — scan code, report issues, output correction plan |
+| `learn` or `learn <topic>` | **Learn** — generate/update topic memory in `<agent>/fivem/memory/` |
+| `learn list` | **Learn** — list topics in `_index.md` + catalog |
 | empty or anything else | **Help** — answer FiveM development questions |
 
 **Audit scope** (optional after `audit`):
@@ -146,11 +148,83 @@ In chat, provide:
 
 ---
 
+## Mode: Learn
+
+Generate or update a **topic memory** at `<agent>/fivem/memory/<topic>.md` (`.cursor/fivem/` or `.gemini/fivem/`).
+
+**Do not implement code** in this mode — only scan, write markdown, and update index/reference links.
+
+### Step 1 — Resolve topic
+
+1. Parse `$ARGUMENTS` after `learn` (e.g. `craft`, `item-usavel`, `dona-capivara`)
+2. If `learn list` → read `<agent>/fivem/memory/_index.md` and `<agent>/fivem/topic-catalog.md`; reply with table; stop
+3. Normalize slug: lowercase, hyphens, no spaces → `memory/<slug>.md`
+
+### Step 2 — Load context
+
+Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.):
+
+| File | Purpose |
+|------|---------|
+| `fivem-development/best-practices.md` | Patterns, anti-bugs |
+| Framework skill (`vrp-framework`, etc.) | If detected |
+| `<agent>/fivem/topic-catalog.md` | Search hints for known topics |
+| `<agent>/fivem/memory.template.md` | Output skeleton |
+| `reference.mdc` at project root | If exists — project paths |
+| `<agent>/fivem/memory/<topic>.md` | If exists — **merge** (preserve valid content, update paths) |
+
+### Step 3 — Scan codebase
+
+1. Match topic to catalog row if possible; use its grep/paths hints
+2. Unknown topic → infer paths from user request + `reference.mdc`
+3. Grep + read files — **every path in output must exist in the repo**
+4. Extract: config paths, handlers, events, checklists, one real example from the codebase
+
+### Step 4 — Write memory
+
+Save to **`<agent>/fivem/memory/<topic>.md`** using `memory.template.md` structure (~40–120 lines):
+
+- Frontmatter: `topic`, `updated`, `framework`
+- Sections: Arquivos, Checklist, Exemplo real, Anti-bugs, Skills relacionadas
+- Warning: only verified repo paths
+
+### Step 5 — Update index
+
+Update **`<agent>/fivem/memory/_index.md`** — table row: topic | file | triggers | last updated.
+Create from `memory-index.template.md` if missing.
+
+### Step 6 — Update reference.mdc
+
+If **`reference.mdc`** exists at project root:
+
+1. Ensure section **`## Memórias por tópico`** exists (create if absent)
+2. Add or update **one table row** per topic: topic → `memory/<topic>.md`
+3. Keep the rest of `reference.mdc` **lean** — do not duplicate full craft/item flows here
+
+If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
+
+### Step 7 — Reply
+
+- Summary of what was learned (3–5 bullets)
+- Path: `<agent>/fivem/memory/<topic>.md`
+- If codebase changed heavily since last learn → suggest re-running `/fivem learn <topic>`
+
+### Learn rules
+
+- **Never invent** paths, events, or APIs
+- **Do not** edit Lua/JS during learn mode
+- Cursor Agent: use **AskQuestion** if critical context is missing; otherwise ask in chat
+- Write in **Portuguese** if codebase/comments are PT-BR
+
+---
+
 ## Mode: Reference
 
 Generate or update **`reference.mdc` in the project root** (same level as `resources/`, `server.cfg`, or main `fxmanifest.lua`).
 
 This file is a **Cursor rule** (`alwaysApply: true`) with project-specific paths, flows, and anti-bug notes for future sessions.
+
+Keep it **lean**: detailed flows for recurring topics belong in `<agent>/fivem/memory/<topic>.md` via `/fivem learn <topic>` — do not paste full craft/item recipes here.
 
 ### Step 1 — Discover the project
 
@@ -189,14 +263,12 @@ Required sections (adapt titles to what exists in **this** project):
 2. **Framework / grupos / permissões** — how auth works in this codebase
 3. **Itens / inventário** — registration files, use handlers, naming conventions
 4. **Economia / lojas / webhooks** — shop configs, webhook paths
-5. **Sistemas custom** — one `##` per major feature (craft, minigames, panels, etc.) with:
-   - File paths (markdown links when useful)
-   - Runtime flow (events, exports)
-   - **Checklist anti-bug**
-6. **Integrações** — cacheaside, Cerberus SafeEvent, oxmysql patterns **as used here**
-7. **NUI** — source folder + `pnpm run build` path if applicable
-8. **Git / submodules** — if relevant
-9. **Skills FiveM** — `.cursor/skills/` paths installed in this project
+5. **Sistemas custom** — one line per major feature pointing to memory or key config path (e.g. "Craft → `/fivem learn craft` ou `memory/craft.md`")
+6. **Memórias por tópico** — table linking topics to `<agent>/fivem/memory/*.md` (filled by `/fivem learn`)
+7. **Integrações** — cacheaside, Cerberus SafeEvent, oxmysql patterns **as used here**
+8. **NUI** — source folder + `pnpm run build` path if applicable
+9. **Git / submodules** — if relevant
+10. **Skills FiveM** — `.cursor/skills/` paths installed in this project
 
 Write in **Portuguese** if the codebase/comments are PT-BR; otherwise match project language.
 
@@ -224,6 +296,8 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
 
 ### Instructions
 
+0. **Before scanning the whole codebase** — read `<agent>/fivem/memory/_index.md`. If a memory exists for the detected topic (craft, item, loja, etc.), read **`memory/<topic>.md` first** and answer from it when sufficient.
+
 1. **Analyze the query** to determine what the user needs:
    - Native function → Fetch from https://docs.fivem.net/natives/
    - vRP API → Read skill `vrp-framework`
@@ -235,6 +309,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - NUI/React UI → Read skill `fivem-react-nui`
    - Patterns/best practices → Read skill `fivem-development` (`best-practices.md`)
    - Code audit → suggest `/fivem audit [scope]`
+   - Recurring project flow (craft, item, loja, NUI) → read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>`
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 
 2. **Read the relevant skill** from the agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.)

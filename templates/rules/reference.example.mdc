@@ -12,6 +12,7 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 ## Manutenção desta rule
 
 - Sempre que surgir um padrão novo (caminho, convenção, anti-bug, integração), **atualize este arquivo**.
+- Fluxos longos → `/fivem learn <topic>` → `.cursor/fivem/memory/<topic>.md`
 
 ## Framework / grupos / permissões
 
@@ -23,24 +24,27 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 
 - **Cadastro:** `resources/[System]/vrp/config/itemlist.lua`
 - **Uso (servidor):** `resources/[Novos]/inventory/src/server/core.lua` → bloco `inventory:useItem`
-- **Checklist novo item:** itemlist → handler no inventário → loja (opcional) → ícone NUI
-
-### Consumível simples (exemplo de subseção)
-
-1. Cadastrar em `itemlist.lua` (`type` = `"Usável"`, `weight` alinhado aos similares)
-2. Handler: `if nameItem == "energy_drink" then` → animação → `vRP.tryGetInventoryItem` → efeito → `return`
-3. **Anti-bug:** não esquecer `inventory:Close` antes de animação longa
+- **Detalhes:** `.cursor/fivem/memory/item.md` (gerar com `/fivem learn item`)
 
 ## Economia / lojas / webhooks
 
 - **Lojas:** `resources/[Exclusive]/store/config/config.lua` → `config.shops[].products`
-- **Webhook por loja:** campo `["webhook"]` em cada shop; fallback em `store/src/server/server.lua`
+- **Detalhes:** `.cursor/fivem/memory/loja.md` (gerar com `/fivem learn loja`)
 
-## Craft (sistema custom — exemplo)
+## Sistemas custom (índice)
 
-- **Config:** `resources/[Exclusive]/craft/config/config.lua` (`config.craft` + `config.receita`)
-- **Fluxo:** ponto no mapa → permissão → receita consome ingredientes → `vRP.generateItem`
-- **Checklist:** item final e ingredientes no `itemlist` → entrada em `config.receita` → id listado em `config.craft[].itens`
+| Sistema | Onde começar | Memória |
+|---------|--------------|---------|
+| Craft | `resources/[Exclusive]/craft/config/config.lua` | `.cursor/fivem/memory/craft.md` |
+
+## Memórias por tópico
+
+Índice completo: `.cursor/fivem/memory/_index.md`
+
+| Tópico | Arquivo |
+|--------|---------|
+| craft | `.cursor/fivem/memory/craft.md` |
+| item | `.cursor/fivem/memory/item.md` |
 
 ## Integrações
 

@@ -1,0 +1,34 @@
+description = "Learn topic memory from codebase — scan, write memory/<topic>.md"
+
+prompt = """
+Generate or update a **topic memory** at **`.gemini/fivem/memory/<topic>.md`**.
+
+**Do NOT implement code** — only scan, write markdown, update index and reference links.
+
+**Topic / args:** {{args}}
+- `list` → read `.gemini/fivem/memory/_index.md` + `.gemini/fivem/topic-catalog.md` and reply with tables
+- Otherwise normalize slug (lowercase, hyphens) → `memory/<slug>.md`
+
+## Load
+
+- `.gemini/skills/fivem-development/best-practices.md`
+- Framework skill if detected
+- `.gemini/fivem/topic-catalog.md` — search hints
+- `.gemini/fivem/memory.template.md` — output skeleton
+- `reference.mdc` at project root if present
+- Existing `.gemini/fivem/memory/<topic>.md` — merge if present
+
+## Scan
+
+Use catalog grep/paths when topic matches. Grep + read — every path must exist in repo.
+Extract config paths, handlers, events, checklist, one real code example.
+
+## Write
+
+1. Save `.gemini/fivem/memory/<topic>.md` (~40–120 lines, PT-BR if codebase is PT-BR)
+2. Update `.gemini/fivem/memory/_index.md` (create from template if missing)
+3. If `reference.mdc` exists → add/update row in `## Memórias por tópico` (one line per topic; keep reference lean)
+
+Reply: summary bullets, memory path, suggest re-learn if code changed heavily.
+Never invent paths or APIs.
+"""

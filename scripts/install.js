@@ -360,7 +360,8 @@ async function promptSelections() {
     }
 
     const installCommand = await confirm({
-      message: "Install /fivem helper (/fivem, /fivem reference, /fivem audit)?",
+      message:
+        "Install /fivem helper (/fivem, /fivem reference, /fivem audit, /fivem learn)?",
       default: true,
     });
 
@@ -484,6 +485,9 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     [REFERENCE_TEMPLATES_DIR, "reference.template.mdc"],
     [REFERENCE_TEMPLATES_DIR, "reference.example.mdc"],
     [FIVEM_TEMPLATES_DIR, "audit.template.md"],
+    [FIVEM_TEMPLATES_DIR, "memory.template.md"],
+    [FIVEM_TEMPLATES_DIR, "memory-index.template.md"],
+    [FIVEM_TEMPLATES_DIR, "topic-catalog.md"],
   ];
   const installed = [];
 
@@ -499,7 +503,36 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     installed.push(path.relative(targetRoot, dest));
   }
 
+  const memoryIndex = seedMemoryIndex(targetRoot, relativeDestDir);
+  if (memoryIndex) {
+    installed.push(memoryIndex);
+  }
+
   return installed;
+}
+
+function seedMemoryIndex(targetRoot, relativeDestDir) {
+  const memoryDir = path.join(targetRoot, relativeDestDir, "memory");
+  const indexPath = path.join(memoryDir, "_index.md");
+
+  if (fs.existsSync(indexPath)) {
+    return null;
+  }
+
+  const templatePath = path.join(
+    PACKAGE_ROOT,
+    FIVEM_TEMPLATES_DIR,
+    "memory-index.template.md",
+  );
+
+  if (!fs.existsSync(templatePath)) {
+    return null;
+  }
+
+  fs.mkdirSync(memoryDir, { recursive: true });
+  fs.copyFileSync(templatePath, indexPath);
+
+  return path.relative(targetRoot, indexPath);
 }
 
 function cleanFivemTemplates(targetRoot, relativeDestDir) {
@@ -507,6 +540,9 @@ function cleanFivemTemplates(targetRoot, relativeDestDir) {
     "reference.template.mdc",
     "reference.example.mdc",
     "audit.template.md",
+    "memory.template.md",
+    "memory-index.template.md",
+    "topic-catalog.md",
   ];
 
   for (const fileName of templateFiles) {
@@ -514,6 +550,12 @@ function cleanFivemTemplates(targetRoot, relativeDestDir) {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }
+  }
+
+  // Never delete user-generated memory/*.md — only prune empty memory/ if no files left
+  const memoryDir = path.join(targetRoot, relativeDestDir, "memory");
+  if (fs.existsSync(memoryDir) && isDirEmpty(memoryDir)) {
+    fs.rmdirSync(memoryDir);
   }
 
   pruneEmptyDirsUpward(path.join(targetRoot, relativeDestDir), targetRoot);
@@ -693,10 +735,17 @@ async function main() {
 
   console.log("Done.");
   console.log("Restart your agent IDE/CLI or open a new session.");
-  console.log("Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit");
+  console.log(
+    "Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn",
+  );
   console.log("Gemini: run /commands reload after install.");
-  console.log("Run /fivem reference (or /fivem:reference) to generate reference.mdc at project root.");
+  console.log(
+    "Run /fivem reference (or /fivem:reference) to generate reference.mdc at project root.",
+  );
   console.log("Run /fivem audit [scope] for security/perf/pattern audit + fix plan.");
+  console.log(
+    "Run /fivem learn <topic> to scan the codebase and save topic memory under <agent>/fivem/memory/.",
+  );
 }
 
 main().catch((error) => {
