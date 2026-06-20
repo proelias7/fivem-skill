@@ -20,7 +20,22 @@ If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
 
 **Catalog nodes** (topic-catalog, not yet learned): `group: "catalog"`, `file: ""`, `triggers`, `searchHints`, `tokens`, `paths`.
 
-**Links** (dedupe; learned only — catalog orphans never get links): `shared-path` (learned share path), `cross-mention` (slug in content).
+**Skip catalog orphan** when a learned topic already covers the same concept:
+- canonical slug match (`grupo` learned → skip catalog `grupos`)
+- learned `name`/`topic` matches catalog slug or trigger alias
+- catalog triggers include learned slug or its singular/plural form
+- canonical key: lowercase, no accents, simple singularize (`grupos`→`grupo`, `items`→`item`), ignore generic tokens (`config`, `script`, `module`, `core`, `main`)
+
+**Links** (dedupe; learned only — catalog orphans never get links). Infer from code evidence, strongest first:
+
+- `shared-path` — same file or same resource folder
+- `shared-resource` — same FiveM resource or `fxmanifest.lua`
+- `event-flow` — one topic registers/handles event another triggers
+- `shared-symbol` — same export, framework call, config key, handler
+- `cross-mention` — slug in another memory content
+- `domain-related` — ≥2 strong technical tokens shared (not generic words)
+
+Module grouping: link related learned topics inside a resource via `shared-resource`/`shared-path`/`event-flow` — no virtual hub node.
 
 **Meta:** `generatedAt` (ISO), `agent: "gemini"`, `fivemDir: ".gemini/fivem"`, `counts` (learned, catalog, links, tokens).
 

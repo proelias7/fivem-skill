@@ -446,9 +446,76 @@
   <script>
     const GRAPH_DATA = /*__GRAPH_DATA__*/;
 
-    (function sanitizeCatalogLinks() {
+    const GENERIC_TOPIC_TOKENS = new Set([
+      "config", "script", "module", "system", "core", "main", "utils", "util",
+    ]);
+
+    function stripAccents(value) {
+      return String(value || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function singularizeToken(token) {
+      if (!token || token.length <= 3) return token;
+      if (token.endsWith("oes")) return `${token.slice(0, -3)}ao`;
+      if (token.endsWith("ais")) return token.slice(0, -1);
+      if (token.endsWith("s") && !token.endsWith("ss")) return token.slice(0, -1);
+      return token;
+    }
+
+    function canonicalTopicKey(value) {
+      return stripAccents(String(value || "").toLowerCase())
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(singularizeToken)
+        .filter((token) => token && !GENERIC_TOPIC_TOKENS.has(token))
+        .join(" ");
+    }
+
+    function topicTokens(value) {
+      const keys = new Set();
+      const canonical = canonicalTopicKey(value);
+      if (canonical) keys.add(canonical);
+      stripAccents(String(value || "").toLowerCase())
+        .split(/[^a-z0-9]+/)
+        .filter((token) => token.length >= 3 && !GENERIC_TOPIC_TOKENS.has(token))
+        .forEach((token) => keys.add(singularizeToken(token)));
+      return keys;
+    }
+
+    function collectTopicKeys(node) {
+      const keys = new Set();
+      [node.id, node.name, node.triggers, node.searchHints].forEach((field) => {
+        topicTokens(field).forEach((key) => keys.add(key));
+      });
+      return keys;
+    }
+
+    function topicsOverlap(aKeys, bKeys) {
+      for (const key of aKeys) {
+        if (bKeys.has(key)) return true;
+      }
+      return false;
+    }
+
+    (function sanitizeGraphData() {
+      const nodes = GRAPH_DATA.nodes || [];
+      const learnedKeys = new Set();
+      nodes
+        .filter((node) => node.group === "learned")
+        .forEach((node) => collectTopicKeys(node).forEach((key) => learnedKeys.add(key)));
+
+      GRAPH_DATA.nodes = nodes.filter((node) => {
+        if (node.group !== "catalog") return true;
+        const catalogKeys = collectTopicKeys(node);
+        return !topicsOverlap(catalogKeys, learnedKeys);
+      });
+
       const catalogIds = new Set(
-        (GRAPH_DATA.nodes || []).filter((n) => n.group === "catalog").map((n) => n.id),
+        GRAPH_DATA.nodes.filter((n) => n.group === "catalog").map((n) => n.id),
       );
       if (!GRAPH_DATA.links) GRAPH_DATA.links = [];
       GRAPH_DATA.links = GRAPH_DATA.links.filter((link) => {

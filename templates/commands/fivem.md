@@ -380,7 +380,23 @@ Assemble a single JSON object with `nodes`, `links`, and `meta`.
 | `paths` | array of lowercase paths from backtick values containing `/`, `\`, `.lua`, `.md`, or `config.` |
 | `searchHints` | `""` |
 
-**Catalog nodes** (from `topic-catalog.md`, skip slugs already learned):
+**Catalog nodes** (from `topic-catalog.md` — **skip if already covered by a learned topic**):
+
+Before adding a catalog row, build a **canonical topic key** for every learned node and skip catalog rows that match the same concept.
+
+**Canonical key rules** (apply to slug, `name`, `topic`, and trigger tokens):
+
+- lowercase, strip accents, remove punctuation
+- split camelCase / separators into tokens
+- simple singularize: `grupos` → `grupo`, `items` → `item`, `permissions` → `permission`
+- ignore generic tokens: `config`, `script`, `module`, `system`, `core`, `main`, `utils`
+
+**Skip catalog orphan when any learned node matches by:**
+
+- exact slug (`grupo` learned → skip catalog `grupo`)
+- canonical slug (`grupo` learned → skip catalog `grupos`)
+- learned `name` / `topic` equals catalog slug or alias
+- catalog triggers contain the learned slug or its canonical form (e.g. learned `grupo`, catalog triggers include `grupo` or `grupos`)
 
 | Field | Value |
 |-------|-------|
@@ -396,10 +412,18 @@ Assemble a single JSON object with `nodes`, `links`, and `meta`.
 
 **Links** (dedupe; never link a node to itself; **only between learned nodes** — catalog orphans never receive links):
 
+Infer links from **code evidence**, not slug similarity alone. Prefer stronger signals first; dedupe by `{source, target}` pair (keep highest-priority type).
+
 | Type | Rule |
 |------|------|
-| `shared-path` | Two learned nodes share a path in `paths` |
-| `cross-mention` | Slug of one learned node appears in another's file content (case-insensitive word boundary) |
+| `shared-path` | Same file path, or same resource folder (e.g. both under `resources/inventory/`) |
+| `shared-resource` | Same FiveM resource name or same `fxmanifest.lua` path |
+| `event-flow` | One memory registers/handles an event the other triggers (quoted event names match) |
+| `shared-symbol` | Same export, framework call, config key, or handler function (e.g. `vRP.hasGroup`, `inventory:useItem`) |
+| `cross-mention` | Slug of one learned node appears in another's file content (word boundary) |
+| `domain-related` | ≥2 strong technical tokens shared in triggers/content/paths (exclude generic words above) |
+
+**Module grouping:** when one topic spans several scripts inside a resource (e.g. inventory core + itemlist + chest), link related learned topics via `shared-resource`, `shared-path`, or `event-flow` — do **not** create a virtual hub node.
 
 Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>" }`
 
