@@ -484,11 +484,26 @@
       "#A855F7", "#EF4444", "#6366F1", "#2DD4BF",
       "#C084FC", "#F87171", "#818CF8", "#5EEAD4",
     ];
-    const NODE_BASE = 8;
-    const NODE_K = 3;
+    const NODE_BASE = 4;
+    const NODE_K = 1;
     const htmlLabelMap = new Map();
     let cameraFitted = false;
     let orphansLaidOut = false;
+
+    function activeNodeCount(data) {
+      return data?.nodes?.length || Graph?.graphData()?.nodes?.length || GRAPH_DATA.nodes.length || 1;
+    }
+
+    // Spread grows with node count so small production graphs do not overlap.
+    function layoutSpread(data) {
+      const n = activeNodeCount(data);
+      return 40 + Math.sqrt(n) * 18;
+    }
+
+    function spriteDensityScale(data) {
+      const n = activeNodeCount(data);
+      return Math.max(0.4, Math.min(1, 5 / Math.sqrt(n)));
+    }
 
     const searchInput = document.getElementById("search");
     const toggleOrphans = document.getElementById("toggle-orphans");
@@ -587,14 +602,14 @@
       return tex;
     })();
 
-    function nodeWorldScale(node, multiplier = 1) {
+    function nodeWorldScale(node, multiplier = 1, data) {
       const graphEl = document.getElementById("graph");
       const camera = Graph.camera();
       const dist = Math.max(
         camera.position.distanceTo(new THREE.Vector3(node.x, node.y, node.z)),
         1,
       );
-      const px = (nodeSize(node) + 10) * multiplier;
+      const px = (nodeSize(node) + 2) * spriteDensityScale(data) * multiplier;
       const vFov = (camera.fov * Math.PI) / 180;
       const viewHeight = graphEl?.clientHeight || window.innerHeight;
       const worldPerPx = (2 * Math.tan(vFov / 2) * dist) / viewHeight;
@@ -614,11 +629,11 @@
       return found;
     }
 
-    function styleNodeObject(root, node) {
+    function styleNodeObject(root, node, data) {
       const isSelected = selectedNode && node.id === selectedNode.id;
       const dimmed = highlightNodes.size > 0 && !highlightNodes.has(node.id);
-      const coreScale = nodeWorldScale(node, isSelected ? 1.12 : 1);
-      const glowScale = nodeWorldScale(node, isSelected ? 2.6 : 1);
+      const coreScale = nodeWorldScale(node, isSelected ? 1.08 : 1, data);
+      const glowScale = nodeWorldScale(node, isSelected ? 1.85 : 1, data);
 
       root.traverse((obj) => {
         if (!obj.isSprite || !obj.material) return;
@@ -645,9 +660,10 @@
     }
 
     function updateAllSprites() {
-      Graph.graphData().nodes.forEach((node) => {
+      const data = Graph.graphData();
+      data.nodes.forEach((node) => {
         const root = findNodeObject(node.id);
-        if (root) styleNodeObject(root, node);
+        if (root) styleNodeObject(root, node, data);
       });
     }
 
@@ -680,7 +696,7 @@
 
       group.add(glow);
       group.add(core);
-      styleNodeObject(group, node);
+      styleNodeObject(group, node, { nodes: GRAPH_DATA.nodes });
       return group;
     }
 
@@ -927,12 +943,12 @@
       });
 
       const orphans = nodes.filter((n) => !linkedIds.has(n.id));
-      const ring = 28;
+      const ring = layoutSpread({ nodes });
       orphans.forEach((orphan, i) => {
         const angle = (i / orphans.length) * Math.PI * 2;
         orphan.x = ring * Math.cos(angle);
-        orphan.y = ring * 0.2 * Math.sin(angle);
-        orphan.z = ring * 0.55 * Math.sin(angle);
+        orphan.y = ring * 0.18 * Math.sin(angle);
+        orphan.z = ring * 0.5 * Math.sin(angle);
       });
     }
 
@@ -960,8 +976,9 @@
       const cx = (minX + maxX) / 2;
       const cy = (minY + maxY) / 2;
       const cz = (minZ + maxZ) / 2;
-      const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 50);
-      const dist = span * 0.58;
+      const spread = layoutSpread(data);
+      const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, spread * 1.6) + spread * 0.35;
+      const dist = span * 1.05;
 
       const camera = Graph.camera();
       const controls = Graph.controls();
@@ -977,6 +994,7 @@
     function layoutOrphansNearCluster() {
       const data = Graph.graphData();
       if (!data?.nodes?.length) return;
+      const spread = layoutSpread(data);
 
       const linkedIds = new Set();
       data.links.forEach((link) => {
@@ -1008,8 +1026,8 @@
         clusterRadius = Math.max(clusterRadius, Math.sqrt(dx * dx + dy * dy + dz * dz));
       });
 
-      const innerRing = clusterRadius + 20;
-      const outerRing = clusterRadius + 34;
+      const innerRing = clusterRadius + spread * 0.55;
+      const outerRing = clusterRadius + spread * 0.95;
 
       orphans.forEach((orphan, i) => {
         const ring = i % 2 === 0 ? innerRing : outerRing;
@@ -1106,7 +1124,7 @@
         const sx = (projected.x * 0.5 + 0.5) * rect.width;
         const sy = (-projected.y * 0.5 + 0.5) * rect.height;
         const dist = Math.hypot(localX - sx, localY - sy);
-        const hitRadius = Math.max(nodeSize(node) + 14, 24);
+        const hitRadius = Math.max((nodeSize(node) + 4) * spriteDensityScale(Graph.graphData()), 12);
 
         if (dist <= hitRadius && dist < bestDist) {
           bestDist = dist;
@@ -1157,11 +1175,19 @@
       delete node.fz;
     }
 
+    let currentLayoutSpread = 58;
+
+    function configureLayoutForces(data) {
+      currentLayoutSpread = layoutSpread(data);
+      Graph.d3Force("link").distance(currentLayoutSpread);
+      Graph.d3Force("charge").strength(-currentLayoutSpread * 2.4);
+    }
+
     const Graph = ForceGraph3D()(document.getElementById("graph"))
       .backgroundColor("#000000")
       .showNavInfo(false)
       .nodeLabel((node) => node.name)
-      .nodeVal((node) => nodeSize(node) + 6)
+      .nodeVal(() => currentLayoutSpread * 0.34)
       .nodeColor(nodeColor)
       .nodeThreeObject(makeNodeSprite)
       .linkThreeObject(makeLinkObject)
@@ -1190,12 +1216,28 @@
 
     Graph.onEngineStop(finalizeLayout);
 
-    Graph.d3Force("charge").strength(-80);
-    Graph.d3Force("link").distance(42);
+    function refreshGraph() {
+      orphansLaidOut = false;
+      const data = filteredData();
+      data.nodes.forEach((node) => {
+        delete node.fx;
+        delete node.fy;
+        delete node.fz;
+      });
+      updateStats(data);
+      pruneHtmlLabels(data.nodes);
+      seedOrphanPositions(data.nodes, data.links);
+      Graph.graphData(data);
+      configureLayoutForces(data);
+      Graph.d3ReheatSimulation();
+      repaintGraph();
+    }
 
-    // Simulation stops after layout (pinned orphans), which halts the library
-    // render loop — keep drawing every frame ourselves.
+    // Simulation stops after layout — keep drawing every frame ourselves.
     (function renderLoop() {
+      if (Graph.d3Alpha() > 0.001 || isDraggingNode) {
+        Graph.tickFrame();
+      }
       syncSpritePositions();
       syncLinkPositions();
       updateAllSprites();
@@ -1259,21 +1301,6 @@
       } catch (error) {
         setLiveStatus(`Erro ao atualizar: ${error.message}`);
       }
-    }
-
-    function refreshGraph() {
-      orphansLaidOut = false;
-      const data = filteredData();
-      data.nodes.forEach((node) => {
-        delete node.fx;
-        delete node.fy;
-        delete node.fz;
-      });
-      updateStats(data);
-      pruneHtmlLabels(data.nodes);
-      seedOrphanPositions(data.nodes, data.links);
-      Graph.graphData(data);
-      repaintGraph();
     }
 
     searchInput.addEventListener("input", () => {
