@@ -22,6 +22,39 @@ const LEGACY_COMMAND_SKILL = "fivem-dev";
 const REFERENCE_TEMPLATES_DIR = path.join("templates", "rules");
 const FIVEM_TEMPLATES_DIR = path.join("templates", "fivem");
 const GEMINI_COMMANDS_DIR = path.join("templates", "commands", "gemini");
+const FIVEM_TEMPLATE_FILES = [
+  "reference.template.mdc",
+  "reference.example.mdc",
+  "audit.template.md",
+  "memory.template.md",
+  "memory-index.template.md",
+  "memory-health.template.md",
+  "topic-catalog.md",
+  "knowledge-graph.html",
+];
+const LEGACY_FIVEM_FILES = [
+  "knowledge-graph.template.html",
+  "knowledge-graph.data.json",
+  "knowledge-graph.live.json",
+  "graph-data.json",
+  "live-graph.json",
+  "build-knowledge-graph.js",
+  "build-knowledge-graph.mjs",
+  "build-knowledge-graph.cjs",
+  "build-knowledge-graph.py",
+  "generate-knowledge-graph.js",
+  "generate-knowledge-graph.py",
+  "update-knowledge-graph.js",
+  "update-knowledge-graph.py",
+  path.join("scripts", "build-knowledge-graph.js"),
+  path.join("scripts", "build-knowledge-graph.mjs"),
+  path.join("scripts", "build-knowledge-graph.cjs"),
+  path.join("scripts", "build-knowledge-graph.py"),
+  path.join("scripts", "generate-knowledge-graph.js"),
+  path.join("scripts", "generate-knowledge-graph.py"),
+  path.join("scripts", "update-knowledge-graph.js"),
+  path.join("scripts", "update-knowledge-graph.py"),
+];
 const AGENT_FIVEM_DIRS = {
   cursor: path.join(".cursor", "fivem"),
   gemini: path.join(".gemini", "fivem"),
@@ -248,6 +281,27 @@ function pruneEmptyDirsUpward(dirPath, stopAt) {
     fs.rmdirSync(current);
     current = path.dirname(current);
   }
+}
+
+function removeFivemFiles(targetRoot, relativeDestDir, fileNames) {
+  const removed = [];
+
+  for (const fileName of fileNames) {
+    const filePath = path.join(targetRoot, relativeDestDir, fileName);
+    if (!fs.existsSync(filePath)) {
+      continue;
+    }
+
+    fs.rmSync(filePath, { recursive: true, force: true });
+    removed.push(path.relative(targetRoot, filePath));
+  }
+
+  pruneEmptyDirsUpward(path.join(targetRoot, relativeDestDir), targetRoot);
+  return removed;
+}
+
+function cleanLegacyFivemFiles(targetRoot, relativeDestDir) {
+  return removeFivemFiles(targetRoot, relativeDestDir, LEGACY_FIVEM_FILES);
 }
 
 function cleanUnselectedAgents(targetRoot, selectedAgentIds, managedSkills) {
@@ -488,16 +542,11 @@ function removeLegacyCommand(targetRoot, agent) {
 
 function installFivemTemplates(targetRoot, relativeDestDir) {
   const destDir = path.join(targetRoot, relativeDestDir);
-  const templates = [
-    [REFERENCE_TEMPLATES_DIR, "reference.template.mdc"],
-    [REFERENCE_TEMPLATES_DIR, "reference.example.mdc"],
-    [FIVEM_TEMPLATES_DIR, "audit.template.md"],
-    [FIVEM_TEMPLATES_DIR, "memory.template.md"],
-    [FIVEM_TEMPLATES_DIR, "memory-index.template.md"],
-    [FIVEM_TEMPLATES_DIR, "memory-health.template.md"],
-    [FIVEM_TEMPLATES_DIR, "topic-catalog.md"],
-    [FIVEM_TEMPLATES_DIR, "knowledge-graph.html"],
-  ];
+  const removed = cleanLegacyFivemFiles(targetRoot, relativeDestDir);
+  const templates = FIVEM_TEMPLATE_FILES.map((fileName) => [
+    fileName.startsWith("reference.") ? REFERENCE_TEMPLATES_DIR : FIVEM_TEMPLATES_DIR,
+    fileName,
+  ]);
   const installed = [];
 
   for (const [srcDir, fileName] of templates) {
@@ -542,7 +591,7 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     installed.push(memoryIndex);
   }
 
-  return installed;
+  return { installed, removed };
 }
 
 function seedMemoryIndex(targetRoot, relativeDestDir) {
@@ -570,24 +619,11 @@ function seedMemoryIndex(targetRoot, relativeDestDir) {
 }
 
 function cleanFivemTemplates(targetRoot, relativeDestDir) {
-  const templateFiles = [
-    "reference.template.mdc",
-    "reference.example.mdc",
-    "audit.template.md",
-    "memory.template.md",
-    "memory-index.template.md",
-    "memory-health.template.md",
-    "topic-catalog.md",
-    "knowledge-graph.template.html",
-    "build-knowledge-graph.js",
-  ];
-
-  for (const fileName of templateFiles) {
-    const filePath = path.join(targetRoot, relativeDestDir, fileName);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-  }
+  removeFivemFiles(
+    targetRoot,
+    relativeDestDir,
+    [...FIVEM_TEMPLATE_FILES, ...LEGACY_FIVEM_FILES],
+  );
 
   // Never delete user-generated memory/*.md — only prune empty memory/ if no files left
   const memoryDir = path.join(targetRoot, relativeDestDir, "memory");
@@ -761,7 +797,10 @@ async function main() {
 
       if (agent.fivemTemplatesDir) {
         const refs = installFivemTemplates(options.target, agent.fivemTemplatesDir);
-        for (const dest of refs) {
+        for (const dest of refs.removed) {
+          console.log(`  ✓ cleanup  → ${dest}`);
+        }
+        for (const dest of refs.installed) {
           console.log(`  ✓ template → ${dest}`);
         }
       }

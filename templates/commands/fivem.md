@@ -19,7 +19,7 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | `learn list` | **Learn** — list topics in `_index.md` + catalog |
 | `memory health` or `memory health fix` | **Memory health** — verify memories vs codebase + integration + token format |
 | `memory health <topic>` or `memory health <topic> fix` | **Memory health** — single topic (optional auto-fix) |
-| `graph` | **Graph** — build 3D knowledge map HTML from learned memories |
+| `graph` | **Graph** — execute the graph generator operation only |
 | implementation/correction request | **Task** — analyze, retrieve minimal memories, implement, then capture reusable knowledge |
 | empty or conceptual question | **Help** — answer FiveM development questions |
 
@@ -459,7 +459,18 @@ Reply in **user's language**:
 
 ## Mode: Graph
 
-Build a **static 3D knowledge graph** HTML file and **open it in the browser**. No Node script, no background server.
+Execute the **graph generator operation** and open the resulting HTML. This is not Task mode, not Learn mode, and not a refactor opportunity.
+
+Graph mode is intentionally mechanical:
+
+- read memory/catalog files
+- build the graph JSON in the agent response context
+- replace only the `GRAPH_DATA` payload in the existing HTML
+- open the HTML or report its path
+
+Do **not** think beyond this operation, improve graph code, tune visuals, edit templates, learn memories, create scripts, or modify project code.
+
+This mode is file-only: **no Python, no Node, no Bash helper, no generated script, no HTTP server, no background process**.
 
 ### Step 1 — Read sources
 
@@ -475,7 +486,11 @@ If `<agent>/fivem/knowledge-graph.html` is missing → tell user to run fivem-sk
 
 ### Step 2 — Build graph JSON
 
-Assemble a single JSON object with `nodes`, `links`, and `meta`.
+Assemble a single JSON object with `nodes`, `links`, and `meta` directly from the files read in Step 1.
+
+Do **not** create or execute helper code to build the JSON. The graph data must be assembled by the agent from file contents and written directly into the existing HTML.
+
+Do not scan the source codebase for extra evidence in graph mode. Links come from the existing memory files only.
 
 **Learned nodes** (one per `memory/<slug>.md`):
 
@@ -559,9 +574,25 @@ Use `"agent": "gemini"` and `"fivemDir": ".gemini/fivem"` for Gemini projects.
 
 ### Step 3 — Write HTML
 
-Read `<agent>/fivem/knowledge-graph.html`. Replace **only** the token `/*__GRAPH_DATA__*/` with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
+Read `<agent>/fivem/knowledge-graph.html`. Replace **only** the graph data payload with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
+
+Payload replacement rule:
+
+- If `/*__GRAPH_DATA__*/` exists, replace only that token.
+- Otherwise replace only the object assigned to `const GRAPH_DATA = ...;`.
+- Preserve all HTML, CSS, JS functions, visual settings, imports, comments, and formatting outside the `GRAPH_DATA` assignment.
 
 Write the result back to `<agent>/fivem/knowledge-graph.html`.
+
+Allowed writes in graph mode:
+
+- `<agent>/fivem/knowledge-graph.html` only
+
+Forbidden writes in graph mode:
+
+- temporary scripts such as `.py`, `.js`, `.mjs`, `.cjs`, `.sh`, `.ps1`
+- build scripts, helper tools, package files, generated logs, cache files
+- memory files, catalog files, templates, or source code
 
 ### Step 4 — Open browser
 
@@ -586,9 +617,15 @@ Remind user: re-run `/fivem graph` after `/fivem learn` to refresh the snapshot.
 
 ### Graph rules
 
-- **Do not** run Node scripts or start HTTP servers
+- **Do not** enter Task mode or run post-task memory capture during `graph`
+- **Do not** improve, tune, refactor, reformat, or edit graph HTML/JS/CSS beyond replacing `GRAPH_DATA`
+- **Do not** scan Lua/JS/source resources to infer new knowledge; graph uses existing memories only
+- **Do not** create or run scripts of any kind: Python, Node, Bash, PowerShell, batch, or generated helper files
+- **Do not** run build tools, package managers, formatters, watchers, servers, or shell pipelines to assemble the JSON
+- Shell is allowed only for opening the final HTML in the browser; if opening fails, tell the user the path instead
 - **Do not** edit memory files during graph mode — only regenerate the HTML
 - **Do not** keep a background process running
+- **Do not** modify `knowledge-graph.html` structure during graph mode — only replace the embedded graph data
 - If `<agent>/fivem/` is missing → user must run fivem-skill installer first
 
 ---

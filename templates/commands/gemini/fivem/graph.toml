@@ -1,9 +1,11 @@
-description = "Build static 3D knowledge graph and open in browser"
+description = "Execute static 3D knowledge graph generator and open in browser"
 
 prompt = """
-Build a **static 3D knowledge graph** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `<agent>/fivem/knowledge-graph.html`, and open it in the browser.
+Execute the **graph generator operation** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `.gemini/fivem/knowledge-graph.html`, and open it in the browser.
 
-**No Node script. No HTTP server. No background process.**
+This is not task mode, not learn mode, and not a refactor opportunity. Do not improve graph code, tune visuals, edit templates, learn memories, create scripts, or modify project code.
+
+**File-only mechanical mode. No Python. No Node. No Bash helper. No generated script. No HTTP server. No background process.**
 
 ### Step 1 — Read sources
 
@@ -15,6 +17,10 @@ Build a **static 3D knowledge graph** from `.gemini/fivem/memory/` and `topic-ca
 If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
 
 ### Step 2 — Build graph JSON
+
+Assemble the JSON directly from the files read in Step 1. Do **not** create or execute helper code to build the JSON.
+
+Do not scan the source codebase for extra evidence in graph mode. Links come from the existing memory files only.
 
 **Learned nodes** (`memory/<slug>.md`): `id` (slug), `name`, `group: "learned"`, `file` (relative path), `updated`, `framework`, `triggers`, `tokens` (~chars/4), `paths` (backtick paths), `searchHints: ""`.
 
@@ -41,7 +47,16 @@ Module grouping: link related learned topics inside a resource via `shared-resou
 
 ### Step 3 — Write HTML
 
-Replace **only** `/*__GRAPH_DATA__*/` in `knowledge-graph.html` with the JSON (2-space indent). Write to `.gemini/fivem/knowledge-graph.html`.
+Replace **only** the graph data payload with the JSON (2-space indent). Write to `.gemini/fivem/knowledge-graph.html`.
+
+Payload replacement rule:
+- If `/*__GRAPH_DATA__*/` exists, replace only that token.
+- Otherwise replace only the object assigned to `const GRAPH_DATA = ...;`.
+- Preserve all HTML, CSS, JS functions, visual settings, imports, comments, and formatting outside the `GRAPH_DATA` assignment.
+
+Allowed write: `.gemini/fivem/knowledge-graph.html` only.
+
+Forbidden writes: temporary scripts (`.py`, `.js`, `.mjs`, `.cjs`, `.sh`, `.ps1`), build scripts, package files, logs, cache files, memory files, catalog files, templates, or source code.
 
 ### Step 4 — Open browser
 
@@ -51,6 +66,11 @@ Replace **only** `/*__GRAPH_DATA__*/` in `knowledge-graph.html` with the JSON (2
 
 Report learned / catalog orphans / links counts. Remind user to re-run `/fivem graph` after `/fivem learn`.
 
+**Do NOT** enter task mode or run post-task memory capture during graph.
+**Do NOT** improve, tune, refactor, reformat, or edit graph HTML/JS/CSS beyond replacing `GRAPH_DATA`.
+**Do NOT** scan Lua/JS/source resources to infer new knowledge; graph uses existing memories only.
 **Do NOT** edit memory files — only regenerate the HTML.
-**Do NOT** run Node scripts or start servers.
+**Do NOT** create or run scripts of any kind: Python, Node, Bash, PowerShell, batch, or generated helper files.
+**Do NOT** run build tools, package managers, formatters, watchers, servers, or shell pipelines to assemble the JSON.
+Shell is allowed only for opening the final HTML in the browser; if opening fails, tell the user the path instead.
 """
