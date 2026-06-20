@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — docs, reference, audit, learn, memory health, graph"
-argument-hint: "<question> | reference | audit [scope] | learn <topic> | memory health [fix] [topic] | graph"
+description: "FiveM helper — task workflow, docs, reference, audit, learn, memory health, graph"
+argument-hint: "<task/question> | reference | audit [scope] | learn <topic> | memory health [fix] [topic] | graph"
 ---
 
 # FiveM
@@ -20,13 +20,125 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | `memory health` or `memory health fix` | **Memory health** — verify memories vs codebase + integration + token format |
 | `memory health <topic>` or `memory health <topic> fix` | **Memory health** — single topic (optional auto-fix) |
 | `graph` | **Graph** — build 3D knowledge map HTML from learned memories |
-| empty or anything else | **Help** — answer FiveM development questions |
+| implementation/correction request | **Task** — analyze, retrieve minimal memories, implement, then capture reusable knowledge |
+| empty or conceptual question | **Help** — answer FiveM development questions |
 
 **Audit scope** (optional after `audit`):
 
 - `audit` alone → resource/folder from user `@` mention, open files, or ask which resource to audit
 - `audit resources/[Novos]/myresource` → audit that path only
 - `audit server.lua` → audit file if path exists
+
+---
+
+## Mode: Task
+
+Use Task mode when the user asks to **make, create, implement, fix, adjust, refactor, add, remove, wire, migrate, or change code/config** in a FiveM project. This mode optimizes delivery time by loading only the memory needed for the task, then learning from the completed work.
+
+### Step 1 — Initial task analysis
+
+Before scanning broadly, identify:
+
+| Item | What to infer |
+|------|---------------|
+| Goal | requested behavior or bug fix |
+| Scope | likely resource/module/files from args, `@` mentions, open files, and project conventions |
+| Tech topics | e.g. NUI, inventory, item, group/permission, webhook, DB, events, config, framework |
+| Risk | security validation, money/items, permissions, client/server trust, NUI callbacks, performance |
+| Memory hints | candidate slugs/aliases/triggers to search in memory index |
+
+### Step 2 — Ask when context is missing
+
+If uncertainty can change the implementation path, stop before editing code and ask concise numbered questions in chat. Continue only after the user answers.
+
+Ask when unsure about:
+
+- target resource/file when multiple matches are plausible
+- expected behavior or business rule
+- group/permission/job rules
+- client vs server vs NUI responsibility
+- data migration or destructive changes
+- two valid approaches with meaningful trade-offs
+- money, inventory, permission, vehicle, XP, ban, or sensitive event behavior
+
+Do **not** ask for trivial details that can be resolved by reading existing code, loaded memories, `reference.mdc`, or obvious local patterns.
+
+### Step 3 — Selective memory retrieval
+
+Use memories as a routing cache, not as a bulk context dump.
+
+1. Read `<agent>/fivem/memory/_index.md` first if it exists.
+2. Read `<agent>/fivem/topic-catalog.md` for aliases/search hints.
+3. Match the task against memory rows by slug, canonical slug, aliases, triggers, paths, symbols, and resource names.
+4. Load only the relevant `memory/<topic>.md` files, normally **3–5 maximum**.
+5. If no memory matches, use `topic-catalog.md`, `reference.mdc`, and the task files directly.
+6. Do not load all memories just to be safe.
+
+Canonical matching:
+
+- lowercase, strip accents, remove punctuation
+- simple singular/plural normalization (`grupos` → `grupo`, `items` → `item`)
+- compare topic, filename slug, triggers, aliases, path fragments, and known symbols
+
+### Step 4 — Implement with loaded knowledge
+
+After retrieval:
+
+1. Read the real code files needed for the task.
+2. Follow project patterns from relevant memories, `reference.mdc`, and skills.
+3. Edit Lua/JS/TS/NUI/config only as required by the task.
+4. Prefer existing helpers/events/framework APIs over new abstractions.
+5. Validate with focused lints/tests/grep where practical.
+6. Do **not** edit memory files during the main implementation phase.
+
+### Step 5 — Post-task learning review
+
+After implementation and validation, review whether the work produced reusable project knowledge.
+
+Create or update memory only when there is verified, reusable knowledge such as:
+
+- a project-specific flow understood end-to-end
+- a module/resource integration pattern
+- events, exports, callbacks, permissions, config keys, item ids, DB tables, or paths useful for future tasks
+- a local convention that differs from generic FiveM knowledge
+- a correction that changes an existing memory's recipe or pitfalls
+
+Do **not** create memory for:
+
+- tiny style/text changes
+- one-off bug fixes with no reusable flow
+- guesses or generic FiveM advice without repo evidence
+- duplicated topic already covered by an equivalent memory
+
+### Step 6 — Create or update memory without duplicates
+
+When the learning review qualifies:
+
+1. Read `_index.md` and candidate `memory/<topic>.md` files before writing.
+2. Canonicalize the topic (`grupos` → `grupo`, singular/plural, aliases).
+3. Update an existing memory if it covers the same domain.
+4. Create a new memory only for a distinct domain.
+5. Use `<agent>/fivem/memory.template.md` structure, compact English, `lang: en-compact`, ~25–60 lines.
+6. Include only verified repo literals: paths, events, exports, config keys, permissions, examples.
+7. Update `<agent>/fivem/memory/_index.md`; create from `memory-index.template.md` if missing.
+8. If `reference.mdc` exists, update only one row under `## Memórias por tópico`.
+
+### Step 7 — Reply
+
+Reply in the user's language with the implementation summary and validation. If memory changed, add:
+
+- `Memória criada: <agent>/fivem/memory/<topic>.md`
+- or `Memória atualizada: <agent>/fivem/memory/<topic>.md`
+- suggest `/fivem graph` to refresh the 3D knowledge map
+
+If no reusable knowledge was learned, omit memory noise unless it clarifies the outcome.
+
+### Task rules
+
+- Optimize context: read the index first, then only relevant memories.
+- Never invent paths, events, APIs, permissions, or framework behavior.
+- Memory writes are allowed only after code work is complete and only for verified reusable knowledge.
+- Preserve unrelated user changes in the working tree.
 
 ---
 
