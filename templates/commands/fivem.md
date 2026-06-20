@@ -394,13 +394,12 @@ Assemble a single JSON object with `nodes`, `links`, and `meta`.
 | `paths` | from `searchHints` backticks (same rules) |
 | `searchHints` | catalog searchHints column |
 
-**Links** (dedupe; never link a node to itself):
+**Links** (dedupe; never link a node to itself; **only between learned nodes** — catalog orphans never receive links):
 
 | Type | Rule |
 |------|------|
 | `shared-path` | Two learned nodes share a path in `paths` |
 | `cross-mention` | Slug of one learned node appears in another's file content (case-insensitive word boundary) |
-| `catalog-hint` | Catalog orphan shares a token (≥4 chars, alphanumeric) with a learned node's triggers, content, or paths |
 
 Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>" }`
 

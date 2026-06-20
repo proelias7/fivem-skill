@@ -20,7 +20,7 @@ If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
 
 **Catalog nodes** (topic-catalog, not yet learned): `group: "catalog"`, `file: ""`, `triggers`, `searchHints`, `tokens`, `paths`.
 
-**Links** (dedupe): `shared-path` (learned share path), `cross-mention` (slug in content), `catalog-hint` (token ≥4 chars matches learned).
+**Links** (dedupe; learned only — catalog orphans never get links): `shared-path` (learned share path), `cross-mention` (slug in content).
 
 **Meta:** `generatedAt` (ISO), `agent: "gemini"`, `fivemDir: ".gemini/fivem"`, `counts` (learned, catalog, links, tokens).
 

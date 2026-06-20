@@ -446,6 +446,18 @@
   <script>
     const GRAPH_DATA = /*__GRAPH_DATA__*/;
 
+    (function sanitizeCatalogLinks() {
+      const catalogIds = new Set(
+        (GRAPH_DATA.nodes || []).filter((n) => n.group === "catalog").map((n) => n.id),
+      );
+      if (!GRAPH_DATA.links) GRAPH_DATA.links = [];
+      GRAPH_DATA.links = GRAPH_DATA.links.filter((link) => {
+        const src = link.source?.id ?? link.source;
+        const tgt = link.target?.id ?? link.target;
+        return !catalogIds.has(src) && !catalogIds.has(tgt) && link.type !== "catalog-hint";
+      });
+    })();
+
     const COLORS = {
       learned: "#2DD4BF",
       catalog: "#71717A",
@@ -459,10 +471,10 @@
       "#60A5FA", "#22D3EE", "#A78BFA", "#F472B6",
       "#4ADE80", "#38BDF8", "#818CF8", "#C084FC",
     ];
-    const NODE_LEARNED_BASE = 10;
-    const NODE_CATALOG_BASE = 7;
-    const NODE_LEARNED_K = 1.9;
-    const NODE_CATALOG_K = 1.2;
+    const NODE_LEARNED_BASE = 8;
+    const NODE_CATALOG_BASE = 6;
+    const NODE_LEARNED_K = 1.55;
+    const NODE_CATALOG_K = 1.0;
     const htmlLabelMap = new Map();
     let cameraFitted = false;
     let orphansLaidOut = false;
@@ -473,7 +485,7 @@
 
     function layoutSpread(data) {
       const n = activeNodeCount(data);
-      return 88 + Math.sqrt(n) * 24;
+      return 112 + Math.sqrt(n) * 34;
     }
 
     function spriteDensityScale(data) {
@@ -502,7 +514,7 @@
       const tokens = Math.max(0, effectiveTokens(node));
       const base = node.group === "learned" ? NODE_LEARNED_BASE : NODE_CATALOG_BASE;
       const scale = node.group === "learned" ? NODE_LEARNED_K : NODE_CATALOG_K;
-      const max = node.group === "learned" ? 46 : 24;
+      const max = node.group === "learned" ? 38 : 20;
       return Math.max(base, Math.min(max, base + scale * Math.sqrt(tokens)));
     }
 
@@ -676,7 +688,8 @@
       return group;
     }
 
-    const LINK_SEGMENTS = 16;
+    const LINK_TUBE_DETAIL = 6;
+    const LINK_GRADIENT_PARTS = 10;
     const LINK_CURVATURE = 0.08;
     const LINK_RADIUS = 0.2;
 
@@ -696,23 +709,26 @@
       return new THREE.QuadraticBezierCurve3(vs, ctrl, ve);
     }
 
-    function paintLinkMesh(mesh, link) {
+    function linkSegmentOpacity(tMid, highlighted, dimmed) {
+      const edgeFactor = Math.abs(tMid - 0.5) * 2;
+      const base = dimmed ? 0.06 : (highlighted ? 0.92 : 0.58);
+      return base * (0.08 + 0.92 * Math.pow(edgeFactor, 0.55));
+    }
+
+    function styleLinkGroup(group, link) {
       const src = linkEndpoint(link.source);
       const tgt = linkEndpoint(link.target);
       const highlighted = highlightLinks.has(link);
+      const dimmed = highlightLinks.size > 0 && !highlighted;
       const cStart = new THREE.Color(src ? nodeColor(src) : COLORS.link);
       const cEnd = new THREE.Color(tgt ? nodeColor(tgt) : COLORS.link);
-      const colors = mesh.geometry.attributes.color;
-      const ringVerts = 7;
-      const tmp = new THREE.Color();
-      for (let i = 0; i < colors.count; i += 1) {
-        const seg = Math.floor(i / ringVerts) / LINK_SEGMENTS;
-        tmp.copy(cStart).lerp(cEnd, Math.min(1, seg));
-        colors.setXYZ(i, tmp.r, tmp.g, tmp.b);
-      }
-      colors.needsUpdate = true;
-      const dimmed = highlightLinks.size > 0 && !highlighted;
-      mesh.material.opacity = dimmed ? 0.08 : (highlighted ? 0.86 : 0.5);
+      const parts = group.__linkParts || LINK_GRADIENT_PARTS;
+
+      group.children.forEach((mesh, i) => {
+        const tMid = (i + 0.5) / parts;
+        mesh.material.color.copy(cStart).lerp(cEnd, tMid);
+        mesh.material.opacity = linkSegmentOpacity(tMid, highlighted, dimmed);
+      });
     }
 
     function makeLinkObject() {
@@ -723,31 +739,44 @@
     }
 
     function updateLinkObject(group, { start, end }, link) {
-      const curve = buildLinkCurve(start, end);
-      if (group.children[0]) {
-        group.children[0].geometry.dispose();
-        group.remove(group.children[0]);
+      while (group.children.length) {
+        const child = group.children[0];
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) child.material.dispose();
+        group.remove(child);
       }
-      const geometry = new THREE.TubeGeometry(curve, LINK_SEGMENTS, LINK_RADIUS, 6, false);
-      geometry.setAttribute(
-        "color",
-        new THREE.BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3),
-      );
-      const mesh = new THREE.Mesh(
-        geometry,
-        new THREE.MeshBasicMaterial({
-          vertexColors: true,
-          transparent: true,
-          opacity: 0.5,
-          depthTest: false,
-          depthWrite: false,
-          blending: THREE.AdditiveBlending,
-        }),
-      );
-      mesh.renderOrder = 0;
-      mesh.raycast = () => {};
-      group.add(mesh);
-      paintLinkMesh(mesh, link);
+
+      const curve = buildLinkCurve(start, end);
+      const parts = LINK_GRADIENT_PARTS;
+      group.__linkParts = parts;
+
+      for (let i = 0; i < parts; i += 1) {
+        const t0 = i / parts;
+        const t1 = (i + 1) / parts;
+        const subPoints = [];
+        for (let j = 0; j <= LINK_TUBE_DETAIL; j += 1) {
+          const t = t0 + (t1 - t0) * (j / LINK_TUBE_DETAIL);
+          subPoints.push(curve.getPoint(t));
+        }
+        const subCurve = subPoints.length >= 2
+          ? new THREE.CatmullRomCurve3(subPoints)
+          : new THREE.LineCurve3(subPoints[0], subPoints[subPoints.length - 1] || subPoints[0]);
+        const geometry = new THREE.TubeGeometry(subCurve, LINK_TUBE_DETAIL, LINK_RADIUS, 6, false);
+        const mesh = new THREE.Mesh(
+          geometry,
+          new THREE.MeshBasicMaterial({
+            transparent: true,
+            opacity: 0.5,
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          }),
+        );
+        mesh.renderOrder = 0;
+        mesh.raycast = () => {};
+        group.add(mesh);
+      }
+      styleLinkGroup(group, link);
       return true;
     }
 
@@ -771,7 +800,7 @@
 
     function styleAllLinks() {
       Graph.graphData().links.forEach((link) => {
-        if (link.__lineObj?.children[0]) paintLinkMesh(link.__lineObj.children[0], link);
+        if (link.__lineObj) styleLinkGroup(link.__lineObj, link);
       });
     }
 
@@ -954,6 +983,22 @@
         .filter((node) => !degrees.has(node.id))
         .sort((a, b) => a.name.localeCompare(b.name));
 
+      const golden = Math.PI * (3 - Math.sqrt(5));
+
+      function placeSphere(cloudNodes, radius, startIndex = 1, looseness = 1) {
+        const total = cloudNodes.length + startIndex;
+        cloudNodes.forEach((node, index) => {
+          const order = index + startIndex;
+          const t = (order + 0.5) / total;
+          const phi = Math.acos(Math.max(-1, Math.min(1, 1 - 2 * t)));
+          const theta = golden * order;
+          const r = radius * Math.pow(order, 0.42) * looseness;
+          node.x = r * Math.sin(phi) * Math.cos(theta);
+          node.y = r * Math.sin(phi) * Math.sin(theta);
+          node.z = r * Math.cos(phi);
+        });
+      }
+
       const center = connected[0] || nodes[0];
       if (center) {
         center.x = 0;
@@ -961,20 +1006,8 @@
         center.z = 0;
       }
 
-      function placeCloud(cloudNodes, radius, startIndex = 1, looseness = 1) {
-        cloudNodes.forEach((node, index) => {
-          const order = index + startIndex;
-          const angle = order * 2.399963229728653;
-          const distance = Math.sqrt(order) * radius * looseness;
-          const layer = (index % 5) - 2;
-          node.x = distance * Math.cos(angle);
-          node.y = distance * 0.72 * Math.sin(angle);
-          node.z = distance * 0.72 * Math.sin(angle * 1.7) + layer * radius * 0.42;
-        });
-      }
-
-      placeCloud(connected.filter((node) => node !== center), spread * 0.36, 1, 1);
-      placeCloud(orphans, spread * 0.52, connected.length + 2, 1.55);
+      placeSphere(connected.filter((node) => node !== center), spread * 0.42, 1, 1);
+      placeSphere(orphans, spread * 0.78, connected.length + 2, 1.35);
     }
 
     function seedOrphanPositions(nodes, links) {
@@ -985,13 +1018,15 @@
       });
 
       const orphans = nodes.filter((n) => !linkedIds.has(n.id));
-      const ring = layoutSpread({ nodes }) * 1.45;
+      const shell = layoutSpread({ nodes }) * 1.65;
+      const golden = Math.PI * (3 - Math.sqrt(5));
       orphans.forEach((orphan, i) => {
-        const angle = (i / orphans.length) * Math.PI * 2;
-        const layer = (i % 5) - 2;
-        orphan.x = ring * Math.cos(angle);
-        orphan.y = ring * 0.5 * Math.sin(angle);
-        orphan.z = ring * 0.62 * Math.sin(angle * 1.35) + layer * ring * 0.16;
+        const t = (i + 0.5) / orphans.length;
+        const phi = Math.acos(Math.max(-1, Math.min(1, 1 - 2 * t)));
+        const theta = golden * (i + 1);
+        orphan.x = shell * Math.sin(phi) * Math.cos(theta);
+        orphan.y = shell * Math.sin(phi) * Math.sin(theta);
+        orphan.z = shell * Math.cos(phi);
       });
     }
 
@@ -1067,16 +1102,18 @@
         clusterRadius = Math.max(clusterRadius, Math.sqrt(dx * dx + dy * dy + dz * dz));
       });
 
-      const innerRing = clusterRadius + spread * 0.72;
-      const outerRing = clusterRadius + spread * 1.12;
+      const innerShell = clusterRadius + spread * 0.85;
+      const outerShell = clusterRadius + spread * 1.35;
+      const golden = Math.PI * (3 - Math.sqrt(5));
 
       orphans.forEach((orphan, i) => {
-        const ring = i % 2 === 0 ? innerRing : outerRing;
-        const angle = (i / orphans.length) * Math.PI * 2;
-        const layer = (i % 5) - 2;
-        orphan.x = cx + ring * Math.cos(angle);
-        orphan.y = cy + ring * 0.42 * Math.sin(angle * 1.2);
-        orphan.z = cz + ring * 0.66 * Math.sin(angle * 1.45) + layer * spread * 0.28;
+        const shell = i % 2 === 0 ? innerShell : outerShell;
+        const t = (i + 0.5) / orphans.length;
+        const phi = Math.acos(Math.max(-1, Math.min(1, 1 - 2 * t)));
+        const theta = golden * (i + 1);
+        orphan.x = cx + shell * Math.sin(phi) * Math.cos(theta);
+        orphan.y = cy + shell * Math.sin(phi) * Math.sin(theta);
+        orphan.z = cz + shell * Math.cos(phi);
       });
     }
 
@@ -1205,11 +1242,11 @@
 
     function configureLayoutForces(data) {
       currentLayoutSpread = layoutSpread(data);
-      Graph.d3Force("link").distance(currentLayoutSpread * 0.95).strength(0.18);
-      Graph.d3Force("charge").strength(-currentLayoutSpread * 2.8);
+      Graph.d3Force("link").distance(currentLayoutSpread * 1.18).strength(0.14);
+      Graph.d3Force("charge").strength(-currentLayoutSpread * 3.4);
       const centerForce = Graph.d3Force("center");
       if (centerForce?.strength) {
-        centerForce.strength(0.045);
+        centerForce.strength(0.022);
       }
     }
 
@@ -1217,15 +1254,15 @@
       .backgroundColor("#000000")
       .showNavInfo(false)
       .nodeLabel((node) => node.name)
-      .nodeVal((node) => nodeSize(node) * 1.4)
+      .nodeVal((node) => nodeSize(node) * 1.2)
       .nodeColor(nodeColor)
       .nodeThreeObject(makeNodeSprite)
       .linkThreeObject(makeLinkObject)
       .linkPositionUpdate(updateLinkObject)
       .linkDirectionalParticles(0)
-      .d3VelocityDecay(0.22)
-      .d3AlphaDecay(0.01)
-      .cooldownTicks(900)
+      .d3VelocityDecay(0.2)
+      .d3AlphaDecay(0.008)
+      .cooldownTicks(1200)
       .enableNodeDrag(true)
       .onNodeClick((node) => {
         if (!suppressNodeClick) activateNode(node);
