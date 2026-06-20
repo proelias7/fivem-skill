@@ -17,7 +17,7 @@
       --muted-2: #71717a;
       --accent: #6366F1;
       --learned: #2DD4BF;
-      --catalog: #A855F7;
+      --catalog: #71717A;
       --link: #6366F1;
       --highlight: #A855F7;
     }
@@ -214,7 +214,7 @@
       flex-shrink: 0;
     }
 
-    .dot.learned { background: var(--learned); }
+    .dot.learned { background: linear-gradient(135deg, #2DD4BF, #6366F1, #A855F7); }
     .dot.catalog { background: var(--catalog); }
 
     .stats {
@@ -423,8 +423,8 @@
       <section class="sidebar-section">
         <div class="section-title">Grupos</div>
         <div class="legend">
-          <div class="legend-item"><span class="dot learned"></span> Aprendido</div>
-          <div class="legend-item"><span class="dot catalog"></span> Catálogo</div>
+          <div class="legend-item"><span class="dot learned"></span> Com ligação</div>
+          <div class="legend-item"><span class="dot catalog"></span> Órfão</div>
         </div>
       </section>
 
@@ -448,18 +448,21 @@
 
     const COLORS = {
       learned: "#2DD4BF",
-      catalog: "#A855F7",
+      catalog: "#71717A",
+      orphan: "#71717A",
       highlight: "#A855F7",
       dim: "#3a3a50",
       link: "#6366F1",
     };
 
     const VIVID_PALETTE = [
-      "#A855F7", "#EF4444", "#6366F1", "#2DD4BF",
-      "#C084FC", "#F87171", "#818CF8", "#5EEAD4",
+      "#60A5FA", "#22D3EE", "#A78BFA", "#F472B6",
+      "#4ADE80", "#38BDF8", "#818CF8", "#C084FC",
     ];
-    const NODE_BASE = 5;
-    const NODE_K = 1.5;
+    const NODE_LEARNED_BASE = 10;
+    const NODE_CATALOG_BASE = 7;
+    const NODE_LEARNED_K = 1.9;
+    const NODE_CATALOG_K = 1.2;
     const htmlLabelMap = new Map();
     let cameraFitted = false;
     let orphansLaidOut = false;
@@ -470,12 +473,12 @@
 
     function layoutSpread(data) {
       const n = activeNodeCount(data);
-      return 28 + Math.sqrt(n) * 10;
+      return 88 + Math.sqrt(n) * 24;
     }
 
     function spriteDensityScale(data) {
       const n = activeNodeCount(data);
-      return Math.max(0.72, Math.min(1, 6 / Math.sqrt(n)));
+      return Math.max(0.72, Math.min(1.12, 6 / Math.sqrt(n)));
     }
 
     const searchInput = document.getElementById("search");
@@ -497,7 +500,10 @@
 
     function nodeSize(node) {
       const tokens = Math.max(0, effectiveTokens(node));
-      return NODE_BASE + NODE_K * Math.sqrt(tokens);
+      const base = node.group === "learned" ? NODE_LEARNED_BASE : NODE_CATALOG_BASE;
+      const scale = node.group === "learned" ? NODE_LEARNED_K : NODE_CATALOG_K;
+      const max = node.group === "learned" ? 46 : 24;
+      return Math.max(base, Math.min(max, base + scale * Math.sqrt(tokens)));
     }
 
     function paletteColor(id) {
@@ -515,7 +521,7 @@
     function nodeColor(node) {
       if (selectedNode && node.id === selectedNode.id) return COLORS.highlight;
       if (highlightNodes.size && !highlightNodes.has(node.id)) return COLORS.dim;
-      return paletteColor(node.id);
+      return nodeHasLinks(node) ? paletteColor(node.id) : COLORS.orphan;
     }
 
     function shouldShowLabel(node) {
@@ -530,7 +536,7 @@
       canvas.height = s;
       const ctx = canvas.getContext("2d");
       ctx.beginPath();
-      ctx.arc(s / 2, s / 2, s / 2 - 3, 0, Math.PI * 2);
+      ctx.arc(s / 2, s / 2, s / 2 - 1, 0, Math.PI * 2);
       ctx.fillStyle = "#ffffff";
       ctx.fill();
       const tex = new THREE.CanvasTexture(canvas);
@@ -598,19 +604,19 @@
       const isSelected = selectedNode && node.id === selectedNode.id;
       const dimmed = highlightNodes.size > 0 && !highlightNodes.has(node.id);
       const coreScale = nodeWorldScale(node, isSelected ? 1.08 : 1, data);
-      const glowScale = nodeWorldScale(node, isSelected ? 1.85 : 1, data);
+      const glowScale = nodeWorldScale(node, isSelected ? 2.2 : 1.65, data);
 
       root.traverse((obj) => {
         if (!obj.isSprite || !obj.material) return;
         if (obj.userData?.isGlow) {
-          obj.material.opacity = isSelected ? 0.88 : 0;
+          obj.material.opacity = dimmed ? 0.06 : (isSelected ? 0.78 : 0.18);
           obj.scale.set(glowScale, glowScale, 1);
-          obj.material.color.set(COLORS.highlight);
+          obj.material.color.set(isSelected ? COLORS.highlight : nodeColor(node));
           return;
         }
         obj.scale.set(coreScale, coreScale, 1);
         obj.material.color.set(isSelected ? COLORS.highlight : nodeColor(node));
-        obj.material.opacity = dimmed ? 0.35 : 1;
+        obj.material.opacity = 1;
       });
     }
 
@@ -634,29 +640,34 @@
 
     function makeNodeSprite(node) {
       const group = new THREE.Group();
+      group.renderOrder = 100;
       group.userData.nodeId = node.id;
 
       const glow = new THREE.Sprite(
         new THREE.SpriteMaterial({
           map: glowTexture,
           transparent: true,
+          blending: THREE.AdditiveBlending,
           depthWrite: false,
           depthTest: false,
           opacity: 0,
         }),
       );
-      glow.renderOrder = 9;
+      glow.renderOrder = 90;
       glow.userData.isGlow = true;
 
       const core = new THREE.Sprite(
         new THREE.SpriteMaterial({
           map: circleTexture,
           transparent: true,
+          opacity: 1,
+          alphaTest: 0.55,
+          blending: THREE.NormalBlending,
           depthWrite: false,
           depthTest: false,
         }),
       );
-      core.renderOrder = 10;
+      core.renderOrder = 110;
       core.userData.nodeId = node.id;
 
       group.add(glow);
@@ -665,9 +676,9 @@
       return group;
     }
 
-    const LINK_SEGMENTS = 18;
-    const LINK_CURVATURE = 0.25;
-    const LINK_RADIUS = 0.35;
+    const LINK_SEGMENTS = 16;
+    const LINK_CURVATURE = 0.08;
+    const LINK_RADIUS = 0.2;
 
     function linkEndpoint(end) {
       return end && end.id ? end : findGraphNode(end);
@@ -701,12 +712,12 @@
       }
       colors.needsUpdate = true;
       const dimmed = highlightLinks.size > 0 && !highlighted;
-      mesh.material.opacity = dimmed ? 0.15 : (highlighted ? 1 : 0.9);
+      mesh.material.opacity = dimmed ? 0.08 : (highlighted ? 0.86 : 0.5);
     }
 
     function makeLinkObject() {
       const group = new THREE.Group();
-      group.renderOrder = 1;
+      group.renderOrder = 0;
       group.raycast = () => {};
       return group;
     }
@@ -727,10 +738,13 @@
         new THREE.MeshBasicMaterial({
           vertexColors: true,
           transparent: true,
-          opacity: 0.75,
+          opacity: 0.5,
+          depthTest: false,
           depthWrite: false,
+          blending: THREE.AdditiveBlending,
         }),
       );
+      mesh.renderOrder = 0;
       mesh.raycast = () => {};
       group.add(mesh);
       paintLinkMesh(mesh, link);
@@ -909,20 +923,75 @@
       }
     }
 
+    function nodeId(value) {
+      return value?.id || value;
+    }
+
+    function nodeHasLinks(node) {
+      return GRAPH_DATA.links.some((link) => (
+        nodeId(link.source) === node.id || nodeId(link.target) === node.id
+      ));
+    }
+
+    function nodeDegreeMap(links) {
+      const degrees = new Map();
+      links.forEach((link) => {
+        const sourceId = nodeId(link.source);
+        const targetId = nodeId(link.target);
+        degrees.set(sourceId, (degrees.get(sourceId) || 0) + 1);
+        degrees.set(targetId, (degrees.get(targetId) || 0) + 1);
+      });
+      return degrees;
+    }
+
+    function seedMindMapPositions(nodes, links) {
+      const spread = layoutSpread({ nodes });
+      const degrees = nodeDegreeMap(links);
+      const connected = nodes
+        .filter((node) => degrees.has(node.id))
+        .sort((a, b) => (degrees.get(b.id) || 0) - (degrees.get(a.id) || 0));
+      const orphans = nodes
+        .filter((node) => !degrees.has(node.id))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const center = connected[0] || nodes[0];
+      if (center) {
+        center.x = 0;
+        center.y = 0;
+        center.z = 0;
+      }
+
+      function placeCloud(cloudNodes, radius, startIndex = 1, looseness = 1) {
+        cloudNodes.forEach((node, index) => {
+          const order = index + startIndex;
+          const angle = order * 2.399963229728653;
+          const distance = Math.sqrt(order) * radius * looseness;
+          const layer = (index % 5) - 2;
+          node.x = distance * Math.cos(angle);
+          node.y = distance * 0.72 * Math.sin(angle);
+          node.z = distance * 0.72 * Math.sin(angle * 1.7) + layer * radius * 0.42;
+        });
+      }
+
+      placeCloud(connected.filter((node) => node !== center), spread * 0.36, 1, 1);
+      placeCloud(orphans, spread * 0.52, connected.length + 2, 1.55);
+    }
+
     function seedOrphanPositions(nodes, links) {
       const linkedIds = new Set();
       links.forEach((link) => {
-        linkedIds.add(link.source.id || link.source);
-        linkedIds.add(link.target.id || link.target);
+        linkedIds.add(nodeId(link.source));
+        linkedIds.add(nodeId(link.target));
       });
 
       const orphans = nodes.filter((n) => !linkedIds.has(n.id));
-      const ring = layoutSpread({ nodes });
+      const ring = layoutSpread({ nodes }) * 1.45;
       orphans.forEach((orphan, i) => {
         const angle = (i / orphans.length) * Math.PI * 2;
+        const layer = (i % 5) - 2;
         orphan.x = ring * Math.cos(angle);
-        orphan.y = ring * 0.18 * Math.sin(angle);
-        orphan.z = ring * 0.5 * Math.sin(angle);
+        orphan.y = ring * 0.5 * Math.sin(angle);
+        orphan.z = ring * 0.62 * Math.sin(angle * 1.35) + layer * ring * 0.16;
       });
     }
 
@@ -952,11 +1021,11 @@
       const cz = (minZ + maxZ) / 2;
       const boundsSpan = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 1);
       const span = boundsSpan + Math.max(boundsSpan * 0.35, layoutSpread(data) * 0.25, 24);
-      const dist = span * 0.72;
+      const dist = span * 0.86;
 
       const camera = Graph.camera();
       const controls = Graph.controls();
-      camera.position.set(cx, cy + span * 0.15, cz + dist);
+      camera.position.set(cx + dist * 0.52, cy + span * 0.34, cz + dist);
       camera.lookAt(cx, cy, cz);
       controls.target.set(cx, cy, cz);
       controls.update();
@@ -970,8 +1039,8 @@
 
       const linkedIds = new Set();
       data.links.forEach((link) => {
-        linkedIds.add(link.source.id || link.source);
-        linkedIds.add(link.target.id || link.target);
+        linkedIds.add(nodeId(link.source));
+        linkedIds.add(nodeId(link.target));
       });
 
       const connected = data.nodes.filter((n) => linkedIds.has(n.id) && Number.isFinite(n.x));
@@ -998,18 +1067,16 @@
         clusterRadius = Math.max(clusterRadius, Math.sqrt(dx * dx + dy * dy + dz * dz));
       });
 
-      const innerRing = clusterRadius + spread * 0.55;
-      const outerRing = clusterRadius + spread * 0.95;
+      const innerRing = clusterRadius + spread * 0.72;
+      const outerRing = clusterRadius + spread * 1.12;
 
       orphans.forEach((orphan, i) => {
         const ring = i % 2 === 0 ? innerRing : outerRing;
         const angle = (i / orphans.length) * Math.PI * 2;
+        const layer = (i % 5) - 2;
         orphan.x = cx + ring * Math.cos(angle);
-        orphan.y = cy + ring * 0.25 * Math.sin(angle * 1.2);
-        orphan.z = cz + ring * 0.6 * Math.sin(angle);
-        orphan.fx = orphan.x;
-        orphan.fy = orphan.y;
-        orphan.fz = orphan.z;
+        orphan.y = cy + ring * 0.42 * Math.sin(angle * 1.2);
+        orphan.z = cz + ring * 0.66 * Math.sin(angle * 1.45) + layer * spread * 0.28;
       });
     }
 
@@ -1040,8 +1107,8 @@
       highlightLinks = new Set();
 
       GRAPH_DATA.links.forEach((link) => {
-        const sourceId = link.source.id || link.source;
-        const targetId = link.target.id || link.target;
+        const sourceId = nodeId(link.source);
+        const targetId = nodeId(link.target);
         if (sourceId === node.id || targetId === node.id) {
           highlightNodes.add(sourceId);
           highlightNodes.add(targetId);
@@ -1081,7 +1148,10 @@
         const sx = (projected.x * 0.5 + 0.5) * rect.width;
         const sy = (-projected.y * 0.5 + 0.5) * rect.height;
         const dist = Math.hypot(localX - sx, localY - sy);
-        const hitRadius = Math.max((nodeSize(node) + 4) * spriteDensityScale(Graph.graphData()), 12);
+        const hitRadius = Math.max(
+          (nodeSize(node) + 30) * spriteDensityScale(Graph.graphData()) * 3.2,
+          60,
+        );
 
         if (dist <= hitRadius && dist < bestDist) {
           bestDist = dist;
@@ -1110,7 +1180,7 @@
         const moved = Math.hypot(dx, dy);
         pointerStart = null;
 
-        if (moved > 6) return;
+        if (moved > 10) return;
 
         const node = pickNodeAt(event.clientX, event.clientY);
         if (node) {
@@ -1135,20 +1205,27 @@
 
     function configureLayoutForces(data) {
       currentLayoutSpread = layoutSpread(data);
-      Graph.d3Force("link").distance(currentLayoutSpread);
-      Graph.d3Force("charge").strength(-currentLayoutSpread * 1.35);
+      Graph.d3Force("link").distance(currentLayoutSpread * 0.95).strength(0.18);
+      Graph.d3Force("charge").strength(-currentLayoutSpread * 2.8);
+      const centerForce = Graph.d3Force("center");
+      if (centerForce?.strength) {
+        centerForce.strength(0.045);
+      }
     }
 
     const Graph = ForceGraph3D()(document.getElementById("graph"))
       .backgroundColor("#000000")
       .showNavInfo(false)
       .nodeLabel((node) => node.name)
-      .nodeVal(() => currentLayoutSpread * 0.42)
+      .nodeVal((node) => nodeSize(node) * 1.4)
       .nodeColor(nodeColor)
       .nodeThreeObject(makeNodeSprite)
       .linkThreeObject(makeLinkObject)
       .linkPositionUpdate(updateLinkObject)
       .linkDirectionalParticles(0)
+      .d3VelocityDecay(0.22)
+      .d3AlphaDecay(0.01)
+      .cooldownTicks(900)
       .enableNodeDrag(true)
       .onNodeClick((node) => {
         if (!suppressNodeClick) activateNode(node);
@@ -1187,6 +1264,7 @@
       });
       updateStats(data);
       pruneHtmlLabels(data.nodes);
+      seedMindMapPositions(data.nodes, data.links);
       seedOrphanPositions(data.nodes, data.links);
       Graph.graphData(data);
       configureLayoutForces(data);
