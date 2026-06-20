@@ -347,50 +347,113 @@ Reply in **user's language**:
 
 ## Mode: Graph
 
-Build a **3D knowledge graph** and **open it in the browser** with live updates.
+Build a **static 3D knowledge graph** HTML file and **open it in the browser**. No Node script, no background server.
 
-### Step 1 — Run build script (background)
+### Step 1 — Read sources
 
-Execute from the FiveM project root. **Run in background** — the server stays alive:
+From the FiveM project root, read:
 
-```bash
-node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open
+- `<agent>/fivem/memory/_index.md` (topic table)
+- `<agent>/fivem/memory/*.md` (exclude `_index.md`)
+- `<agent>/fivem/topic-catalog.md` (catalog orphans)
+
+Cursor: `<agent>` = `.cursor/fivem` · Gemini: `.gemini/fivem`
+
+If `<agent>/fivem/knowledge-graph.html` is missing → tell user to run fivem-skill installer first.
+
+### Step 2 — Build graph JSON
+
+Assemble a single JSON object with `nodes`, `links`, and `meta`.
+
+**Learned nodes** (one per `memory/<slug>.md`):
+
+| Field | Source |
+|-------|--------|
+| `id` | slug (filename without `.md`, lowercase) |
+| `name` | frontmatter `topic`, or index row, or slug |
+| `group` | `"learned"` |
+| `file` | path relative to project root (e.g. `.cursor/fivem/memory/craft.md`) |
+| `updated` | frontmatter `updated` or index column |
+| `framework` | frontmatter `framework` or `""` |
+| `triggers` | index triggers column or `""` |
+| `tokens` | `Math.round(content.length / 4)` |
+| `paths` | array of lowercase paths from backtick values containing `/`, `\`, `.lua`, `.md`, or `config.` |
+| `searchHints` | `""` |
+
+**Catalog nodes** (from `topic-catalog.md`, skip slugs already learned):
+
+| Field | Value |
+|-------|-------|
+| `id` | slug from first column backticks |
+| `name` | slug label |
+| `group` | `"catalog"` |
+| `file` | `""` |
+| `updated`, `framework` | `""` |
+| `triggers` | catalog triggers column |
+| `tokens` | `Math.round((triggers + searchHints).length / 4)` |
+| `paths` | from `searchHints` backticks (same rules) |
+| `searchHints` | catalog searchHints column |
+
+**Links** (dedupe; never link a node to itself):
+
+| Type | Rule |
+|------|------|
+| `shared-path` | Two learned nodes share a path in `paths` |
+| `cross-mention` | Slug of one learned node appears in another's file content (case-insensitive word boundary) |
+| `catalog-hint` | Catalog orphan shares a token (≥4 chars, alphanumeric) with a learned node's triggers, content, or paths |
+
+Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>" }`
+
+**Meta:**
+
+```json
+{
+  "generatedAt": "<ISO-8601 now>",
+  "agent": "cursor",
+  "fivemDir": ".cursor/fivem",
+  "counts": {
+    "learned": <learned count>,
+    "catalog": <catalog count>,
+    "links": <link count>,
+    "tokens": <sum of all node tokens>
+  }
+}
 ```
 
-Gemini: `node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini --serve --open`
+Use `"agent": "gemini"` and `"fivemDir": ".gemini/fivem"` for Gemini projects.
 
-Without local script (via GitHub package):
+### Step 3 — Write HTML
 
-```bash
-npx --yes github:proelias7/fivem-skill fivem-graph --target . --agent cursor --serve --open
-```
+Read `<agent>/fivem/knowledge-graph.html`. Replace **only** the token `/*__GRAPH_DATA__*/` with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
 
-**Do not** use `npx fivem-graph` alone — that package name is not published on npm. Use `npx --yes github:proelias7/fivem-skill fivem-graph ...` or the local script copy.
+Write the result back to `<agent>/fivem/knowledge-graph.html`.
 
-- `--serve` — live server (polls `memory/` every 3s)
-- `--open` — opens default browser automatically
-- **Do not wait** for the process to exit — it runs until Ctrl+C
+### Step 4 — Open browser
 
-### Step 2 — Confirm output
+Open the HTML file in the default browser:
 
-- Browser opens: **`http://127.0.0.1:3939`**
-- Terminal shows learned / orphan / link counts
-- New `/fivem learn` topics appear within ~3s while server runs
+- **Windows:** `start "" "<absolute-path-to-knowledge-graph.html>"`
+- **macOS:** `open "<path>"`
+- **Linux:** `xdg-open "<path>"`
 
-### Step 3 — Reply
+Or tell the user to open the file manually if shell open fails.
 
-Report counts from script output:
+### Step 5 — Reply
 
-- **Learned** nodes (green) — existing `memory/*.md`
-- **Catalog orphans** (gray) — topics in `topic-catalog.md` not yet learned
-- **Links** — inferred from shared paths, cross-mentions, catalog hints
+Report:
 
-Tell user the browser was opened and the server is running in background. To stop: Ctrl+C in the terminal running the script.
+- **Learned** nodes — existing `memory/*.md`
+- **Catalog orphans** — topics in `topic-catalog.md` not yet learned
+- **Links** — inferred connections
+- Path to `knowledge-graph.html` and that the browser was opened
+
+Remind user: re-run `/fivem graph` after `/fivem learn` to refresh the snapshot.
 
 ### Graph rules
 
-- **Do not** edit memory files during graph mode — only run the script
-- **Always** use `--serve --open` for `/fivem graph`
+- **Do not** run Node scripts or start HTTP servers
+- **Do not** edit memory files during graph mode — only regenerate the HTML
+- **Do not** keep a background process running
 - If `<agent>/fivem/` is missing → user must run fivem-skill installer first
 
 ---

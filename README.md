@@ -64,7 +64,7 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 | `/fivem memory health` | Check memories vs codebase — stale paths, dead events, index/reference drift, token format |
 | `/fivem memory health fix` | Same + auto-fix memories, sync index/reference, compact English rewrite |
 | `/fivem memory health craft` | Health check for one topic (`craft`, `item`, …) |
-| `/fivem graph` | Open 3D knowledge map in browser (live, auto-refresh) |
+| `/fivem graph` | Build static 3D knowledge map HTML and open in browser |
 
 Re-run `/fivem reference` when you add major systems — the agent merges with the existing file.
 
@@ -80,12 +80,7 @@ Re-run `/fivem graph` after learning new topics to refresh the 3D map.
 
 `/fivem memory health [fix] [topic]` is **verify + optional markdown repair**: writes `<agent>/fivem/memory-health.md`, validates paths/events against repo, checks index/reference sync and token format; `fix` rewrites memories to compact English without touching Lua/JS.
 
-`/fivem graph` runs a Node script and opens an interactive 3D graph (learned topics in green, catalog orphans in gray):
-
-```bash
-node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open
-# Opens http://127.0.0.1:3939 — live updates every 3s
-```
+`/fivem graph` reads topic memories, writes `<agent>/fivem/knowledge-graph.html` (static snapshot with embedded JSON), and opens it in the browser. Re-run after `/fivem learn` to refresh.
 
 Local development (from this repo):
 
@@ -123,7 +118,7 @@ npx skills add proelias7/fivem-skill --list
 | **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
 | **Topic Memory** | `/fivem learn <topic>` scans the repo and saves compact English `<agent>/fivem/memory/<topic>.md` (~25–60 lines) |
 | **Memory Health** | `/fivem memory health [fix]` verifies memories vs codebase, integration drift, token format; optional auto-fix |
-| **3D Knowledge Graph** | `/fivem graph` builds interactive HTML map of learned + catalog topics |
+| **3D Knowledge Graph** | `/fivem graph` builds a static HTML map of learned + catalog topics and opens it in the browser |
 | **Code Audit** | `/fivem audit` scans for security, performance, and pattern issues + correction plan |
 
 ## Supported Frameworks
@@ -209,10 +204,9 @@ templates/
 │   ├── memory.template.md
 │   ├── memory-index.template.md
 │   ├── topic-catalog.md
-│   └── knowledge-graph.template.html
+│   └── knowledge-graph.html
 ├── scripts/
-│   ├── install.js
-│   └── build-knowledge-graph.js
+│   └── install.js
 └── rules/
     ├── reference.template.mdc  # skeleton for /fivem reference
     └── reference.example.mdc   # fictional sample showing expected depth/format

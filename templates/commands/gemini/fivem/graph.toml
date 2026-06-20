@@ -1,29 +1,41 @@
-description = "Build 3D knowledge graph and open in browser (live)"
+description = "Build static 3D knowledge graph and open in browser"
 
 prompt = """
-Build the **3D knowledge graph** and **open the browser** from `.gemini/fivem/memory/` and `topic-catalog.md`.
+Build a **static 3D knowledge graph** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `<agent>/fivem/knowledge-graph.html`, and open it in the browser.
 
-Run from the FiveM project root **in background** (server stays alive):
+**No Node script. No HTTP server. No background process.**
 
-```bash
-node .gemini/fivem/build-knowledge-graph.js --target <project-root> --agent gemini --serve --open
-```
+### Step 1 — Read sources
 
-Without local script:
+- `.gemini/fivem/memory/_index.md`
+- `.gemini/fivem/memory/*.md` (exclude `_index.md`)
+- `.gemini/fivem/topic-catalog.md`
+- `.gemini/fivem/knowledge-graph.html` (template with `/*__GRAPH_DATA__*/` placeholder)
 
-```bash
-npx --yes github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini --serve --open
-```
-
-Do NOT use `npx fivem-graph` alone — not published on npm.
-
-- `--serve` — live updates every 3s when memory/ changes
-- `--open` — opens http://127.0.0.1:3939 automatically
-- Do NOT wait for process exit — runs until Ctrl+C
-
-Reply with counts: learned (green), catalog orphans (gray), links.
-Tell user browser opened and server is running. Stop with Ctrl+C in terminal.
-
-Do NOT edit memory files — only run the build script.
 If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
+
+### Step 2 — Build graph JSON
+
+**Learned nodes** (`memory/<slug>.md`): `id` (slug), `name`, `group: "learned"`, `file` (relative path), `updated`, `framework`, `triggers`, `tokens` (~chars/4), `paths` (backtick paths), `searchHints: ""`.
+
+**Catalog nodes** (topic-catalog, not yet learned): `group: "catalog"`, `file: ""`, `triggers`, `searchHints`, `tokens`, `paths`.
+
+**Links** (dedupe): `shared-path` (learned share path), `cross-mention` (slug in content), `catalog-hint` (token ≥4 chars matches learned).
+
+**Meta:** `generatedAt` (ISO), `agent: "gemini"`, `fivemDir: ".gemini/fivem"`, `counts` (learned, catalog, links, tokens).
+
+### Step 3 — Write HTML
+
+Replace **only** `/*__GRAPH_DATA__*/` in `knowledge-graph.html` with the JSON (2-space indent). Write to `.gemini/fivem/knowledge-graph.html`.
+
+### Step 4 — Open browser
+
+`start "" "<absolute-path>"` (Windows) · `open` (macOS) · `xdg-open` (Linux)
+
+### Step 5 — Reply
+
+Report learned / catalog orphans / links counts. Remind user to re-run `/fivem graph` after `/fivem learn`.
+
+**Do NOT** edit memory files — only regenerate the HTML.
+**Do NOT** run Node scripts or start servers.
 """

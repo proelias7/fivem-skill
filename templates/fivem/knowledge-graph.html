@@ -264,29 +264,6 @@
       line-height: 1.5;
     }
 
-    .live-badge {
-      display: none;
-      font-size: 9px;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      padding: 3px 7px;
-      border-radius: 4px;
-      background: rgba(45, 212, 191, 0.1);
-      color: var(--learned);
-      border: 1px solid rgba(45, 212, 191, 0.2);
-    }
-
-    .live-badge.on { display: inline-block; }
-
-    .live-status {
-      font-size: 10px;
-      color: var(--muted-2);
-      line-height: 1.45;
-      margin-top: 8px;
-      min-height: 1.4em;
-    }
-
     .detail {
       margin-top: auto;
       padding-top: 16px;
@@ -414,10 +391,8 @@
       <header class="sidebar-header">
         <div class="sidebar-brand">
           <h1>Graph</h1>
-          <span class="live-badge" id="live-badge">Live</span>
         </div>
         <p class="subtitle">Tópicos aprendidos via <code>/fivem learn</code></p>
-        <p class="live-status" id="live-status"></p>
       </header>
 
       <section class="sidebar-section">
@@ -469,8 +444,7 @@
   <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
   <script src="https://unpkg.com/3d-force-graph@1.73.0/dist/3d-force-graph.min.js"></script>
   <script>
-    const LIVE_MODE = /*__LIVE_MODE__*/;
-    let GRAPH_DATA = /*__GRAPH_DATA__*/;
+    const GRAPH_DATA = /*__GRAPH_DATA__*/;
 
     const COLORS = {
       learned: "#2DD4BF",
@@ -484,8 +458,8 @@
       "#A855F7", "#EF4444", "#6366F1", "#2DD4BF",
       "#C084FC", "#F87171", "#818CF8", "#5EEAD4",
     ];
-    const NODE_BASE = 4;
-    const NODE_K = 1;
+    const NODE_BASE = 5;
+    const NODE_K = 1.5;
     const htmlLabelMap = new Map();
     let cameraFitted = false;
     let orphansLaidOut = false;
@@ -494,15 +468,14 @@
       return data?.nodes?.length || Graph?.graphData()?.nodes?.length || GRAPH_DATA.nodes.length || 1;
     }
 
-    // Spread grows with node count so small production graphs do not overlap.
     function layoutSpread(data) {
       const n = activeNodeCount(data);
-      return 40 + Math.sqrt(n) * 18;
+      return 28 + Math.sqrt(n) * 10;
     }
 
     function spriteDensityScale(data) {
       const n = activeNodeCount(data);
-      return Math.max(0.4, Math.min(1, 5 / Math.sqrt(n)));
+      return Math.max(0.72, Math.min(1, 6 / Math.sqrt(n)));
     }
 
     const searchInput = document.getElementById("search");
@@ -511,26 +484,10 @@
     const toggleHideNames = document.getElementById("toggle-hide-names");
     const statsEl = document.getElementById("stats");
     const detailEl = document.getElementById("detail");
-    const liveBadge = document.getElementById("live-badge");
-    const liveStatus = document.getElementById("live-status");
 
     let selectedNode = null;
     let highlightNodes = new Set();
     let highlightLinks = new Set();
-    let lastSignature = GRAPH_DATA.meta?.signature || "";
-
-    function setLiveStatus(message) {
-      if (liveStatus) {
-        liveStatus.textContent = message;
-      }
-    }
-
-    if (LIVE_MODE && liveBadge) {
-      liveBadge.classList.add("on");
-      setLiveStatus("Conectado — atualiza a cada 3s quando memory/ mudar.");
-    } else {
-      setLiveStatus("Snapshot estático. Rode com --serve para tempo real.");
-    }
 
     function effectiveTokens(node) {
       if ((node.tokens || 0) > 0) return node.tokens;
@@ -566,8 +523,6 @@
       return highlightNodes.has(node.id);
     }
 
-    // Flat 2D node: a sprite always faces the camera, so nodes look like
-    // round disks instead of shaded 3D spheres.
     const circleTexture = (() => {
       const s = 128;
       const canvas = document.createElement("canvas");
@@ -605,15 +560,25 @@
     function nodeWorldScale(node, multiplier = 1, data) {
       const graphEl = document.getElementById("graph");
       const camera = Graph.camera();
+      const px = (nodeSize(node) + 4) * spriteDensityScale(data) * multiplier;
+
+      if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || !Number.isFinite(node.z)) {
+        const vFov = (camera.fov * Math.PI) / 180;
+        const viewHeight = graphEl?.clientHeight || window.innerHeight;
+        const dist = Math.max(camera.position.length(), 120);
+        const worldPerPx = (2 * Math.tan(vFov / 2) * dist) / viewHeight;
+        return worldPerPx * px;
+      }
+
       const dist = Math.max(
         camera.position.distanceTo(new THREE.Vector3(node.x, node.y, node.z)),
         1,
       );
-      const px = (nodeSize(node) + 2) * spriteDensityScale(data) * multiplier;
       const vFov = (camera.fov * Math.PI) / 180;
       const viewHeight = graphEl?.clientHeight || window.innerHeight;
       const worldPerPx = (2 * Math.tan(vFov / 2) * dist) / viewHeight;
-      return worldPerPx * px;
+      const scale = worldPerPx * px;
+      return Number.isFinite(scale) && scale > 0 ? scale : 1;
     }
 
     function findNodeObject(nodeId) {
@@ -700,8 +665,6 @@
       return group;
     }
 
-    // Gradient link: a custom curved line whose vertex colors blend from the
-    // source node color to the target node color.
     const LINK_SEGMENTS = 18;
     const LINK_CURVATURE = 0.25;
     const LINK_RADIUS = 0.35;
@@ -820,6 +783,15 @@
       return { nodes, links };
     }
 
+    function formatGeneratedAt(iso) {
+      if (!iso) return "";
+      try {
+        return new Date(iso).toLocaleString("pt-BR");
+      } catch {
+        return iso;
+      }
+    }
+
     function renderDetail(node) {
       if (!node) {
         detailEl.innerHTML = '<p class="empty-detail">Selecione um nó para ver detalhes.</p>';
@@ -857,6 +829,7 @@
       const catalog = data.nodes.filter((n) => n.group === "catalog").length;
       const visibleTokens = data.nodes.reduce((sum, n) => sum + (n.tokens || 0), 0);
       const totalTokens = GRAPH_DATA.meta.counts.tokens || 0;
+      const generated = formatGeneratedAt(GRAPH_DATA.meta.generatedAt);
       statsEl.innerHTML = `
         <div class="stat-grid">
           <div class="stat-chip">
@@ -878,6 +851,7 @@
         </div>
         <div class="stat-footer">
           Total: ${GRAPH_DATA.meta.counts.learned} aprendidos · ${GRAPH_DATA.meta.counts.catalog} órfãos · ${GRAPH_DATA.meta.counts.links} links · ~${totalTokens.toLocaleString("pt-BR")} tokens
+          ${generated ? `<br>Gerado: ${generated}` : ""}
         </div>
       `;
     }
@@ -976,9 +950,9 @@
       const cx = (minX + maxX) / 2;
       const cy = (minY + maxY) / 2;
       const cz = (minZ + maxZ) / 2;
-      const spread = layoutSpread(data);
-      const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, spread * 1.6) + spread * 0.35;
-      const dist = span * 1.05;
+      const boundsSpan = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 1);
+      const span = boundsSpan + Math.max(boundsSpan * 0.35, layoutSpread(data) * 0.25, 24);
+      const dist = span * 0.72;
 
       const camera = Graph.camera();
       const controls = Graph.controls();
@@ -989,8 +963,6 @@
       cameraFitted = true;
     }
 
-    // Orphans have no links, so charge pushes them far away. After layout,
-    // snap them onto rings around the connected cluster.
     function layoutOrphansNearCluster() {
       const data = Graph.graphData();
       if (!data?.nodes?.length) return;
@@ -1089,21 +1061,6 @@
       repaintGraph();
     }
 
-    function nodeFromHit(object) {
-      let current = object;
-      while (current) {
-        if (current.__graphObjType === "node" && current.__data) {
-          return current.__data;
-        }
-        if (current.userData?.nodeId && !current.userData?.isGlow) {
-          return Graph.graphData().nodes.find((n) => n.id === current.userData.nodeId);
-        }
-        current = current.parent;
-      }
-      return null;
-    }
-
-    // Screen-space pick — reliable at any camera angle (sprite raycast is flaky).
     function pickNodeAt(clientX, clientY) {
       const canvas = Graph.renderer().domElement;
       const rect = canvas.getBoundingClientRect();
@@ -1153,7 +1110,6 @@
         const moved = Math.hypot(dx, dy);
         pointerStart = null;
 
-        // Ignore click after a drag (node or camera).
         if (moved > 6) return;
 
         const node = pickNodeAt(event.clientX, event.clientY);
@@ -1180,14 +1136,14 @@
     function configureLayoutForces(data) {
       currentLayoutSpread = layoutSpread(data);
       Graph.d3Force("link").distance(currentLayoutSpread);
-      Graph.d3Force("charge").strength(-currentLayoutSpread * 2.4);
+      Graph.d3Force("charge").strength(-currentLayoutSpread * 1.35);
     }
 
     const Graph = ForceGraph3D()(document.getElementById("graph"))
       .backgroundColor("#000000")
       .showNavInfo(false)
       .nodeLabel((node) => node.name)
-      .nodeVal(() => currentLayoutSpread * 0.34)
+      .nodeVal(() => currentLayoutSpread * 0.42)
       .nodeColor(nodeColor)
       .nodeThreeObject(makeNodeSprite)
       .linkThreeObject(makeLinkObject)
@@ -1215,6 +1171,11 @@
     wireGraphSelection();
 
     Graph.onEngineStop(finalizeLayout);
+    Graph.onEngineTick(() => {
+      if (!orphansLaidOut && Graph.d3Alpha() < 0.02) {
+        finalizeLayout();
+      }
+    });
 
     function refreshGraph() {
       orphansLaidOut = false;
@@ -1233,9 +1194,8 @@
       repaintGraph();
     }
 
-    // Simulation stops after layout — keep drawing every frame ourselves.
     (function renderLoop() {
-      if (Graph.d3Alpha() > 0.001 || isDraggingNode) {
+      if (isDraggingNode && typeof Graph.tickFrame === "function") {
         Graph.tickFrame();
       }
       syncSpritePositions();
@@ -1246,62 +1206,6 @@
       Graph.renderer().render(Graph.scene(), Graph.camera());
       requestAnimationFrame(renderLoop);
     })();
-
-    function applyGraphData(nextData) {
-      const prevSelectedId = selectedNode?.id;
-      GRAPH_DATA = nextData;
-      lastSignature = GRAPH_DATA.meta?.signature || lastSignature;
-
-      if (prevSelectedId) {
-        const stillThere = GRAPH_DATA.nodes.find((node) => node.id === prevSelectedId);
-        if (stillThere) {
-          selectedNode = stillThere;
-          highlightNodes = new Set([stillThere.id]);
-          highlightLinks = new Set();
-          GRAPH_DATA.links.forEach((link) => {
-            const sourceId = link.source.id || link.source;
-            const targetId = link.target.id || link.target;
-            if (sourceId === stillThere.id || targetId === stillThere.id) {
-              highlightNodes.add(sourceId);
-              highlightNodes.add(targetId);
-              highlightLinks.add(link);
-            }
-          });
-          renderDetail(stillThere);
-        } else {
-          selectedNode = null;
-          highlightNodes = new Set();
-          highlightLinks = new Set();
-          renderDetail(null);
-        }
-      }
-
-      refreshGraph();
-    }
-
-    async function pollLiveGraph() {
-      if (!LIVE_MODE) {
-        return;
-      }
-
-      try {
-        const response = await fetch("/api/graph", { cache: "no-store" });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const nextData = await response.json();
-        if (nextData.meta?.signature !== lastSignature) {
-          applyGraphData(nextData);
-          const counts = nextData.meta?.counts || {};
-          setLiveStatus(
-            `Atualizado ${new Date().toLocaleTimeString()} — ${counts.learned || 0} aprendidos, ${counts.catalog || 0} órfãos`,
-          );
-        }
-      } catch (error) {
-        setLiveStatus(`Erro ao atualizar: ${error.message}`);
-      }
-    }
 
     searchInput.addEventListener("input", () => {
       cameraFitted = false;
@@ -1321,10 +1225,6 @@
 
     refreshGraph();
     setTimeout(finalizeLayout, 3000);
-
-    if (LIVE_MODE) {
-      setInterval(pollLiveGraph, 3000);
-    }
   </script>
 </body>
 </html>

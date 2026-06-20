@@ -2,7 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { npxInstall, globalInstall, npxGraph } = require("./constants");
+const { npxInstall, globalInstall } = require("./constants");
 
 const PACKAGE_ROOT = path.join(__dirname, "..");
 
@@ -496,7 +496,7 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     [FIVEM_TEMPLATES_DIR, "memory-index.template.md"],
     [FIVEM_TEMPLATES_DIR, "memory-health.template.md"],
     [FIVEM_TEMPLATES_DIR, "topic-catalog.md"],
-    [FIVEM_TEMPLATES_DIR, "knowledge-graph.template.html"],
+    [FIVEM_TEMPLATES_DIR, "knowledge-graph.html"],
   ];
   const installed = [];
 
@@ -508,7 +508,32 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
 
     const dest = path.join(destDir, fileName);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(src, dest);
+
+    if (fileName === "knowledge-graph.html") {
+      const agentKey = relativeDestDir.includes("gemini") ? "gemini" : "cursor";
+      const fivemDir = relativeDestDir.replace(/\\/g, "/");
+      const emptyGraph = JSON.stringify(
+        {
+          nodes: [],
+          links: [],
+          meta: {
+            generatedAt: "",
+            agent: agentKey,
+            fivemDir,
+            counts: { learned: 0, catalog: 0, links: 0, tokens: 0 },
+          },
+        },
+        null,
+        2,
+      );
+      const html = fs
+        .readFileSync(src, "utf8")
+        .replace("/*__GRAPH_DATA__*/", emptyGraph);
+      fs.writeFileSync(dest, html, "utf8");
+    } else {
+      fs.copyFileSync(src, dest);
+    }
+
     installed.push(path.relative(targetRoot, dest));
   }
 
@@ -517,24 +542,7 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     installed.push(memoryIndex);
   }
 
-  const graphScript = installGraphBuildScript(targetRoot, relativeDestDir);
-  if (graphScript) {
-    installed.push(graphScript);
-  }
-
   return installed;
-}
-
-function installGraphBuildScript(targetRoot, relativeDestDir) {
-  const src = path.join(PACKAGE_ROOT, "scripts", "build-knowledge-graph.js");
-  if (!fs.existsSync(src)) {
-    return null;
-  }
-
-  const dest = path.join(targetRoot, relativeDestDir, "build-knowledge-graph.js");
-  fs.mkdirSync(path.dirname(dest), { recursive: true });
-  fs.copyFileSync(src, dest);
-  return path.relative(targetRoot, dest);
 }
 
 function seedMemoryIndex(targetRoot, relativeDestDir) {
@@ -780,7 +788,7 @@ async function main() {
     "Run /fivem memory health [fix] [topic] to verify memories vs codebase and optionally compact-rewrite stale topics.",
   );
   console.log(
-    "Run /fivem graph — opens browser at http://127.0.0.1:3939 with --serve --open (live, auto-refresh).",
+    "Run /fivem graph to build a static 3D knowledge map and open it in the browser.",
   );
 }
 
