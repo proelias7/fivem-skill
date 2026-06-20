@@ -6,105 +6,210 @@
   <title>FiveM — Mapa mental 3D</title>
   <style>
     :root {
-      --bg: #1e1e1e;
-      --panel: #252525;
-      --border: #3a3a3a;
-      --text: #dcddde;
-      --muted: #999;
-      --accent: #7c3aed;
-      --learned: #2dd4bf;
-      --catalog: #6b7280;
-      --link: #525252;
-      --highlight: #f59e0b;
+      --bg: #000000;
+      --panel: #09090b;
+      --surface: rgba(255, 255, 255, 0.03);
+      --surface-hover: rgba(255, 255, 255, 0.055);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-strong: rgba(255, 255, 255, 0.1);
+      --text: #fafafa;
+      --muted: #a1a1aa;
+      --muted-2: #71717a;
+      --accent: #6366F1;
+      --learned: #2DD4BF;
+      --catalog: #A855F7;
+      --link: #6366F1;
+      --highlight: #A855F7;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: "Segoe UI", system-ui, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
       height: 100vh;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     .layout {
       display: grid;
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 272px 1fr;
       height: 100vh;
     }
 
     .sidebar {
       background: var(--panel);
       border-right: 1px solid var(--border);
-      padding: 16px;
+      padding: 20px 14px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+
+    .sidebar-header {
+      padding-bottom: 18px;
+      margin-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
     }
 
     .sidebar h1 {
-      font-size: 15px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--text);
     }
 
     .sidebar .subtitle {
-      font-size: 12px;
+      font-size: 11px;
+      color: var(--muted-2);
+      line-height: 1.55;
+    }
+
+    .sidebar .subtitle code {
+      font-family: ui-monospace, "Cascadia Code", monospace;
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border);
       color: var(--muted);
-      line-height: 1.4;
+    }
+
+    .sidebar-section {
+      margin-bottom: 18px;
     }
 
     .section-title {
-      font-size: 11px;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-      margin-bottom: 8px;
+      color: var(--muted-2);
+      margin-bottom: 10px;
     }
 
     input[type="search"] {
       width: 100%;
-      padding: 8px 10px;
+      padding: 9px 12px;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg);
+      border-radius: 8px;
+      background: var(--surface);
       color: var(--text);
-      font-size: 13px;
+      font-size: 12px;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    input[type="search"]::placeholder {
+      color: var(--muted-2);
     }
 
     input[type="search"]:focus {
-      outline: 1px solid var(--accent);
-      border-color: var(--accent);
+      outline: none;
+      border-color: var(--border-strong);
+      background: var(--surface-hover);
     }
 
-    .toggle-row {
+    .filter-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .filter-toggle {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      font-size: 13px;
-      padding: 6px 0;
+      gap: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s ease, color 0.15s ease;
     }
 
-    .toggle-row input { accent-color: var(--accent); }
+    .filter-toggle:hover {
+      background: var(--surface-hover);
+      color: var(--text);
+    }
+
+    .filter-toggle input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .toggle-track {
+      position: relative;
+      flex-shrink: 0;
+      width: 30px;
+      height: 17px;
+      border-radius: 999px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .toggle-thumb {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--muted-2);
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .filter-toggle input:checked + .toggle-track {
+      background: rgba(168, 85, 247, 0.18);
+      border-color: rgba(168, 85, 247, 0.45);
+    }
+
+    .filter-toggle input:checked + .toggle-track .toggle-thumb {
+      transform: translateX(13px);
+      background: var(--catalog);
+    }
+
+    .filter-toggle input:checked ~ .filter-label,
+    .filter-toggle:has(input:checked) {
+      color: var(--text);
+    }
 
     .legend {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .legend-item {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: 11px;
+      color: var(--muted);
+      padding: 4px 0;
     }
 
     .dot {
-      width: 10px;
-      height: 10px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       flex-shrink: 0;
     }
@@ -113,148 +218,251 @@
     .dot.catalog { background: var(--catalog); }
 
     .stats {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.6;
+      padding: 12px;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .stat-chip {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid var(--border);
+    }
+
+    .stat-value {
+      font-size: 15px;
+      font-weight: 500;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted-2);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-footer {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--muted-2);
+      line-height: 1.5;
     }
 
     .live-badge {
       display: none;
-      font-size: 11px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: rgba(45, 212, 191, 0.15);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 3px 7px;
+      border-radius: 4px;
+      background: rgba(45, 212, 191, 0.1);
       color: var(--learned);
-      width: fit-content;
+      border: 1px solid rgba(45, 212, 191, 0.2);
     }
 
     .live-badge.on { display: inline-block; }
 
     .live-status {
-      font-size: 11px;
-      color: var(--muted);
-      line-height: 1.4;
-      min-height: 2.5em;
+      font-size: 10px;
+      color: var(--muted-2);
+      line-height: 1.45;
+      margin-top: 8px;
+      min-height: 1.4em;
     }
 
     .detail {
+      margin-top: auto;
+      padding-top: 16px;
       border-top: 1px solid var(--border);
-      padding-top: 12px;
-      min-height: 120px;
+      min-height: 100px;
     }
 
     .detail h2 {
-      font-size: 14px;
-      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin-bottom: 10px;
       word-break: break-word;
+      color: var(--text);
     }
 
     .detail p {
-      font-size: 12px;
+      font-size: 11px;
       color: var(--muted);
-      line-height: 1.5;
+      line-height: 1.55;
       margin-bottom: 6px;
+    }
+
+    .detail p strong {
+      color: var(--muted-2);
+      font-weight: 500;
     }
 
     .detail .badge {
       display: inline-block;
-      font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 999px;
-      margin-bottom: 8px;
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+      margin-bottom: 10px;
     }
 
     .badge.learned {
-      background: rgba(45, 212, 191, 0.15);
-      color: var(--learned);
+      background: rgba(45, 212, 191, 0.12);
+      color: #5eead4;
+      border: 1px solid rgba(45, 212, 191, 0.2);
     }
 
     .badge.catalog {
-      background: rgba(107, 114, 128, 0.2);
-      color: #cbd5e1;
+      background: rgba(168, 85, 247, 0.12);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.2);
     }
 
     .detail button {
-      margin-top: 8px;
-      padding: 6px 10px;
+      margin-top: 10px;
+      padding: 7px 12px;
       border: 1px solid var(--border);
-      border-radius: 6px;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 12px;
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 11px;
       cursor: pointer;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
     }
 
-    .detail button:hover { border-color: var(--accent); }
+    .detail button:hover {
+      border-color: var(--border-strong);
+      color: var(--text);
+      background: var(--surface-hover);
+    }
 
     .empty-detail {
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
+      font-size: 11px;
+      color: var(--muted-2);
+      line-height: 1.6;
+    }
+
+    .graph-stage {
+      position: relative;
+      min-height: 0;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
     }
 
     #graph {
-      position: relative;
-      background: radial-gradient(circle at center, #242424 0%, #171717 100%);
+      position: absolute;
+      inset: 0;
     }
 
-    .graph-hint {
+    #node-labels {
       position: absolute;
-      bottom: 12px;
-      right: 16px;
-      font-size: 11px;
-      color: var(--muted);
+      inset: 0;
       pointer-events: none;
-      text-align: right;
-      line-height: 1.5;
+      overflow: hidden;
+      z-index: 2;
     }
+
+    .node-label {
+      position: absolute;
+      transform: translate(-50%, 12px);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-shadow:
+        0 0 6px rgba(0, 0, 0, 0.95),
+        0 0 12px rgba(0, 0, 0, 0.8),
+        0 1px 2px #000000;
+      white-space: nowrap;
+    }
+
+    .node-label.selected {
+      color: #ffffff;
+      text-shadow:
+        0 0 8px rgba(255, 255, 255, 0.95),
+        0 0 18px rgba(255, 255, 255, 0.7),
+        0 0 32px rgba(255, 255, 255, 0.4),
+        0 1px 2px #000000;
+    }
+
   </style>
 </head>
 <body>
   <div class="layout">
     <aside class="sidebar">
-      <div>
-        <h1>Graph view</h1>
-        <p class="subtitle">Mapa mental 3D dos tópicos aprendidos com `/fivem learn`</p>
-        <span class="live-badge" id="live-badge">Ao vivo</span>
-        <p class="live-status" id="live-status"></p>
-      </div>
-
-      <div>
-        <div class="section-title">Filters</div>
-        <input type="search" id="search" placeholder="Search topics..." />
-      </div>
-
-      <div>
-        <label class="toggle-row">
-          <span>Orphans (catalog)</span>
-          <input type="checkbox" id="toggle-orphans" checked />
-        </label>
-        <label class="toggle-row">
-          <span>Learned only</span>
-          <input type="checkbox" id="toggle-learned-only" />
-        </label>
-      </div>
-
-      <div>
-        <div class="section-title">Groups</div>
-        <div class="legend">
-          <div class="legend-item"><span class="dot learned"></span> Learned — memory/*.md</div>
-          <div class="legend-item"><span class="dot catalog"></span> Catalog — not learned yet</div>
+      <header class="sidebar-header">
+        <div class="sidebar-brand">
+          <h1>Graph</h1>
+          <span class="live-badge" id="live-badge">Live</span>
         </div>
-      </div>
+        <p class="subtitle">Tópicos aprendidos via <code>/fivem learn</code></p>
+        <p class="live-status" id="live-status"></p>
+      </header>
 
-      <div class="stats" id="stats"></div>
+      <section class="sidebar-section">
+        <input type="search" id="search" placeholder="Buscar tópico…" />
+      </section>
 
-      <div class="detail" id="detail">
-        <p class="empty-detail">Clique em um nó para ver detalhes. Arraste para girar; scroll para zoom.</p>
-      </div>
+      <section class="sidebar-section">
+        <div class="section-title">Filtros</div>
+        <div class="filter-list">
+          <label class="filter-toggle">
+            <span class="filter-label">Órfãos</span>
+            <input type="checkbox" id="toggle-orphans" checked />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
+          <label class="filter-toggle">
+            <span class="filter-label">Só aprendidos</span>
+            <input type="checkbox" id="toggle-learned-only" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
+          <label class="filter-toggle">
+            <span class="filter-label">Ocultar nomes</span>
+            <input type="checkbox" id="toggle-hide-names" checked />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <div class="section-title">Grupos</div>
+        <div class="legend">
+          <div class="legend-item"><span class="dot learned"></span> Aprendido</div>
+          <div class="legend-item"><span class="dot catalog"></span> Catálogo</div>
+        </div>
+      </section>
+
+      <section class="sidebar-section stats" id="stats"></section>
+
+      <section class="detail" id="detail">
+        <p class="empty-detail">Selecione um nó para ver detalhes.</p>
+      </section>
     </aside>
 
-    <div id="graph">
-      <div class="graph-hint">
-        Drag: rotate · Scroll: zoom · Click: select node
-      </div>
+    <div class="graph-stage">
+      <div id="graph"></div>
+      <div id="node-labels"></div>
     </div>
   </div>
 
@@ -265,16 +473,27 @@
     let GRAPH_DATA = /*__GRAPH_DATA__*/;
 
     const COLORS = {
-      learned: "#2dd4bf",
-      catalog: "#6b7280",
-      highlight: "#f59e0b",
-      dim: "#333333",
-      link: "#525252",
+      learned: "#2DD4BF",
+      catalog: "#A855F7",
+      highlight: "#A855F7",
+      dim: "#3a3a50",
+      link: "#6366F1",
     };
+
+    const VIVID_PALETTE = [
+      "#A855F7", "#EF4444", "#6366F1", "#2DD4BF",
+      "#C084FC", "#F87171", "#818CF8", "#5EEAD4",
+    ];
+    const NODE_BASE = 8;
+    const NODE_K = 3;
+    const htmlLabelMap = new Map();
+    let cameraFitted = false;
+    let orphansLaidOut = false;
 
     const searchInput = document.getElementById("search");
     const toggleOrphans = document.getElementById("toggle-orphans");
     const toggleLearnedOnly = document.getElementById("toggle-learned-only");
+    const toggleHideNames = document.getElementById("toggle-hide-names");
     const statsEl = document.getElementById("stats");
     const detailEl = document.getElementById("detail");
     const liveBadge = document.getElementById("live-badge");
@@ -298,14 +517,269 @@
       setLiveStatus("Snapshot estático. Rode com --serve para tempo real.");
     }
 
+    function effectiveTokens(node) {
+      if ((node.tokens || 0) > 0) return node.tokens;
+      const hint = `${node.triggers || ""} ${node.searchHints || ""}`.trim();
+      return hint ? Math.round(hint.length / 4) : 0;
+    }
+
+    function nodeSize(node) {
+      const tokens = Math.max(0, effectiveTokens(node));
+      return NODE_BASE + NODE_K * Math.sqrt(tokens);
+    }
+
+    function paletteColor(id) {
+      let hash = 0;
+      for (let i = 0; i < id.length; i += 1) {
+        hash = (hash << 5) - hash + id.charCodeAt(i);
+      }
+      return VIVID_PALETTE[Math.abs(hash) % VIVID_PALETTE.length];
+    }
+
+    function findGraphNode(nodeId) {
+      return GRAPH_DATA.nodes.find((node) => node.id === nodeId);
+    }
+
     function nodeColor(node) {
       if (selectedNode && node.id === selectedNode.id) return COLORS.highlight;
       if (highlightNodes.size && !highlightNodes.has(node.id)) return COLORS.dim;
-      return node.group === "learned" ? COLORS.learned : COLORS.catalog;
+      return paletteColor(node.id);
     }
 
-    function linkColor(link) {
-      return highlightLinks.has(link) ? "#a78bfa" : COLORS.link;
+    function shouldShowLabel(node) {
+      if (!toggleHideNames.checked) return true;
+      return highlightNodes.has(node.id);
+    }
+
+    // Flat 2D node: a sprite always faces the camera, so nodes look like
+    // round disks instead of shaded 3D spheres.
+    const circleTexture = (() => {
+      const s = 128;
+      const canvas = document.createElement("canvas");
+      canvas.width = s;
+      canvas.height = s;
+      const ctx = canvas.getContext("2d");
+      ctx.beginPath();
+      ctx.arc(s / 2, s / 2, s / 2 - 3, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 4;
+      return tex;
+    })();
+
+    const glowTexture = (() => {
+      const s = 128;
+      const canvas = document.createElement("canvas");
+      canvas.width = s;
+      canvas.height = s;
+      const ctx = canvas.getContext("2d");
+      const grd = ctx.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+      grd.addColorStop(0, "rgba(168,85,247,1)");
+      grd.addColorStop(0.25, "rgba(168,85,247,0.85)");
+      grd.addColorStop(0.5, "rgba(168,85,247,0.4)");
+      grd.addColorStop(0.75, "rgba(168,85,247,0.12)");
+      grd.addColorStop(1, "rgba(168,85,247,0)");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, s, s);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.anisotropy = 4;
+      return tex;
+    })();
+
+    function nodeWorldScale(node, multiplier = 1) {
+      const graphEl = document.getElementById("graph");
+      const camera = Graph.camera();
+      const dist = Math.max(
+        camera.position.distanceTo(new THREE.Vector3(node.x, node.y, node.z)),
+        1,
+      );
+      const px = (nodeSize(node) + 10) * multiplier;
+      const vFov = (camera.fov * Math.PI) / 180;
+      const viewHeight = graphEl?.clientHeight || window.innerHeight;
+      const worldPerPx = (2 * Math.tan(vFov / 2) * dist) / viewHeight;
+      return worldPerPx * px;
+    }
+
+    function findNodeObject(nodeId) {
+      let found = null;
+      Graph.scene().traverse((obj) => {
+        if (found) return;
+        if (obj.__graphObjType === "node" && obj.__data?.id === nodeId) {
+          found = obj;
+        } else if (obj.userData?.nodeId === nodeId && obj.isSprite) {
+          found = obj.parent || obj;
+        }
+      });
+      return found;
+    }
+
+    function styleNodeObject(root, node) {
+      const isSelected = selectedNode && node.id === selectedNode.id;
+      const dimmed = highlightNodes.size > 0 && !highlightNodes.has(node.id);
+      const coreScale = nodeWorldScale(node, isSelected ? 1.12 : 1);
+      const glowScale = nodeWorldScale(node, isSelected ? 2.6 : 1);
+
+      root.traverse((obj) => {
+        if (!obj.isSprite || !obj.material) return;
+        if (obj.userData?.isGlow) {
+          obj.material.opacity = isSelected ? 0.88 : 0;
+          obj.scale.set(glowScale, glowScale, 1);
+          obj.material.color.set(COLORS.highlight);
+          return;
+        }
+        obj.scale.set(coreScale, coreScale, 1);
+        obj.material.color.set(isSelected ? COLORS.highlight : nodeColor(node));
+        obj.material.opacity = dimmed ? 0.35 : 1;
+      });
+    }
+
+    function syncSpritePositions() {
+      Graph.graphData().nodes.forEach((node) => {
+        if (!Number.isFinite(node.x)) return;
+        const root = findNodeObject(node.id);
+        if (root) {
+          root.position.set(node.x, node.y, node.z);
+        }
+      });
+    }
+
+    function updateAllSprites() {
+      Graph.graphData().nodes.forEach((node) => {
+        const root = findNodeObject(node.id);
+        if (root) styleNodeObject(root, node);
+      });
+    }
+
+    function makeNodeSprite(node) {
+      const group = new THREE.Group();
+      group.userData.nodeId = node.id;
+
+      const glow = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: glowTexture,
+          transparent: true,
+          depthWrite: false,
+          depthTest: false,
+          opacity: 0,
+        }),
+      );
+      glow.renderOrder = 9;
+      glow.userData.isGlow = true;
+
+      const core = new THREE.Sprite(
+        new THREE.SpriteMaterial({
+          map: circleTexture,
+          transparent: true,
+          depthWrite: false,
+          depthTest: false,
+        }),
+      );
+      core.renderOrder = 10;
+      core.userData.nodeId = node.id;
+
+      group.add(glow);
+      group.add(core);
+      styleNodeObject(group, node);
+      return group;
+    }
+
+    // Gradient link: a custom curved line whose vertex colors blend from the
+    // source node color to the target node color.
+    const LINK_SEGMENTS = 18;
+    const LINK_CURVATURE = 0.25;
+    const LINK_RADIUS = 0.35;
+
+    function linkEndpoint(end) {
+      return end && end.id ? end : findGraphNode(end);
+    }
+
+    function buildLinkCurve(start, end) {
+      const vs = new THREE.Vector3(start.x, start.y, start.z);
+      const ve = new THREE.Vector3(end.x, end.y, end.z);
+      const dir = ve.clone().sub(vs);
+      const len = dir.length() || 1;
+      let normal = new THREE.Vector3(0, 0, 1).cross(dir);
+      if (normal.lengthSq() < 1e-6) normal = new THREE.Vector3(0, 1, 0).cross(dir);
+      normal.normalize().multiplyScalar(len * LINK_CURVATURE);
+      const ctrl = vs.clone().add(ve).multiplyScalar(0.5).add(normal);
+      return new THREE.QuadraticBezierCurve3(vs, ctrl, ve);
+    }
+
+    function paintLinkMesh(mesh, link) {
+      const src = linkEndpoint(link.source);
+      const tgt = linkEndpoint(link.target);
+      const highlighted = highlightLinks.has(link);
+      const cStart = new THREE.Color(src ? nodeColor(src) : COLORS.link);
+      const cEnd = new THREE.Color(tgt ? nodeColor(tgt) : COLORS.link);
+      const colors = mesh.geometry.attributes.color;
+      const ringVerts = 7;
+      const tmp = new THREE.Color();
+      for (let i = 0; i < colors.count; i += 1) {
+        const seg = Math.floor(i / ringVerts) / LINK_SEGMENTS;
+        tmp.copy(cStart).lerp(cEnd, Math.min(1, seg));
+        colors.setXYZ(i, tmp.r, tmp.g, tmp.b);
+      }
+      colors.needsUpdate = true;
+      const dimmed = highlightLinks.size > 0 && !highlighted;
+      mesh.material.opacity = dimmed ? 0.15 : (highlighted ? 1 : 0.9);
+    }
+
+    function makeLinkObject() {
+      const group = new THREE.Group();
+      group.renderOrder = 1;
+      group.raycast = () => {};
+      return group;
+    }
+
+    function updateLinkObject(group, { start, end }, link) {
+      const curve = buildLinkCurve(start, end);
+      if (group.children[0]) {
+        group.children[0].geometry.dispose();
+        group.remove(group.children[0]);
+      }
+      const geometry = new THREE.TubeGeometry(curve, LINK_SEGMENTS, LINK_RADIUS, 6, false);
+      geometry.setAttribute(
+        "color",
+        new THREE.BufferAttribute(new Float32Array(geometry.attributes.position.count * 3), 3),
+      );
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshBasicMaterial({
+          vertexColors: true,
+          transparent: true,
+          opacity: 0.75,
+          depthWrite: false,
+        }),
+      );
+      mesh.raycast = () => {};
+      group.add(mesh);
+      paintLinkMesh(mesh, link);
+      return true;
+    }
+
+    function syncLinkPositions() {
+      Graph.graphData().links.forEach((link) => {
+        const src = link.source;
+        const tgt = link.target;
+        if (!link.__lineObj || !Number.isFinite(src.x) || !Number.isFinite(tgt.x)) return;
+
+        const posKey = `${src.x.toFixed(1)}|${src.y.toFixed(1)}|${src.z.toFixed(1)}|${tgt.x.toFixed(1)}|${tgt.y.toFixed(1)}|${tgt.z.toFixed(1)}`;
+        if (link.__posKey === posKey) return;
+        link.__posKey = posKey;
+
+        updateLinkObject(
+          link.__lineObj,
+          { start: { x: src.x, y: src.y, z: src.z }, end: { x: tgt.x, y: tgt.y, z: tgt.z } },
+          link,
+        );
+      });
+    }
+
+    function styleAllLinks() {
+      Graph.graphData().links.forEach((link) => {
+        if (link.__lineObj?.children[0]) paintLinkMesh(link.__lineObj.children[0], link);
+      });
     }
 
     function filteredData() {
@@ -332,7 +806,7 @@
 
     function renderDetail(node) {
       if (!node) {
-        detailEl.innerHTML = '<p class="empty-detail">Clique em um nó para ver detalhes. Arraste para girar; scroll para zoom.</p>';
+        detailEl.innerHTML = '<p class="empty-detail">Selecione um nó para ver detalhes.</p>';
         return;
       }
 
@@ -342,6 +816,7 @@
       detailEl.innerHTML = `
         <span class="badge ${badgeClass}">${badgeLabel}</span>
         <h2>${node.name}</h2>
+        ${node.tokens ? `<p><strong>Tokens:</strong> ~${node.tokens.toLocaleString("pt-BR")}</p>` : ""}
         ${node.file ? `<p><strong>Arquivo:</strong> ${node.file}</p>` : ""}
         ${node.updated ? `<p><strong>Atualizado:</strong> ${node.updated}</p>` : ""}
         ${node.framework ? `<p><strong>Framework:</strong> ${node.framework}</p>` : ""}
@@ -364,49 +839,371 @@
     function updateStats(data) {
       const learned = data.nodes.filter((n) => n.group === "learned").length;
       const catalog = data.nodes.filter((n) => n.group === "catalog").length;
+      const visibleTokens = data.nodes.reduce((sum, n) => sum + (n.tokens || 0), 0);
+      const totalTokens = GRAPH_DATA.meta.counts.tokens || 0;
       statsEl.innerHTML = `
-        <strong>Visible</strong><br />
-        ${learned} learned · ${catalog} orphans · ${data.links.length} links<br /><br />
-        <strong>Total</strong><br />
-        ${GRAPH_DATA.meta.counts.learned} learned · ${GRAPH_DATA.meta.counts.catalog} orphans · ${GRAPH_DATA.meta.counts.links} links
+        <div class="stat-grid">
+          <div class="stat-chip">
+            <span class="stat-value">${learned}</span>
+            <span class="stat-label">Aprendidos</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-value">${catalog}</span>
+            <span class="stat-label">Órfãos</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-value">${data.links.length}</span>
+            <span class="stat-label">Links</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-value">~${visibleTokens.toLocaleString("pt-BR")}</span>
+            <span class="stat-label">Tokens</span>
+          </div>
+        </div>
+        <div class="stat-footer">
+          Total: ${GRAPH_DATA.meta.counts.learned} aprendidos · ${GRAPH_DATA.meta.counts.catalog} órfãos · ${GRAPH_DATA.meta.counts.links} links · ~${totalTokens.toLocaleString("pt-BR")} tokens
+        </div>
       `;
     }
 
+    function pruneHtmlLabels(visibleNodes) {
+      const visibleIds = new Set(visibleNodes.map((node) => node.id));
+      for (const [id, el] of htmlLabelMap.entries()) {
+        if (!visibleIds.has(id)) {
+          el.remove();
+          htmlLabelMap.delete(id);
+        }
+      }
+    }
+
+    function syncHtmlLabels() {
+      const labelsRoot = document.getElementById("node-labels");
+      const data = Graph.graphData();
+      if (!labelsRoot || !data?.nodes?.length) return;
+
+      const visibleIds = new Set();
+      const dimmed = highlightNodes.size > 0;
+
+      data.nodes.forEach((node) => {
+        if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || !Number.isFinite(node.z)) return;
+        visibleIds.add(node.id);
+
+        let el = htmlLabelMap.get(node.id);
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "node-label";
+          labelsRoot.appendChild(el);
+          htmlLabelMap.set(node.id, el);
+        }
+
+        el.textContent = node.name;
+        const isSelected = selectedNode && node.id === selectedNode.id;
+        el.classList.toggle("selected", isSelected);
+        el.style.opacity = dimmed && !highlightNodes.has(node.id) ? "0.35" : "1";
+
+        const coords = Graph.graph2ScreenCoords(node.x, node.y, node.z);
+        if (!coords || !shouldShowLabel(node)) {
+          el.style.display = "none";
+          return;
+        }
+
+        el.style.display = "block";
+        el.style.left = `${coords.x}px`;
+        el.style.top = `${coords.y}px`;
+      });
+
+      for (const [id, el] of htmlLabelMap.entries()) {
+        if (!visibleIds.has(id)) {
+          el.style.display = "none";
+        }
+      }
+    }
+
+    function seedOrphanPositions(nodes, links) {
+      const linkedIds = new Set();
+      links.forEach((link) => {
+        linkedIds.add(link.source.id || link.source);
+        linkedIds.add(link.target.id || link.target);
+      });
+
+      const orphans = nodes.filter((n) => !linkedIds.has(n.id));
+      const ring = 28;
+      orphans.forEach((orphan, i) => {
+        const angle = (i / orphans.length) * Math.PI * 2;
+        orphan.x = ring * Math.cos(angle);
+        orphan.y = ring * 0.2 * Math.sin(angle);
+        orphan.z = ring * 0.55 * Math.sin(angle);
+      });
+    }
+
+    function fitCamera() {
+      if (cameraFitted) return;
+      const data = Graph.graphData();
+      const positioned = data?.nodes?.filter((node) => Number.isFinite(node.x));
+      if (!positioned?.length) return;
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      let minZ = Infinity;
+      let maxZ = -Infinity;
+      positioned.forEach((node) => {
+        minX = Math.min(minX, node.x);
+        maxX = Math.max(maxX, node.x);
+        minY = Math.min(minY, node.y);
+        maxY = Math.max(maxY, node.y);
+        minZ = Math.min(minZ, node.z);
+        maxZ = Math.max(maxZ, node.z);
+      });
+
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const cz = (minZ + maxZ) / 2;
+      const span = Math.max(maxX - minX, maxY - minY, maxZ - minZ, 50);
+      const dist = span * 0.58;
+
+      const camera = Graph.camera();
+      const controls = Graph.controls();
+      camera.position.set(cx, cy + span * 0.15, cz + dist);
+      camera.lookAt(cx, cy, cz);
+      controls.target.set(cx, cy, cz);
+      controls.update();
+      cameraFitted = true;
+    }
+
+    // Orphans have no links, so charge pushes them far away. After layout,
+    // snap them onto rings around the connected cluster.
+    function layoutOrphansNearCluster() {
+      const data = Graph.graphData();
+      if (!data?.nodes?.length) return;
+
+      const linkedIds = new Set();
+      data.links.forEach((link) => {
+        linkedIds.add(link.source.id || link.source);
+        linkedIds.add(link.target.id || link.target);
+      });
+
+      const connected = data.nodes.filter((n) => linkedIds.has(n.id) && Number.isFinite(n.x));
+      const orphans = data.nodes.filter((n) => !linkedIds.has(n.id));
+      if (!connected.length || !orphans.length) return;
+
+      let cx = 0;
+      let cy = 0;
+      let cz = 0;
+      connected.forEach((n) => {
+        cx += n.x;
+        cy += n.y;
+        cz += n.z;
+      });
+      cx /= connected.length;
+      cy /= connected.length;
+      cz /= connected.length;
+
+      let clusterRadius = 0;
+      connected.forEach((n) => {
+        const dx = n.x - cx;
+        const dy = n.y - cy;
+        const dz = n.z - cz;
+        clusterRadius = Math.max(clusterRadius, Math.sqrt(dx * dx + dy * dy + dz * dz));
+      });
+
+      const innerRing = clusterRadius + 20;
+      const outerRing = clusterRadius + 34;
+
+      orphans.forEach((orphan, i) => {
+        const ring = i % 2 === 0 ? innerRing : outerRing;
+        const angle = (i / orphans.length) * Math.PI * 2;
+        orphan.x = cx + ring * Math.cos(angle);
+        orphan.y = cy + ring * 0.25 * Math.sin(angle * 1.2);
+        orphan.z = cz + ring * 0.6 * Math.sin(angle);
+        orphan.fx = orphan.x;
+        orphan.fy = orphan.y;
+        orphan.fz = orphan.z;
+      });
+    }
+
+    function finalizeLayout() {
+      if (orphansLaidOut) return;
+      const data = Graph.graphData();
+      if (!data?.nodes?.some((node) => Number.isFinite(node.x))) return;
+      layoutOrphansNearCluster();
+      orphansLaidOut = true;
+      cameraFitted = false;
+      fitCamera();
+      repaintGraph();
+    }
+
+    function repaintGraph() {
+      Graph.graphData().links.forEach((link) => {
+        link.__posKey = null;
+      });
+      updateAllSprites();
+      syncLinkPositions();
+      styleAllLinks();
+      syncHtmlLabels();
+    }
+
+    function activateNode(node) {
+      selectedNode = node;
+      highlightNodes = new Set([node.id]);
+      highlightLinks = new Set();
+
+      GRAPH_DATA.links.forEach((link) => {
+        const sourceId = link.source.id || link.source;
+        const targetId = link.target.id || link.target;
+        if (sourceId === node.id || targetId === node.id) {
+          highlightNodes.add(sourceId);
+          highlightNodes.add(targetId);
+          highlightLinks.add(link);
+        }
+      });
+
+      renderDetail(node);
+      repaintGraph();
+    }
+
+    function clearSelection() {
+      selectedNode = null;
+      highlightNodes = new Set();
+      highlightLinks = new Set();
+      renderDetail(null);
+      repaintGraph();
+    }
+
+    function nodeFromHit(object) {
+      let current = object;
+      while (current) {
+        if (current.__graphObjType === "node" && current.__data) {
+          return current.__data;
+        }
+        if (current.userData?.nodeId && !current.userData?.isGlow) {
+          return Graph.graphData().nodes.find((n) => n.id === current.userData.nodeId);
+        }
+        current = current.parent;
+      }
+      return null;
+    }
+
+    // Screen-space pick — reliable at any camera angle (sprite raycast is flaky).
+    function pickNodeAt(clientX, clientY) {
+      const canvas = Graph.renderer().domElement;
+      const rect = canvas.getBoundingClientRect();
+      const localX = clientX - rect.left;
+      const localY = clientY - rect.top;
+
+      let best = null;
+      let bestDist = Infinity;
+
+      Graph.graphData().nodes.forEach((node) => {
+        if (!Number.isFinite(node.x) || !Number.isFinite(node.y) || !Number.isFinite(node.z)) {
+          return;
+        }
+
+        const projected = new THREE.Vector3(node.x, node.y, node.z).project(Graph.camera());
+        if (projected.z > 1) return;
+
+        const sx = (projected.x * 0.5 + 0.5) * rect.width;
+        const sy = (-projected.y * 0.5 + 0.5) * rect.height;
+        const dist = Math.hypot(localX - sx, localY - sy);
+        const hitRadius = Math.max(nodeSize(node) + 14, 24);
+
+        if (dist <= hitRadius && dist < bestDist) {
+          bestDist = dist;
+          best = node;
+        }
+      });
+
+      return best;
+    }
+
+    function wireGraphSelection() {
+      const canvas = Graph.renderer().domElement;
+      let pointerStart = null;
+      let dragCandidate = false;
+
+      canvas.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        pointerStart = { x: event.clientX, y: event.clientY };
+        dragCandidate = Boolean(pickNodeAt(event.clientX, event.clientY));
+      });
+
+      canvas.addEventListener("pointerup", (event) => {
+        if (event.button !== 0 || !pointerStart) return;
+        const dx = event.clientX - pointerStart.x;
+        const dy = event.clientY - pointerStart.y;
+        const moved = Math.hypot(dx, dy);
+        pointerStart = null;
+
+        // Ignore click after a drag (node or camera).
+        if (moved > 6) return;
+
+        const node = pickNodeAt(event.clientX, event.clientY);
+        if (node) {
+          activateNode(node);
+        } else if (!dragCandidate) {
+          clearSelection();
+        }
+        dragCandidate = false;
+      });
+    }
+
+    let isDraggingNode = false;
+    let suppressNodeClick = false;
+
+    function releaseDragPin(node) {
+      delete node.fx;
+      delete node.fy;
+      delete node.fz;
+    }
+
     const Graph = ForceGraph3D()(document.getElementById("graph"))
-      .backgroundColor("#171717")
+      .backgroundColor("#000000")
       .showNavInfo(false)
       .nodeLabel((node) => node.name)
-      .nodeVal((node) => (node.group === "learned" ? 8 : 4))
+      .nodeVal((node) => nodeSize(node) + 6)
       .nodeColor(nodeColor)
-      .linkColor(linkColor)
-      .linkOpacity(0.45)
-      .linkWidth(0.6)
+      .nodeThreeObject(makeNodeSprite)
+      .linkThreeObject(makeLinkObject)
+      .linkPositionUpdate(updateLinkObject)
       .linkDirectionalParticles(0)
+      .enableNodeDrag(true)
       .onNodeClick((node) => {
-        selectedNode = node;
-        highlightNodes = new Set([node.id]);
-        highlightLinks = new Set();
-
-        GRAPH_DATA.links.forEach((link) => {
-          const sourceId = link.source.id || link.source;
-          const targetId = link.target.id || link.target;
-          if (sourceId === node.id || targetId === node.id) {
-            highlightNodes.add(sourceId);
-            highlightNodes.add(targetId);
-            highlightLinks.add(link);
-          }
-        });
-
-        renderDetail(node);
-        refreshGraph();
+        if (!suppressNodeClick) activateNode(node);
       })
-      .onBackgroundClick(() => {
-        selectedNode = null;
-        highlightNodes = new Set();
-        highlightLinks = new Set();
-        renderDetail(null);
-        refreshGraph();
-      });
+      .onNodeDrag(() => {
+        isDraggingNode = true;
+        suppressNodeClick = true;
+        Graph.d3ReheatSimulation();
+      })
+      .onNodeDragEnd((node) => {
+        isDraggingNode = false;
+        releaseDragPin(node);
+        Graph.d3ReheatSimulation();
+        requestAnimationFrame(() => {
+          suppressNodeClick = false;
+        });
+      })
+      .onBackgroundClick(clearSelection);
+
+    wireGraphSelection();
+
+    Graph.onEngineStop(finalizeLayout);
+
+    Graph.d3Force("charge").strength(-80);
+    Graph.d3Force("link").distance(42);
+
+    // Simulation stops after layout (pinned orphans), which halts the library
+    // render loop — keep drawing every frame ourselves.
+    (function renderLoop() {
+      syncSpritePositions();
+      syncLinkPositions();
+      updateAllSprites();
+      syncHtmlLabels();
+      Graph.controls().update();
+      Graph.renderer().render(Graph.scene(), Graph.camera());
+      requestAnimationFrame(renderLoop);
+    })();
 
     function applyGraphData(nextData) {
       const prevSelectedId = selectedNode?.id;
@@ -465,16 +1262,38 @@
     }
 
     function refreshGraph() {
+      orphansLaidOut = false;
       const data = filteredData();
+      data.nodes.forEach((node) => {
+        delete node.fx;
+        delete node.fy;
+        delete node.fz;
+      });
       updateStats(data);
+      pruneHtmlLabels(data.nodes);
+      seedOrphanPositions(data.nodes, data.links);
       Graph.graphData(data);
+      repaintGraph();
     }
 
-    searchInput.addEventListener("input", refreshGraph);
-    toggleOrphans.addEventListener("change", refreshGraph);
-    toggleLearnedOnly.addEventListener("change", refreshGraph);
+    searchInput.addEventListener("input", () => {
+      cameraFitted = false;
+      refreshGraph();
+    });
+    toggleOrphans.addEventListener("change", () => {
+      cameraFitted = false;
+      refreshGraph();
+    });
+    toggleLearnedOnly.addEventListener("change", () => {
+      cameraFitted = false;
+      refreshGraph();
+    });
+    toggleHideNames.addEventListener("change", () => {
+      syncHtmlLabels();
+    });
 
     refreshGraph();
+    setTimeout(finalizeLayout, 3000);
 
     if (LIVE_MODE) {
       setInterval(pollLiveGraph, 3000);

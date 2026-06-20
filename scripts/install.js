@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { npxInstall, globalInstall, npxGraph } = require("./constants");
 
 const PACKAGE_ROOT = path.join(__dirname, "..");
 
@@ -60,11 +61,17 @@ function printHelp() {
   console.log(`
 Install FiveM skills for Cursor, Claude Code, Codex, and/or Gemini CLI.
 
-Usage:
-  npx github:proelias7/fivem-skill              Interactive mode (checkbox menus)
-  npx github:proelias7/fivem-skill -y           Skip prompts, use defaults
-  npx github:proelias7/fivem-skill --all
-  npx github:proelias7/fivem-skill --skills vrp-framework,fivem-react-nui
+Recommended (install once globally, then use short command):
+  ${globalInstall()}
+  fivem-skill -y
+
+Without global install:
+  ${npxInstall()}              Interactive mode (checkbox menus)
+  ${npxInstall("-y")}          Skip prompts, use defaults
+  ${npxInstall("--all")}       Install every skill
+  ${npxInstall("--gemini -y")} Gemini only
+
+Local dev (from this repo):
   node scripts/install.js --target ./my-fivem-resource
 
 Options:
@@ -206,9 +213,9 @@ function ensureNonInteractiveChoice(options) {
 
   console.error(
     "Non-interactive terminal detected. Choose one:\n" +
-      "  npx github:proelias7/fivem-skill -y\n" +
-      "  npx github:proelias7/fivem-skill --cursor\n" +
-      "  npx github:proelias7/fivem-skill --agent cursor,claude,gemini\n",
+      `  ${npxInstall("-y")}\n` +
+      `  ${npxInstall("--cursor")}\n` +
+      `  ${npxInstall("--agent cursor,claude,gemini")}\n`,
   );
   process.exit(1);
 }
@@ -757,6 +764,7 @@ async function main() {
 
   console.log("Done.");
   console.log("Restart your agent IDE/CLI or open a new session.");
+  console.log(`Update anytime: ${npxInstall("-y")}  (or after global: fivem-skill -y)`);
   console.log(
     "Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn, /fivem:memory, /fivem:graph",
   );

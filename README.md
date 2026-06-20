@@ -21,6 +21,13 @@ npx github:proelias7/fivem-skill --codex --skills vrp-framework
 npx github:proelias7/fivem-skill --all -y
 ```
 
+Optional — install once globally, then run `fivem-skill -y` in any project:
+
+```bash
+npm install -g github:proelias7/fivem-skill
+fivem-skill -y
+```
+
 This copies skills and the FiveM helper to:
 
 | Agent | Skills | Helper |

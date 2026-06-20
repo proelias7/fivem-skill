@@ -12,7 +12,7 @@ node .gemini/fivem/build-knowledge-graph.js --target <project-root> --agent gemi
 Without local script:
 
 ```bash
-npx --package github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini --serve --open
+npx --yes github:proelias7/fivem-skill fivem-graph --target <project-root> --agent gemini --serve --open
 ```
 
 Do NOT use `npx fivem-graph` alone — not published on npm.

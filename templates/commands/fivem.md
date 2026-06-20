@@ -362,10 +362,10 @@ Gemini: `node .gemini/fivem/build-knowledge-graph.js --target . --agent gemini -
 Without local script (via GitHub package):
 
 ```bash
-npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor --serve --open
+npx --yes github:proelias7/fivem-skill fivem-graph --target . --agent cursor --serve --open
 ```
 
-**Do not** use `npx fivem-graph` alone — that package name is not published on npm.
+**Do not** use `npx fivem-graph` alone — that package name is not published on npm. Use `npx --yes github:proelias7/fivem-skill fivem-graph ...` or the local script copy.
 
 - `--serve` — live server (polls `memory/` every 3s)
 - `--open` — opens default browser automatically

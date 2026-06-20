@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { exec } = require("child_process");
+const { npxInstall, npxGraph } = require("./constants");
 
 const PACKAGE_ROOT = path.join(__dirname, "..");
 const DATA_PLACEHOLDER = "/*__GRAPH_DATA__*/";
@@ -27,7 +28,7 @@ From fivem-skill repo:
   node scripts/build-knowledge-graph.js --target /path/to/fivem-project --agent cursor
 
 Via npx (without local script copy):
-  npx --package github:proelias7/fivem-skill fivem-graph --target . --agent cursor
+  ${npxGraph("--target . --agent cursor --serve --open")}
 
 Live mode (auto-refresh when memory/ changes — keep terminal open):
   node .cursor/fivem/build-knowledge-graph.js --target . --agent cursor --serve --open
@@ -298,6 +299,10 @@ function inferLinks(nodes) {
   return links;
 }
 
+function estimateTokens(text) {
+  return Math.max(0, Math.round((text || "").length / 4));
+}
+
 function buildGraphSignature(nodes, links) {
   const nodePart = nodes
     .map((node) => `${node.id}:${node.updated || ""}:${node.group}`)
@@ -350,6 +355,7 @@ function buildGraphData(targetRoot, agentId) {
         updated: meta.updated || indexMeta.updated || "",
         framework: meta.framework || "",
         triggers: indexMeta.triggers || "",
+        tokens: estimateTokens(content),
         paths: extractBacktickPaths(content),
         searchHints: "",
         rawContent: content,
@@ -370,6 +376,7 @@ function buildGraphData(targetRoot, agentId) {
       updated: "",
       framework: "",
       triggers: row.triggers,
+      tokens: estimateTokens(`${row.triggers} ${row.searchHints}`),
       searchHints: row.searchHints,
       paths: extractBacktickPaths(row.searchHints),
       rawContent: `${row.triggers} ${row.searchHints}`,
@@ -406,6 +413,7 @@ function buildGraphData(targetRoot, agentId) {
         learned: nodes.filter((node) => node.group === "learned").length,
         catalog: nodes.filter((node) => node.group === "catalog").length,
         links: links.length,
+        tokens: nodes.reduce((sum, node) => sum + (node.tokens || 0), 0),
       },
     },
   };
@@ -425,7 +433,7 @@ function resolveTemplatePath(fivemDir) {
   }
 
   throw new Error(
-    "Template knowledge-graph.template.html not found. Re-run: npx github:proelias7/fivem-skill --cursor -y",
+    `Template knowledge-graph.template.html not found. Re-run: ${npxInstall("--cursor -y")}`,
   );
 }
 
@@ -606,7 +614,7 @@ function main() {
   if (!fs.existsSync(fivemDir)) {
     console.error(
       `Error: ${relativeDir} not found. Run fivem-skill installer first:\n` +
-        "  npx github:proelias7/fivem-skill --cursor -y",
+        `  ${npxInstall("--cursor -y")}`,
     );
     process.exit(1);
   }
