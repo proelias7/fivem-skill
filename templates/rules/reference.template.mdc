@@ -13,6 +13,7 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 - Fluxos detalhados e checklists longos → **`/fivem learn <topic>`** → `<agent>/fivem/memory/<topic>.md` (não duplique aqui).
 - Memórias são **contexto interno do agente** — salvas em inglês técnico compacto (`lang: en-compact`); esta rule só aponta links, não cola o conteúdo.
 - Após refactors ou deletes na base → **`/fivem memory health`** (ou `fix`) para validar paths/eventos e sincronizar índice.
+- Após aprender tópicos → **`/fivem graph`** para atualizar `knowledge-graph.json`; use **`/fivem query`** para recuperar contexto entre tópicos.
 
 ## Framework / grupos / permissões
 

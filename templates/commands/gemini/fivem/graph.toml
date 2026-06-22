@@ -1,7 +1,7 @@
 description = "Execute static 3D knowledge graph generator and open in browser"
 
 prompt = """
-Execute the **graph generator operation** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `.gemini/fivem/knowledge-graph.html`, and open it in the browser.
+Execute the **graph generator operation** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `.gemini/fivem/knowledge-graph.json` and `.gemini/fivem/knowledge-graph.html`, and open HTML in the browser.
 
 This is not task mode, not learn mode, and not a refactor opportunity. Do not improve graph code, tune visuals, edit templates, learn memories, create scripts, or modify project code.
 
@@ -22,41 +22,26 @@ Assemble the JSON directly from the files read in Step 1. Do **not** create or e
 
 Do not scan the source codebase for extra evidence in graph mode. Links come from the existing memory files only.
 
-**Learned nodes** (`memory/<slug>.md`): `id` (slug), `name`, `group: "learned"`, `file` (relative path), `updated`, `framework`, `triggers`, `tokens` (~chars/4), `paths` (backtick paths), `searchHints: ""`.
+**Learned nodes** (`memory/<slug>.md`): `id` (slug), `name`, `group: "learned"`, `file` (relative path), `updated`, `framework`, `triggers`, `events`, `exports`, `resources` (from frontmatter if present; else infer from content), `tokens` (~chars/4), `paths`, `searchHints: ""`.
 
 **Catalog nodes** (topic-catalog, not yet learned): `group: "catalog"`, `file: ""`, `triggers`, `searchHints`, `tokens`, `paths`.
 
-**Skip catalog orphan** when a learned topic already covers the same concept:
-- canonical slug match (`grupo` learned → skip catalog `grupos`)
-- learned `name`/`topic` matches catalog slug or trigger alias
-- catalog triggers include learned slug or its singular/plural form
-- canonical key: lowercase, no accents, simple singularize (`grupos`→`grupo`, `items`→`item`), ignore generic tokens (`config`, `script`, `module`, `core`, `main`)
+**Skip catalog orphan** when a learned topic already covers the same concept (canonical slug, name, triggers rules as in Cursor fivem.md).
 
-**Links** (dedupe; learned only — catalog orphans never get links). Infer from code evidence, strongest first:
+**Links** (dedupe; learned only). Infer from code evidence, strongest first. Each link: `{ "source", "target", "type", "confidence": "extracted"|"inferred" }`.
 
-- `shared-path` — same file or same resource folder
-- `shared-resource` — same FiveM resource or `fxmanifest.lua`
-- `event-flow` — one topic registers/handles event another triggers
-- `shared-symbol` — same export, framework call, config key, handler
-- `cross-mention` — slug in another memory content
-- `domain-related` — ≥2 strong technical tokens shared (not generic words)
+Types: `shared-path`, `shared-resource`, `event-flow`, `shared-symbol`, `cross-mention`, `domain-related`.
 
-Module grouping: link related learned topics inside a resource via `shared-resource`/`shared-path`/`event-flow` — no virtual hub node.
+**Surprising connections** (for reply only): cross-resource `event-flow`, hub nodes (degree ≥ 3), catalog orphans worth learning.
 
 **Meta:** `generatedAt` (ISO), `agent: "gemini"`, `fivemDir: ".gemini/fivem"`, `counts` (learned, catalog, links, tokens).
 
-### Step 3 — Write HTML
+### Step 3 — Write JSON and HTML
 
-Replace **only** the graph data payload with the JSON (2-space indent). Write to `.gemini/fivem/knowledge-graph.html`.
+1. Write full JSON to `.gemini/fivem/knowledge-graph.json` (2-space indent)
+2. Replace `/*__GRAPH_DATA__*/` (or `const GRAPH_DATA = ...`) in `.gemini/fivem/knowledge-graph.html` only
 
-Payload replacement rule:
-- If `/*__GRAPH_DATA__*/` exists, replace only that token.
-- Otherwise replace only the object assigned to `const GRAPH_DATA = ...;`.
-- Preserve all HTML, CSS, JS functions, visual settings, imports, comments, and formatting outside the `GRAPH_DATA` assignment.
-
-Allowed write: `.gemini/fivem/knowledge-graph.html` only.
-
-Forbidden writes: temporary scripts (`.py`, `.js`, `.mjs`, `.cjs`, `.sh`, `.ps1`), build scripts, package files, logs, cache files, memory files, catalog files, templates, or source code.
+Allowed writes: `.gemini/fivem/knowledge-graph.json`, `.gemini/fivem/knowledge-graph.html` only.
 
 ### Step 4 — Open browser
 
@@ -64,13 +49,7 @@ Forbidden writes: temporary scripts (`.py`, `.js`, `.mjs`, `.cjs`, `.sh`, `.ps1`
 
 ### Step 5 — Reply
 
-Report learned / catalog orphans / links counts. Remind user to re-run `/fivem graph` after `/fivem learn`.
+Report learned / catalog orphans / links / surprising connections. Remind: `/fivem:graph` after learn; `/fivem:query` for agent retrieval.
 
-**Do NOT** enter task mode or run post-task memory capture during graph.
-**Do NOT** improve, tune, refactor, reformat, or edit graph HTML/JS/CSS beyond replacing `GRAPH_DATA`.
-**Do NOT** scan Lua/JS/source resources to infer new knowledge; graph uses existing memories only.
-**Do NOT** edit memory files — only regenerate the HTML.
-**Do NOT** create or run scripts of any kind: Python, Node, Bash, PowerShell, batch, or generated helper files.
-**Do NOT** run build tools, package managers, formatters, watchers, servers, or shell pipelines to assemble the JSON.
-Shell is allowed only for opening the final HTML in the browser; if opening fails, tell the user the path instead.
+**Do NOT** enter task mode, scan Lua/JS, edit memories, or create scripts.
 """

@@ -1,0 +1,31 @@
+description = "Explain a topic node and its connections in the knowledge graph"
+
+prompt = """
+Explain a **topic node** and everything connected to it in `.gemini/fivem/knowledge-graph.json`.
+
+**Topic / args:** {{args}}
+
+**Do NOT implement code** — read-only.
+
+## Load
+
+1. `.gemini/fivem/knowledge-graph.json` (or `GRAPH_DATA` from HTML fallback)
+2. `.gemini/fivem/memory/<topic>.md` for the matched node
+
+## Match node
+
+Find best learned node by exact `id`, canonical slug, `name`, or triggers.
+If not found → list learned topics from graph; stop.
+
+## Output
+
+Reply in **user's language** with 3–5 sentences covering:
+1. What this topic does in the project (from memory Recipe/Files)
+2. Direct connections (neighbors) grouped by link type
+3. Highest-value link (`event-flow` first) and why it matters
+4. Suggest `/fivem:path <this> <neighbor>` for deeper trace if useful
+
+Cite memory file path and quoted events/paths only.
+
+**Do NOT** edit files or invent edges.
+"""

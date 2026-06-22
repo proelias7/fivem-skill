@@ -1,0 +1,32 @@
+description = "Shortest path between two topics in the knowledge graph"
+
+prompt = """
+Find the **shortest path** between two concepts in `.gemini/fivem/knowledge-graph.json`.
+
+**Args:** {{args}} — format: `<topic-a> <topic-b>` (e.g. `craft inventario`)
+
+**Do NOT implement code** — read-only graph traversal.
+
+## Load
+
+Read `.gemini/fivem/knowledge-graph.json` (or extract `GRAPH_DATA` from `.gemini/fivem/knowledge-graph.html` as fallback).
+
+## Find nodes
+
+Match each arg to best learned node by: exact `id`, canonical slug, `name`, or `triggers` overlap.
+If either node not found → list closest matches; stop.
+
+## Shortest path
+
+Use unweighted shortest path over learned-node links only (catalog nodes excluded).
+Prefer paths through `event-flow` and `shared-resource` when multiple equal-length paths exist.
+
+## Explain
+
+Reply in **user's language** with:
+1. Path as hop list: `craft --event-flow--> inventario --shared-resource--> webhook`
+2. What each hop means in this project (read linked `memory/<topic>.md` files)
+3. Key events/paths cited from memories
+
+**Do NOT** edit files or invent connections not in the graph.
+"""

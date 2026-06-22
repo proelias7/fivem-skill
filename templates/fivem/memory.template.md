@@ -3,6 +3,13 @@ topic: {{TOPIC}}
 updated: {{DATE}}
 framework: {{FRAMEWORK}}
 lang: en-compact
+confidence: extracted
+resources: []
+paths: []
+events: []
+exports: []
+symbols: []
+triggers: []
 ---
 
 # {{TOPIC}}

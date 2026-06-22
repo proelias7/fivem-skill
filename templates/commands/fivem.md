@@ -1,6 +1,6 @@
 ---
-description: "FiveM helper — task workflow, docs, reference, audit, learn, memory health, graph"
-argument-hint: "<task/question> | reference | audit [scope] | learn <topic> | memory health [fix] [topic] | graph"
+description: "FiveM helper — task workflow, docs, reference, audit, learn, memory health, graph, query, path, explain"
+argument-hint: "<task/question> | reference | audit [scope] | learn <topic> | memory health [fix] [topic] | graph | query \"<question>\" [--dfs] [--budget N] | path <a> <b> | explain <topic>"
 ---
 
 # FiveM
@@ -19,7 +19,12 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 | `learn list` | **Learn** — list topics in `_index.md` + catalog |
 | `memory health` or `memory health fix` | **Memory health** — verify memories vs codebase + integration + token format |
 | `memory health <topic>` or `memory health <topic> fix` | **Memory health** — single topic (optional auto-fix) |
-| `graph` | **Graph** — execute the graph generator operation only |
+| `graph` | **Graph** — build knowledge-graph.json + HTML snapshot |
+| `query` or `query "<question>"` | **Query** — BFS/DFS traversal over topic graph, load memories with budget |
+| `query "<question>" --dfs` | **Query** — DFS trace for specific flow chains |
+| `query "<question>" --budget N` | **Query** — cap loaded memory context at N tokens (default 1500) |
+| `path <topic-a> <topic-b>` | **Path** — shortest path between two learned topics |
+| `explain <topic>` | **Explain** — describe a topic node and its connections |
 | implementation/correction request | **Task** — analyze, retrieve minimal memories, implement, then capture reusable knowledge |
 | empty or conceptual question | **Help** — answer FiveM development questions |
 
@@ -66,6 +71,16 @@ Do **not** ask for trivial details that can be resolved by reading existing code
 ### Step 3 — Selective memory retrieval
 
 Use memories as a routing cache, not as a bulk context dump.
+
+**Fast path — graph router (when `knowledge-graph.json` exists):**
+
+1. Read `<agent>/fivem/knowledge-graph.json` (fallback: extract `GRAPH_DATA` from `knowledge-graph.html`).
+2. Expand task keywords against graph vocabulary (node `id`, `name`, `triggers`, `events`, `paths`) — up to 12 tokens from vocab only.
+3. BFS from best-matching learned nodes (depth 3); link priority: `event-flow` > `shared-resource` > `shared-path` > `shared-symbol` > `cross-mention`.
+4. Load `memory/<topic>.md` for traversed nodes with budget **~1500 tokens** (hubs full, depth-1 Recipe+Files, depth-2+ frontmatter+Files).
+5. If graph returns no matches, fall through to index matching below.
+
+**Fallback — index matching:**
 
 1. Read `<agent>/fivem/memory/_index.md` first if it exists.
 2. Read `<agent>/fivem/topic-catalog.md` for aliases/search hints.
@@ -119,7 +134,8 @@ When the learning review qualifies:
 3. Update an existing memory if it covers the same domain.
 4. Create a new memory only for a distinct domain.
 5. Use `<agent>/fivem/memory.template.md` structure, compact English, `lang: en-compact`, ~25–60 lines.
-6. Include only verified repo literals: paths, events, exports, config keys, permissions, examples.
+6. Frontmatter arrays (`resources`, `paths`, `events`, `exports`, `symbols`, `triggers`) — grep-confirmed literals only; `confidence: extracted`.
+7. Include only verified repo literals: paths, events, exports, config keys, permissions, examples.
 7. Update `<agent>/fivem/memory/_index.md`; create from `memory-index.template.md` if missing.
 8. If `reference.mdc` exists, update only one row under `## Memórias por tópico`.
 
@@ -299,7 +315,8 @@ Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.):
 
 Save to **`<agent>/fivem/memory/<topic>.md`** using `memory.template.md` structure (**~25–60 lines**, token-efficient):
 
-- Frontmatter: `topic`, `updated`, `framework`, `lang: en-compact`
+- Frontmatter: `topic`, `updated`, `framework`, `lang: en-compact`, `confidence: extracted`
+- Structured arrays (grep-confirmed): `resources`, `paths`, `events`, `exports`, `symbols`, `triggers`
 - Sections: `Files`, `Recipe`, `Example`, `Pitfalls`, `Skills` — **compact technical English only**
 - No prose, no tables unless essential; bullet lists and short imperative lines
 - Keep repo literals verbatim: paths, events, item ids, permissions, resource names
@@ -368,6 +385,7 @@ If no `memory/` files exist → reply suggesting `/fivem learn <topic>` first; s
 | `<agent>/fivem/topic-catalog.md` | Catalog orphans (info) |
 | `reference.mdc` | Section `## Memórias por tópico` |
 | `<agent>/fivem/memory/<topic>.md` | Each topic to verify |
+| `<agent>/fivem/knowledge-graph.json` | If present — graph drift vs memories |
 
 ### Step 3 — Verify each memory (evidence required)
 
@@ -376,22 +394,33 @@ For every topic file, extract and validate:
 #### Paths
 
 - Backtick strings that look like repo paths (`/`, `\`, or extensions `.lua`, `.js`, `.tsx`, `.json`, `.cfg`)
+- Frontmatter `paths[]` entries — each must exist in repo
 - **Missing file** → Stale/Broken (critical if listed under `Files:` or `Recipe:`)
 
 #### Events / symbols
 
-Grep repo for symbols mentioned in memory:
+Grep repo for symbols mentioned in memory and frontmatter:
 
 ```text
 RegisterNetEvent / RegisterServerEvent / AddEventHandler
 TriggerServerEvent / TriggerClientEvent (quoted event names)
 exports["..."] / exports['...']
+frontmatter events[], exports[], symbols[]
 vRP.* / QBCore.* / ESX.* / lib.*
 function names referenced in Recipe steps
 ```
 
 - **Zero matches** for a quoted event or export used as a step → Stale
 - **Zero matches** for primary handler/event in `Files:` or `Recipe:` → Broken
+
+#### Frontmatter structure
+
+| Issue | Flag |
+|-------|------|
+| Missing `lang: en-compact` | Token |
+| Missing `confidence` | Token |
+| `paths[]` / `events[]` / `exports[]` with zero grep matches | Stale/Broken |
+| Arrays contain invented literals not in repo | Broken |
 
 #### Integration
 
@@ -401,6 +430,16 @@ function names referenced in Recipe steps
 | `memory/*.md` file | file exists but missing from `_index.md` |
 | `reference.mdc` table | link to missing memory file |
 | `reference.mdc` | topic in memory folder but no row in `## Memórias por tópico` |
+
+#### Graph drift (when `knowledge-graph.json` exists)
+
+| Check | Drift |
+|-------|-------|
+| Learned node in graph | no matching `memory/<id>.md` |
+| `memory/*.md` topic | missing from graph learned nodes |
+| Stale `generatedAt` | memories updated after graph `meta.generatedAt` |
+
+If graph drift detected → recommend `/fivem graph` refresh.
 
 #### Token format
 
@@ -430,7 +469,7 @@ Write report in **user's language**; memory files stay compact English.
 Only after verification — **never invent** replacements:
 
 1. **Prune** lines referencing missing paths/events (grep-confirmed dead refs)
-2. **Rewrite** to `memory.template.md` — compact English, `lang: en-compact`, ~25–60 lines
+2. **Rewrite** to `memory.template.md` — compact English, `lang: en-compact`, ~25–60 lines; refresh frontmatter arrays from surviving grep evidence
 3. **Re-scan** repo for that topic (catalog hints + surviving valid paths) to refresh `Files`, `Recipe`, `Example`, `Pitfalls`
 4. **Sync** `_index.md` (topic | file | triggers | updated) and `reference.mdc` one-row links
 5. **Broken topics** mostly empty after prune → keep minimal stub + flag **re-learn**: `/fivem learn <topic>` — do not guess new APIs
@@ -502,9 +541,12 @@ Do not scan the source codebase for extra evidence in graph mode. Links come fro
 | `file` | path relative to project root (e.g. `.cursor/fivem/memory/craft.md`) |
 | `updated` | frontmatter `updated` or index column |
 | `framework` | frontmatter `framework` or `""` |
-| `triggers` | index triggers column or `""` |
+| `triggers` | frontmatter `triggers[]` or index triggers column or `""` |
+| `events` | frontmatter `events[]` or quoted events extracted from content |
+| `exports` | frontmatter `exports[]` or extracted from content |
+| `resources` | frontmatter `resources[]` or inferred from path segments under `resources/` |
 | `tokens` | `Math.round(content.length / 4)` |
-| `paths` | array of lowercase paths from backtick values containing `/`, `\`, `.lua`, `.md`, or `config.` |
+| `paths` | frontmatter `paths[]` if present; else array from backtick values containing `/`, `\`, `.lua`, `.md`, or `config.` |
 | `searchHints` | `""` |
 
 **Catalog nodes** (from `topic-catalog.md` — **skip if already covered by a learned topic**):
@@ -552,7 +594,13 @@ Infer links from **code evidence**, not slug similarity alone. Prefer stronger s
 
 **Module grouping:** when one topic spans several scripts inside a resource (e.g. inventory core + itemlist + chest), link related learned topics via `shared-resource`, `shared-path`, or `event-flow` — do **not** create a virtual hub node.
 
-Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>" }`
+Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>", "confidence": "extracted" }` for frontmatter-backed links; `"inferred"` for content-only inference.
+
+**Surprising connections** (for reply only — do not add extra nodes):
+
+- Cross-resource `event-flow` links (topics in different `resources/<name>/` folders)
+- High-degree hub nodes (degree ≥ 3)
+- Catalog orphans with triggers matching user-facing terms but no learned memory yet
 
 **Meta:**
 
@@ -572,7 +620,12 @@ Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>" }`
 
 Use `"agent": "gemini"` and `"fivemDir": ".gemini/fivem"` for Gemini projects.
 
-### Step 3 — Write HTML
+### Step 3 — Write JSON and HTML
+
+Write the same JSON object to **both**:
+
+1. `<agent>/fivem/knowledge-graph.json` (2-space indent, valid JSON)
+2. `<agent>/fivem/knowledge-graph.html` — replace only the graph data payload
 
 Read `<agent>/fivem/knowledge-graph.html`. Replace **only** the graph data payload with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
 
@@ -586,7 +639,8 @@ Write the result back to `<agent>/fivem/knowledge-graph.html`.
 
 Allowed writes in graph mode:
 
-- `<agent>/fivem/knowledge-graph.html` only
+- `<agent>/fivem/knowledge-graph.json`
+- `<agent>/fivem/knowledge-graph.html`
 
 Forbidden writes in graph mode:
 
@@ -611,9 +665,10 @@ Report:
 - **Learned** nodes — existing `memory/*.md`
 - **Catalog orphans** — topics in `topic-catalog.md` not yet learned
 - **Links** — inferred connections
-- Path to `knowledge-graph.html` and that the browser was opened
+- **Surprising connections** — cross-resource event-flows, hub nodes, catalog gaps
+- Paths to `knowledge-graph.json` and `knowledge-graph.html`; browser opened for HTML
 
-Remind user: re-run `/fivem graph` after `/fivem learn` to refresh the snapshot.
+Remind user: re-run `/fivem graph` after `/fivem learn`; use `/fivem query` for agent retrieval.
 
 ### Graph rules
 
@@ -627,6 +682,148 @@ Remind user: re-run `/fivem graph` after `/fivem learn` to refresh the snapshot.
 - **Do not** keep a background process running
 - **Do not** modify `knowledge-graph.html` structure during graph mode — only replace the embedded graph data
 - If `<agent>/fivem/` is missing → user must run fivem-skill installer first
+
+---
+
+## Mode: Query
+
+Answer a question by **traversing the topic knowledge graph** and loading only relevant memories. Read-only — do not edit code or memory files.
+
+Parse `$ARGUMENTS` after `query`:
+
+- Question text in quotes (required)
+- `--dfs` → depth-first trace for specific flow chains
+- `--budget N` → cap loaded memory context at N tokens (default **1500**)
+
+### Step 1 — Load graph
+
+1. Read `<agent>/fivem/knowledge-graph.json` if it exists
+2. If missing → extract `GRAPH_DATA` from `<agent>/fivem/knowledge-graph.html`
+3. If neither exists → tell user to run `/fivem learn <topic>` then `/fivem graph`; stop
+
+### Step 2 — Vocabulary expansion (required)
+
+Build vocabulary from graph learned nodes only: `id`, `name`, `triggers`, `paths`, `events`, `exports`, `resources`.
+
+Select up to **12 tokens from this vocabulary** that match the question intent. Hard rules:
+
+- Pick only tokens present in the graph vocabulary
+- Do not invent synonyms from training memory
+- If no tokens match → say plainly; stop
+
+Print before traversal:
+
+```text
+Query expanded to: [token1, token2, ...]
+```
+
+### Step 3 — Traversal
+
+| Mode | When |
+|------|------|
+| **BFS** (default) | Broad context — neighbors layer by layer, depth 3 |
+| **DFS** (`--dfs`) | Trace a specific chain — depth max 6 |
+
+1. Score learned nodes by token overlap; take top 1–3 start nodes
+2. Traverse using link priority: `event-flow` > `shared-resource` > `shared-path` > `shared-symbol` > `cross-mention` > `domain-related`
+3. Catalog nodes are never traversal targets
+
+### Step 4 — Load memories (budget-aware)
+
+For each traversed learned node, load `memory/<topic>.md`:
+
+| Depth | Load |
+|-------|------|
+| Hub (degree ≥ 3) | Full memory, up to 40 lines |
+| BFS depth 1 | `Files` + `Recipe` |
+| BFS depth 2+ | Frontmatter + `Files` only |
+| DFS chain | Full memory for nodes on the path |
+
+Stop when `--budget` token estimate is reached (`chars / 4`).
+
+### Step 5 — Answer
+
+Reply in **user's language**. Cite memory paths and link types used. Quote events/paths from memories only.
+
+If graph lacks enough information → say so; suggest `/fivem learn <topic>` or `/fivem graph`.
+
+### Query rules
+
+- **Do not** scan full codebase beyond loaded memory files
+- **Do not** edit any files
+- **Do not** invent edges or events not in graph/memories
+
+---
+
+## Mode: Path
+
+Find the **shortest path** between two learned topics. Read-only.
+
+Parse `$ARGUMENTS` after `path`: `<topic-a> <topic-b>` (e.g. `path craft inventario`).
+
+### Step 1 — Load graph
+
+Same as Query Step 1 (`knowledge-graph.json` → HTML fallback).
+
+### Step 2 — Match nodes
+
+Match each argument to best learned node by: exact `id`, canonical slug, `name`, or `triggers` overlap.
+
+If either node not found → list closest learned matches; stop.
+
+### Step 3 — Shortest path
+
+Unweighted shortest path over learned-node links only.
+
+When multiple equal-length paths exist, prefer paths with more `event-flow` and `shared-resource` hops.
+
+### Step 4 — Explain
+
+Reply in **user's language**:
+
+1. Hop list: `craft --event-flow--> inventario --shared-resource--> webhook`
+2. What each hop means (read linked memory files)
+3. Key events/paths cited from memories
+
+Suggest `/fivem explain <topic>` or `/fivem query "<follow-up>"` for deeper exploration.
+
+### Path rules
+
+- **Do not** edit files or invent connections not in the graph
+
+---
+
+## Mode: Explain
+
+Describe a **single topic node** and its connections. Read-only.
+
+Parse `$ARGUMENTS` after `explain`: `<topic>` slug or name.
+
+### Step 1 — Load graph and memory
+
+1. Load graph (same as Query Step 1)
+2. Load `memory/<topic>.md` for matched node
+
+### Step 2 — Match node
+
+Find best learned node by exact `id`, canonical slug, `name`, or triggers.
+
+If not found → list learned topics from graph; stop.
+
+### Step 3 — Output
+
+Reply in **user's language** (3–5 sentences):
+
+1. What this topic does (from memory `Recipe` / `Files`)
+2. Direct neighbors grouped by link type
+3. Highest-value connection (`event-flow` first) and why it matters
+4. Degree (connection count) and resource scope
+
+Suggest `/fivem path <this> <neighbor>` for trace if useful.
+
+### Explain rules
+
+- **Do not** edit files or invent edges
 
 ---
 
@@ -722,6 +919,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - Patterns/best practices → Read skill `fivem-development` (`best-practices.md`)
    - Code audit → suggest `/fivem audit [scope]`
    - Recurring project flow (craft, item, loja, NUI) → read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>`
+   - Architecture / cross-topic flow → suggest `/fivem query "<question>"` if `knowledge-graph.json` exists
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 
 2. **Read the relevant skill** from the agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.)

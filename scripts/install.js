@@ -561,24 +561,27 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     if (fileName === "knowledge-graph.html") {
       const agentKey = relativeDestDir.includes("gemini") ? "gemini" : "cursor";
       const fivemDir = relativeDestDir.replace(/\\/g, "/");
-      const emptyGraph = JSON.stringify(
-        {
-          nodes: [],
-          links: [],
-          meta: {
-            generatedAt: "",
-            agent: agentKey,
-            fivemDir,
-            counts: { learned: 0, catalog: 0, links: 0, tokens: 0 },
-          },
+      const emptyGraph = {
+        nodes: [],
+        links: [],
+        meta: {
+          generatedAt: "",
+          agent: agentKey,
+          fivemDir,
+          counts: { learned: 0, catalog: 0, links: 0, tokens: 0 },
         },
-        null,
-        2,
-      );
+      };
+      const emptyGraphJson = JSON.stringify(emptyGraph, null, 2);
       const html = fs
         .readFileSync(src, "utf8")
-        .replace("/*__GRAPH_DATA__*/", emptyGraph);
+        .replace("/*__GRAPH_DATA__*/", emptyGraphJson);
       fs.writeFileSync(dest, html, "utf8");
+
+      const jsonDest = path.join(destDir, "knowledge-graph.json");
+      if (!fs.existsSync(jsonDest)) {
+        fs.writeFileSync(jsonDest, `${emptyGraphJson}\n`, "utf8");
+        installed.push(path.relative(targetRoot, jsonDest));
+      }
     } else {
       fs.copyFileSync(src, dest);
     }

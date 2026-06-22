@@ -51,6 +51,7 @@ One-paragraph overview: drift vs codebase, index/reference sync, compact-format 
 | `_index.md` vs `memory/*.md` | OK / drift | orphan rows, missing rows |
 | `reference.mdc` `## Memórias por tópico` | OK / drift | stale links |
 | Catalog orphans (not learned) | info | from `topic-catalog.md` |
+| `knowledge-graph.json` drift | OK / drift | stale graph, missing nodes |
 
 ---
 
@@ -66,4 +67,5 @@ One-paragraph overview: drift vs codebase, index/reference sync, compact-format 
 
 ### Suggested next
 
-- `/fivem graph` — refresh 3D map after fixes
+- `/fivem graph` — refresh knowledge-graph.json + 3D map after fixes
+- `/fivem query "<question>"` — test agent retrieval after graph refresh
