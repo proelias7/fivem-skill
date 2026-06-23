@@ -120,7 +120,7 @@ npx skills add proelias7/fivem-skill --list
 | **Asset Discovery** | PlebMasters Forge integration + common props, vehicles, peds, weapons |
 | **Framework Bridge** | Auto-detection of vRP, QBCore, Qbox, ESX + abstraction layer |
 | **Dynamic Docs Fetch** | Anti-hallucination policy + WebFetch from official sources |
-| **Cerberus v2.0** | SafeEvent (server anti-exploit) + SetCooldown (client rate-limit) |
+| **Cerberus** | Modular: `SendFullSync` / `SendDeltaSync`, `SafeEvent`, `SetCooldown` |
 | **cacheaside** | In-memory cache with TTL for database queries |
 | **NUI (React + Vite)** | Shared UI skill for all frameworks |
 | **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
@@ -167,7 +167,7 @@ npx skills add proelias7/fivem-skill --list
 skills/
 ├── fivem-development/          # Best practices (framework-agnostic)
 │   ├── SKILL.md                # Entry point + fetch policy + performance rules
-│   ├── best-practices.md       # Performance, security, cache, cerberus
+│   ├── best-practices.md       # Performance, cache, cerberus (load balance + SafeEvent), security
 │   ├── asset-discovery.md      # PlebMasters + props/vehicles/peds/weapons
 │   └── framework-detection.md  # Auto-detection + multi-framework bridge
 │
@@ -236,7 +236,8 @@ templates/
     - ESX Framework (Shared Object/xPlayer) — `esx-framework`
 - **Database:** oxmysql (All)
 - **Cache:** cacheaside (shared)
-- **Anti-exploit:** Cerberus v2.0 (shared)
+- **Network sync:** cerberus load balance (`SendFullSync`, `SendDeltaSync`)
+- **Security:** cerberus `SafeEvent` / `SetCooldown` (shared)
 - **UI:** React 18 + Vite + Tailwind CSS v3 + Zustand (`fivem-react-nui`)
 
 ## Documentation Sources

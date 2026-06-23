@@ -261,9 +261,10 @@ end)
 | Function | Description |
 |--------|-----------|
 | `Get(namespace, key, opts)` | Fetches from cache or executes query |
-| `Set(namespace, key, value, ttl)` | Saves value to cache |
+| `Set(namespace, key, value, ttl)` | Saves value to cache (TTL optional, seconds) |
 | `Delete(namespace, key)` | Removes specific item |
 | `FlushNamespace(namespace)` | Clears entire namespace |
+| `GetNamespace(namespace)` | Returns all entries in a namespace |
 
 **Get Options:**
 ```lua
@@ -275,6 +276,8 @@ exports.cacheaside:Get("namespace", "key", {
     logger = true                    -- activate logs
 })
 ```
+
+**Install:** add `ensure cacheaside` in `server.cfg` before resources that depend on it. Recommended: **oxmysql** for the `query` option in `Get`.
 
 **When to use cache:**
 
@@ -542,52 +545,129 @@ When in doubt: **one server file, one client file, locals at top, fewer comments
 
 ---
 
-## 4. Security (Cerberus v2.0)
+## 4. Cerberus (modular resource)
 
-Cerberus offers 3 protection layers: **SafeEvent** (server-side), **SetCooldown** (client-side), and **Analytics** (monitoring).
+[`cerberus`](https://github.com/proelias7/cerberus) is a modular FiveM resource. The public README highlights **Load Balance**; the full module also includes **SafeEvent** (server anti-exploit) and **SetCooldown** (client rate-limit) when enabled in `config/config.lua`:
 
-### 4.1 SafeEvent (Server-side — Anti-Exploit)
+```lua
+config.modules = {
+    banned = false,
+    safeEvent = true,
+    analytics = true,
+}
+```
 
-Protects actions that give advantage to the player (money, items, XP). Detects and bans exploiters automatically.
+### 4.1 Network sync (Load Balance)
 
-**Signature:**
+[`cerberus`](https://github.com/proelias7/cerberus) centralizes large server→client payload delivery. Consumer scripts prepare the payload and call an export; cerberus handles transport, chunking, queue, priority, and client-side reassembly.
+
+**Flow:**
+
+```text
+resource server -> cerberus server -> network -> cerberus client -> local TriggerEvent -> resource client
+```
+
+The final `TriggerEvent` on the client is local and does not add extra network traffic.
+
+### 4.2 When to use cerberus
+
+| Situation | Use |
+|-----------|-----|
+| Bootstrap / full cache for one player | `SendFullSync` |
+| Single entry update or delete | `SendDeltaSync` |
+| Large payload to many players | `SendFullSync` or `SendDeltaSync` with queue/chunking |
+| Small direct event, no sync burden | Normal `TriggerClientEvent` is fine |
+
+> **Rule:** Do not implement manual chunking in consumer scripts. Use cerberus exports instead.
+>
+> **Rule:** Prefer `SendDeltaSync` for unit updates. Reserve `SendFullSync` for bootstrap or full cache rebuild.
+
+### 4.3 Exports
+
+| Export | Alias | Purpose |
+|--------|-------|---------|
+| `SendFullSync(targets, eventName, payload, options)` | `SyncFull` | Full/bootstrap sync; replaces pending job for same `key` |
+| `SendDeltaSync(targets, eventName, payload, options)` | `SyncDelta` | Unit update; does not replace pending jobs by default |
+| `SendBalancedPayload(targets, eventName, payload, options)` | `QueueBalancedPayload` | Generic/manual control |
+
+**`targets`:** `source`, `-1`, or table of sources.
+
+**`options`:** `key`, `coords`, `range`, `scopeRadius`, `replacePending`, `syncKind`.
+
+- `range`: players near `coords` receive first; others receive later
+- `scopeRadius`: with `coords` and `-1`, only players inside radius receive the event
+
+### 4.4 Examples
+
+**Full sync (player bootstrap):**
+```lua
+exports["cerberus"]:SendFullSync(
+    source,
+    "chest:fullSync",
+    chestCacheSanitized,
+    {
+        key = "inventory:chests:full",
+        coords = GetEntityCoords(GetPlayerPed(source)),
+        range = 150.0
+    }
+)
+```
+
+**Delta update:**
+```lua
+exports["cerberus"]:SendDeltaSync(-1, "chest:updateChest", chestData)
+```
+
+**Delta delete:**
+```lua
+exports["cerberus"]:SendDeltaSync(-1, "chest:deleteChest", { name = chestName })
+```
+
+**Client consumer:**
+```lua
+RegisterNetEvent("chest:updateChest")
+AddEventHandler("chest:updateChest", function(chestData)
+    allChests[chestData.name] = chestData
+    UpdateTargetZones(chestData.name)
+end)
+```
+
+### 4.5 Load balance — what to avoid
+
+- Manual chunking in inventory/routes/NUI resources
+- Full sync for every small change
+- Putting queue/priority logic in the consumer client
+
+### 4.6 SafeEvent (server — anti-exploit)
+
+Requires `config.modules.safeEvent = true`. Protects actions that give advantage (money, items, XP). Returns `true` = blocked, `false` = allowed.
+
 ```lua
 exports["cerberus"]:SafeEvent(source, eventName, options)
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-----------|
-| `source` | number | Player ID |
-| `eventName` | string | Unique name of protected action |
-| `options` | table\|nil | Options table (all optional) |
-
-**Available Options:**
-
 | Field | Type | Default | Description |
-|-------|------|---------|-----------|
-| `data` | any | nil | Extra data for log |
-| `time` | number | config (30) | Minimum interval in seconds |
-| `noBan` | boolean | false | If `true`, does not ban automatically |
-| `position` | boolean | false | Checks distance between actions |
-| `positionDist` | number | 100 | Minimum distance between actions (meters) |
-| `notification` | boolean | false | Notifies player when blocked |
-| `blockThreshold` | number | config (1) | Suspicions per event before blocking |
-| `logThreshold` | number | config (1) | Suspicions before showing logs in console |
-| `silentLog` | boolean | false | Logs internally without showing in console |
-| `interPorDetect` | number | config (15) | Time window to count suspicions |
-| `suspectCount` | number | config (4) | Total suspicions for automatic ban |
+|-------|------|---------|-------------|
+| `time` | number | `config.defaultTime` (30) | Minimum interval in seconds |
+| `noBan` | boolean | false | If true, does not auto-ban |
+| `position` | boolean | false | Check distance between actions |
+| `positionDist` | number | 100 | Min distance in meters when `position=true` |
+| `notification` | boolean | false | Notify player when blocked |
+| `blockThreshold` | number | `config.blockThreshold` | Suspicions per event before blocking |
+| `logThreshold` | number | `config.logThreshold` | Suspicions before console logs |
+| `silentLog` | boolean | false | Log internally without console |
+| `interPorDetect` | number | `config.interPorDetect` | Window to count suspicions |
+| `suspectCount` | number | `config.suspectCount` | Total suspicions for auto-ban |
+| `data` | any | nil | Extra data for logs |
 
-**Return:** `true` = action blocked, `false` = allowed.
-
-**Basic Example:**
+**Example:**
 ```lua
-RegisterServerEvent("register:paymentMethod")
-AddEventHandler("register:paymentMethod", function(locate)
+RegisterServerEvent("shop:buy")
+AddEventHandler("shop:buy", function(itemId)
     local source = source
     if not source then return end
 
-    if exports["cerberus"]:SafeEvent(source, "register:paymentMethod", {
-        data = "Robbery: " .. tostring(locate),
+    if exports["cerberus"]:SafeEvent(source, "shop:buy", {
         time = 10,
         position = true,
         positionDist = 2
@@ -595,12 +675,11 @@ AddEventHandler("register:paymentMethod", function(locate)
         return
     end
 
-    local randPrice = math.random(15000, 16000)
-    GivePlayerMoney(source, randPrice)  -- use your framework's money function
+    -- server validation + grant reward
 end)
 ```
 
-**Example with Fine Control (no ban, with notification):**
+**Flood / DB-sensitive events:**
 ```lua
 if exports["cerberus"]:SafeEvent(source, "requestInventory", {
     time = 2,
@@ -612,99 +691,70 @@ if exports["cerberus"]:SafeEvent(source, "requestInventory", {
 end
 ```
 
-**Silent Mode Example (tracks but doesn't log until threshold):**
-```lua
-if exports["cerberus"]:SafeEvent(source, "shop:buyItem", {
-    time = 5,
-    silentLog = true,
-    logThreshold = 5,
-    blockThreshold = 2
-}) then
-    return
-end
-```
+### 4.7 SetCooldown (client — rate-limit)
 
-**Detection Flow:**
-1. First call → Registers timestamp and position
-2. Next call → Compares interval with `time`
-3. Interval less than `time` → Increments suspicion counter **per event**
-4. `position=true` + haven't moved `positionDist` → Immediate ban (if `noBan=false`)
-5. Event suspicions >= `blockThreshold` → Blocks action (returns `true`)
-6. Total suspicions >= `suspectCount` within `interPorDetect` → Automatic ban
-7. If `time` passed since last call → Reset counters
-8. Cleanup thread removes events inactive for more than 60s
+Runs on **client**. Time in **milliseconds**. Returns `true` = blocked.
 
-### 4.2 SetCooldown (Client-side — Rate-Limit)
-
-Limits spam of normal actions on client. **IMPORTANT: runs on CLIENT, not on server.**
-
-**Signature:**
 ```lua
 exports["cerberus"]:SetCooldown(name, time, hits)
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-----------|
-| `name` | string | Unique name of cooldown |
-| `time` | number | Duration in **milliseconds** |
-| `hits` | number\|nil | Attempts before blocking (hit-based mode) |
-
-**Return:** `true` = blocked, `false` = allowed.
-
-**Two modes of operation:**
-
 ```lua
--- MODE 1: Time-based (blocks by time)
+-- Time-based
 if exports["cerberus"]:SetCooldown("open:inventory", 3000) then
     return
 end
 
--- MODE 2: Hit-based (blocks after N attempts in period)
+-- Hit-based: 3 attempts then block for 5s
 if exports["cerberus"]:SetCooldown("use:item", 5000, 3) then
     return
 end
 ```
 
-**Complete client example:**
 ```lua
 RegisterNUICallback("buy", function(data, cb)
     if exports["cerberus"]:SetCooldown("shop:buy", 2000) then
         cb("blocked")
         return
     end
-
     TriggerServerEvent("shop:buy", data.item)
     cb("ok")
 end)
 ```
 
-**Automatic Notification:** SetCooldown automatically displays a "Wait X seconds..." message to the player when blocked.
+SetCooldown shows an automatic "Aguarde X segundos..." notification when blocked.
 
-### 4.3 SafeEvent vs SetCooldown
+### 4.8 SafeEvent vs SetCooldown
 
 | Feature | SafeEvent | SetCooldown |
-|----------------|-----------|-------------|
-| **Side** | Server-side | Client-side |
-| **Purpose** | Anti-exploit (detects cheaters) | Rate-limit (limits spam) |
-| **Action on detect** | Blocks and/or bans | Blocks temporarily |
-| **Time** | Seconds | Milliseconds |
-| **Logs** | Logs internally | Does not log |
+|---------|-----------|-------------|
+| Side | Server | Client |
+| Purpose | Anti-exploit | Rate-limit spam |
+| On detect | Block and/or ban | Block temporarily |
+| Time unit | Seconds | Milliseconds |
 
-**When to use which:**
+| Situation | Use |
+|-----------|-----|
+| Money/item/advantage server event | `SafeEvent` |
+| Open menu / use item / NUI spam | `SetCooldown` |
+| Large cache sync to clients | `SendFullSync` / `SendDeltaSync` |
 
-| Situation | Use | Example |
-|----------|------|---------|
-| Rob register/NPC | `SafeEvent` | `time=10, position=true` |
-| Receive job payment | `SafeEvent` | `time=30` |
-| Collect money drop | `SafeEvent` | `time=5, position=true` |
-| Open inventory/menu | `SetCooldown` | `time=2000` |
-| Use item (food, kit) | `SetCooldown` | `time=3000` |
-| Spawn vehicle | `SetCooldown` | `time=5000` |
-| Repetitive NUI interaction | `SetCooldown` | `time=1000, hits=3` |
-| Chat/commands | Native protection | — |
-
-> **Rule:** Every server-side event that gives money/item/advantage MUST use `SafeEvent`. Repetitive client-side actions use `SetCooldown`.
+> **Rule:** Every server event that grants money, items, XP, vehicles, or bypasses restrictions must use `SafeEvent` **and** server-side validation.
 >
-> **Rule (source = -1):** Any server event that can be triggered with `source = -1` MUST be protected by `SafeEvent` with `noBan = true` to avoid server crashes if a cheat floods it.
+> **Rule (`source = -1`):** Protect flood-prone server events with `SafeEvent` and `noBan = true` when appropriate.
 >
-> **Rule (DB access from client):** Any direct database interaction triggered by a client event or callback MUST be protected by `SafeEvent` with `noBan = true` to prevent flood/crash scenarios.
+> **Rule (DB from client):** Client-triggered DB-heavy events should use `SafeEvent` with `noBan = true` plus throttling/cache.
+
+---
+
+## 5. Server Security (General)
+
+Cerberus `SafeEvent` complements — but does not replace — server-side validation:
+
+- Re-validate money, items, permissions, and distance on the server
+- Never trust NUI/client payload without server checks
+- Rate-limit repetitive client actions locally (cooldown flag, debounce, or framework pattern)
+- Guard events that can run with `source = -1` against floods
+- Avoid heavy DB work directly from high-frequency client callbacks without throttling
+
+> **Rule:** Every server event that grants money, items, XP, vehicles, or bypasses restrictions must validate on the server before applying the reward.

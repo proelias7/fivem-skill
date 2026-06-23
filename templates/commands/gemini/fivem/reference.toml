@@ -14,7 +14,7 @@ description: <ProjectName> — referência rápida FiveM (<framework>)
 alwaysApply: true
 ---
 
-Discover framework, item paths, shops/webhooks, custom systems, cacheaside, Cerberus, NUI build paths, git/submodules.
+Discover framework, item paths, shops/webhooks, custom systems, cacheaside, cerberus (load balance + SafeEvent + SetCooldown), NUI build paths, git/submodules.
 Every path must exist in the repo — never invent.
 Write in Portuguese if the codebase is PT-BR.
 

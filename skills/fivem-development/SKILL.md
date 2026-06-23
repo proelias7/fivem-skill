@@ -1,6 +1,6 @@
 ---
 name: fivem-development
-description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside), anti-exploit (cerberus), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, or general server development without a specific framework context.
+description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside), cerberus (load balance, SafeEvent, SetCooldown), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, or general server development without a specific framework context.
 ---
 
 # FiveM Development — Best Practices
@@ -144,11 +144,14 @@ ALWAYS follow these rules when writing code:
 3. **Calls in same environment:** Call functions directly. NEVER use `TriggerEvent()` to call on the same side.
 4. **No remote calls in loops:** Do not use callbacks/events in loops < 5 seconds. Prefer batch or delta.
 5. **Small Payloads:** Send only the change, not full data. Limit of ~8KB per event.
-6. **Cache:** Use `exports.cacheaside:Get()` for repeated database queries. Never query the database in a loop.
-7. **SafeEvent (server):** Every event that gives money/item/advantage MUST pass through `exports["cerberus"]:SafeEvent(source, "eventName", { time = N })`.
-8. **SetCooldown (client):** Repetitive actions on client (open menu, use item) must use `exports["cerberus"]:SetCooldown("name", ms)`.
-9. **Tables > if/else:** For 3+ conditions, use lookup table (O(1)) instead of if/elseif chains.
-10. **Protect nil:** Always check variables before concatenating. Use `or ""` as fallback.
+6. **Cache:** Use `exports["cacheaside"]:Get()` for repeated database queries. Never query the database in a loop.
+7. **Large sync:** Large server→client payloads use `exports["cerberus"]:SendFullSync` or `SendDeltaSync` — no manual chunking.
+8. **Delta sync:** Prefer `SendDeltaSync` for unit updates; use `SendFullSync` only for bootstrap/full cache.
+9. **SafeEvent:** Server events that grant money, items, XP, vehicles, or bypass restrictions must call `exports["cerberus"]:SafeEvent` (with `config.modules.safeEvent = true`) **and** server-side validation.
+10. **SetCooldown:** Repetitive client/NUI actions (open menu, use item, spam callbacks) use `exports["cerberus"]:SetCooldown` before `TriggerServerEvent`.
+11. **Server security:** Validate money, items, permissions, and distance on the server; never trust client/NUI data.
+12. **Tables > if/else:** For 3+ conditions, use lookup table (O(1)) instead of if/elseif chains.
+13. **Protect nil:** Always check variables before concatenating. Use `or ""` as fallback.
 
 ---
 
@@ -208,7 +211,7 @@ Optional NUI (see skill `fivem-react-nui`):
 ## External Resources (Download)
 
 - `cacheaside` (in-memory cache): `git@github.com:proelias7/cacheaside.git`
-- `cerberus` (anti-exploit + cooldowns): `git@github.com:proelias7/cerberus.git`
+- `cerberus` (modular: load balance, SafeEvent, SetCooldown): `git@github.com:proelias7/cerberus.git`
 
 ---
 

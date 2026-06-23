@@ -320,7 +320,7 @@ tvRP.PlaySound(Dict, Name)
 | `request` | Request system (accept/deny) |
 | `taskbar` | Progress bar |
 | `survival` | Health/death system |
-| `cerberus` | Anti-exploit and rate-limiting (v2.0) |
+| `cerberus` | Modular resource: load balance (`SendFullSync`, `SendDeltaSync`), `SafeEvent`, `SetCooldown` |
 | `cacheaside` | In-memory cache with TTL for queries |
 
 ### Official Repositories
@@ -337,31 +337,56 @@ ensure cacheaside
 ensure cerberus
 ```
 
-## Cerberus v2.0 — Quick API
+## Cerberus — Quick API
 
-### SafeEvent (server-side)
+Repo: [github.com/proelias7/cerberus](https://github.com/proelias7/cerberus)
+
+Modular resource — enable modules in `config/config.lua` (`safeEvent`, `analytics`, `banned`). Public README focuses on load balance; security exports ship in the full module.
+
+### Load balance — SendFullSync (bootstrap / full cache)
 
 ```lua
--- Returns true if blocked, false if allowed
-exports["cerberus"]:SafeEvent(source, "eventName", {
-    time = 10,            -- minimum interval (seconds)
-    noBan = false,        -- do not ban automatically
-    position = true,      -- check distance
-    positionDist = 2,     -- minimum distance (meters)
-    notification = true,  -- notify player when blocked
-    blockThreshold = 3,   -- suspicions before blocking
-    silentLog = false,    -- silent log
-    data = "extra info"   -- data for log
+exports["cerberus"]:SendFullSync(source, "chest:fullSync", chestCache, {
+    key = "inventory:chests:full",
+    coords = GetEntityCoords(GetPlayerPed(source)),
+    range = 150.0
 })
 ```
 
-### SetCooldown (client-side)
+### Load balance — SendDeltaSync (unit update / delete)
 
 ```lua
--- Returns true if blocked, false if allowed
--- Time-based
-exports["cerberus"]:SetCooldown("name", 3000) -- 3 seconds
-
--- Hit-based (allows N attempts before blocking)
-exports["cerberus"]:SetCooldown("name", 5000, 3) -- 3 hits, then blocks 5s
+exports["cerberus"]:SendDeltaSync(-1, "chest:updateChest", chestData)
+exports["cerberus"]:SendDeltaSync(-1, "chest:deleteChest", { name = chestName })
 ```
+
+### Load balance — options
+
+- `key` — logical job key
+- `coords` + `range` — prioritize nearby players
+- `scopeRadius` — with `coords` and `-1`, only players inside radius receive the event
+- `replacePending` — replace pending job for same key
+
+### SafeEvent (server — requires `config.modules.safeEvent`)
+
+```lua
+if exports["cerberus"]:SafeEvent(source, "shop:buy", {
+    time = 10,
+    position = true,
+    positionDist = 2
+}) then
+    return
+end
+```
+
+Returns `true` = blocked. Use for money/item/advantage events; always combine with server-side validation.
+
+### SetCooldown (client)
+
+```lua
+if exports["cerberus"]:SetCooldown("open:inventory", 3000) then
+    return
+end
+```
+
+Time in milliseconds. Use for NUI/menu/item spam before `TriggerServerEvent`.

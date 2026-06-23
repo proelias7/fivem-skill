@@ -248,34 +248,43 @@ function cln.Transfer(targetPassport, amount)
 end
 ```
 
-### 3. SafeEvent (Server-side) for Advantage Actions
+### 3. SafeEvent + Server Validation for Advantage Actions
 
 ```lua
--- Every event that gives money/item/advantage MUST use SafeEvent
--- API: exports["cerberus"]:SafeEvent(source, eventName, options)
-if exports["cerberus"]:SafeEvent(source, "shop:buy", {
-    time = 10,
-    position = true,
-    positionDist = 2
-}) then
-    return
-end
+RegisterServerEvent("shop:buy")
+AddEventHandler("shop:buy", function(itemId)
+    local source = source
+    if not source then return end
+
+    if exports["cerberus"]:SafeEvent(source, "shop:buy", {
+        time = 10,
+        position = true,
+        positionDist = 2
+    }) then
+        return
+    end
+
+    -- validate permission, distance, item, price on server
+    if not hasPermission(source, "shop.access") then return end
+    if not isValidItem(itemId) then return end
+
+    -- proceed only after SafeEvent + server-side checks
+end)
 ```
 
-### 4. SetCooldown (Client-side) for Normal Actions
+### 4. SetCooldown for Repetitive Client Actions
 
 ```lua
--- Repetitive actions on CLIENT use SetCooldown (time in milliseconds)
--- API: exports["cerberus"]:SetCooldown(name, timeMs, hits?)
-if exports["cerberus"]:SetCooldown("menu:open", 2000) then
-    return  -- blocked + automatic notification
-end
-
--- Hit-based mode: allows 3 attempts before blocking
-if exports["cerberus"]:SetCooldown("use:item", 3000, 3) then
-    return
-end
+RegisterNUICallback("openMenu", function(_, cb)
+    if exports["cerberus"]:SetCooldown("menu:open", 2000) then
+        cb("blocked")
+        return
+    end
+    cb("ok")
+end)
 ```
+
+> For cerberus load balance, SafeEvent options, and general security rules, use skill `fivem-development`
 
 ### 5. Use RegisterServerEvent for Events
 
@@ -286,8 +295,6 @@ AddEventHandler("my:event", function(data)
     -- ...
 end)
 ```
-
-> For detailed security (Cerberus SafeEvent, SetCooldown, anti-exploit), use skill `fivem-development`
 
 ## Performance Patterns
 

@@ -25,15 +25,17 @@ One-paragraph overview of the main risks and quick wins.
 
 | ID | Severity | File | Issue | Recommendation |
 |----|----------|------|-------|----------------|
-| S1 | Critical | `server/server.lua:123` | Server event gives items without `SafeEvent` | Wrap with `exports["cerberus"]:SafeEvent(source, "eventName", { time = N })` |
+| S1 | Critical | `server/server.lua:123` | Server event gives items without validation | Add server-side permission, distance, and item checks before granting reward |
 
 Checklist used:
 
-- [ ] Money/item/advantage events use Cerberus `SafeEvent`
+- [ ] Money/item/advantage server events use `cerberus` `SafeEvent` **and** server-side validation
+- [ ] Repetitive client/NUI actions use `cerberus` `SetCooldown` before triggering server events
 - [ ] Client data validated on server (never trust NUI/client payload)
 - [ ] Permission/group checks before sensitive actions
-- [ ] Events with `source = -1` protected (`noBan = true`)
-- [ ] DB queries from client-triggered events protected
+- [ ] Events with `source = -1` guarded against floods
+- [ ] DB queries from client-triggered events throttled or cached
+- [ ] Large server→client sync uses cerberus `SendFullSync` / `SendDeltaSync` instead of manual chunking
 - [ ] No secrets/webhooks hardcoded in client files
 
 ### Performance
@@ -49,6 +51,7 @@ Checklist used:
 - [ ] No `TriggerEvent` for same-side calls when a local function exists
 - [ ] No thin wrappers (`local function x() TriggerEvent(...) end`)
 - [ ] Repeated DB reads use `cacheaside`
+- [ ] Large payloads use cerberus sync or delta updates (not full tables every time)
 - [ ] Network payloads small (delta, not full tables)
 - [ ] Threads use dynamic `Wait` based on distance/state
 

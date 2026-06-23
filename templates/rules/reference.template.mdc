@@ -51,11 +51,15 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 
 ### cacheaside
 
-- Resource path, exports (`Set`, `Get`, ...), padrão TTL usado neste projeto
+- Resource path, exports (`Set`, `Get`, `Delete`, `FlushNamespace`, `GetNamespace`), TTL pattern used in this project
+- `ensure cacheaside` before dependent resources in `server.cfg`
 
-### Cerberus — SafeEvent
+### Cerberus (modular)
 
-- Path do módulo, exemplo de uso em eventos sensíveis do servidor
+- `config.modules.safeEvent` for `SafeEvent`; load balance exports always available
+- `exports["cerberus"]:SendFullSync(...)` / `SendDeltaSync(...)` for large server→client sync — no manual chunking
+- `exports["cerberus"]:SafeEvent(source, event, options)` on advantage-giving server events
+- `exports["cerberus"]:SetCooldown(name, ms, hits?)` on client/NUI spam
 
 ## NUI (React/Vite)
 

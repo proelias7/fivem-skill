@@ -51,11 +51,14 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 ### cacheaside
 
 - Resource: `resources/[System]/[DEPENDENCIAS]/cacheaside/`
-- Padrão: `Get`/`Set` com TTL ~10s; só usar se `GetResourceState("cacheaside") == "started"`
+- Padrão: `Get`/`Set`/`Delete`/`FlushNamespace`/`GetNamespace` com TTL; só usar se `GetResourceState("cacheaside") == "started"`
 
-### Cerberus — SafeEvent
+### Cerberus (modular)
 
-- `exports["cerberus"]:SafeEvent(source, "eventoUnico", { time = 5 })` → `true` = bloquear
+- `config.modules.safeEvent` para `SafeEvent`
+- `exports["cerberus"]:SendFullSync(...)` / `SendDeltaSync(...)` para bootstrap/sync grande
+- `exports["cerberus"]:SafeEvent(source, event, options)` em eventos de vantagem (servidor)
+- `exports["cerberus"]:SetCooldown(name, ms, hits?)` em spam client/NUI
 
 ## NUI (React/Vite)
 

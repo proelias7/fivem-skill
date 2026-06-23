@@ -170,7 +170,7 @@ Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills
 
 | Skill file | Sections |
 |------------|----------|
-| `fivem-development/best-practices.md` | §1 Communication, §2 Cache, §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus |
+| `fivem-development/best-practices.md` | §1 Communication, §2 Cache, §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus (load balance + SafeEvent + SetCooldown), §5 Security |
 | Framework skill (`vrp-framework`, etc.) | If detected |
 | `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
 
@@ -190,8 +190,9 @@ RegisterNetEvent / RegisterServerEvent / AddEventHandler
 RegisterNUICallback
 TriggerServerEvent / TriggerClientEvent
 exports["cerberus"]
-SafeEvent
-vRP.generateItem / addMoney / tryGetInventoryItem
+SafeEvent / SetCooldown
+SendFullSync / SendDeltaSync
+exports["cacheaside"]
 while true do Wait(0)
 TriggerEvent(  (same-environment abuse)
 MySQL / oxmysql / exports.oxmysql
@@ -203,9 +204,9 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 
 #### Security
 
-- Events that grant money, items, XP, vehicles, or bypass restrictions without server validation
-- Missing `exports["cerberus"]:SafeEvent` on advantage-giving server events
+- Events that grant money, items, XP, vehicles, or bypass restrictions without `cerberus` `SafeEvent` **and** server validation
 - Client/NUI data used without server re-validation
+- Repetitive client/NUI actions without `cerberus` `SetCooldown` before `TriggerServerEvent`
 - Missing permission checks (`hasGroup`, `hasPermission`, job checks)
 - `source = -1` flood risk on server events
 - SQL built from unsanitized client strings
@@ -218,6 +219,7 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 - Callbacks or `TriggerServerEvent` inside loops < 5s interval
 - Same-side `TriggerEvent` instead of direct function call
 - Repeated DB queries without `cacheaside`
+- Large table payloads sent manually without cerberus `SendFullSync` / `SendDeltaSync`
 - Large table payloads over network (> ~8KB risk)
 
 #### Patterns & clean code (§3.5–3.10, §1.3)
@@ -233,7 +235,7 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 #### NUI (when applicable)
 
 - NUI callbacks without `cb("{}")` or valid JSON
-- Missing Cerberus `SetCooldown` on repetitive client actions
+- Repetitive client/NUI actions without local cooldown/debounce
 - Heavy UI libraries (MUI, framer-motion, etc.)
 
 Assign severity:
@@ -844,7 +846,7 @@ Search and read (do not guess paths):
 3. **Custom resources** — `[Novos]`, `[Exclusive]`, `[Scripts]`, etc.
 4. **Integrations** — `cacheaside`, `cerberus`, `oxmysql`, `ox_lib`, webhooks/Discord
 5. **NUI** — React/Vite projects (`src/ui/project`, build output paths)
-6. **Security patterns** — `SafeEvent`, cooldowns, inventory validation
+6. **Security patterns** — server validation, cooldowns, inventory validation
 7. **Git** — submodules, monorepo layout
 
 Use semantic search, grep, and file reads. Every path in the output must exist in the repo.
@@ -874,7 +876,7 @@ Required sections (adapt titles to what exists in **this** project):
 4. **Economia / lojas / webhooks** — shop configs, webhook paths
 5. **Sistemas custom** — one line per major feature pointing to memory or key config path (e.g. "Craft → `/fivem learn craft` ou `memory/craft.md`")
 6. **Memórias por tópico** — table linking topics to `<agent>/fivem/memory/*.md` (filled by `/fivem learn`)
-7. **Integrações** — cacheaside, Cerberus SafeEvent, oxmysql patterns **as used here**
+7. **Integrações** — cacheaside, cerberus (`SendFullSync` / `SendDeltaSync`, `SafeEvent`, `SetCooldown`), oxmysql patterns **as used here**
 8. **NUI** — source folder + `pnpm run build` path if applicable
 9. **Git / submodules** — if relevant
 10. **Skills FiveM** — `.cursor/skills/` paths installed in this project
