@@ -4,7 +4,7 @@ Agent Skill specialized in FiveM development with support for **vRP**, **QBCore*
 
 ## Installation
 
-### Cursor, Claude Code & Codex — install to project (recommended)
+### Cursor, Claude Code, Codex & OpenCode — install to project (recommended)
 
 From your **FiveM project root**, run:
 
@@ -17,6 +17,7 @@ npx github:proelias7/fivem-skill -y
 
 # Non-interactive flags
 npx github:proelias7/fivem-skill --gemini -y
+npx github:proelias7/fivem-skill --opencode -y
 npx github:proelias7/fivem-skill --codex --skills vrp-framework
 npx github:proelias7/fivem-skill --all -y
 ```
@@ -36,8 +37,9 @@ This copies skills and the FiveM helper to:
 | Claude Code | `.claude/skills/` | `.claude/commands/fivem.md` → `/fivem` |
 | Codex | `.agents/skills/` + `.codex/skills/` | `fivem/SKILL.md` → `$fivem` |
 | Gemini CLI | `.gemini/skills/` (+ `.agents/skills/` alias) | `.gemini/commands/` → `/fivem`, `/fivem:reference`, `/fivem:audit`, `/fivem:learn`, `/fivem:memory`, `/fivem:graph`, `/fivem:query`, `/fivem:path`, `/fivem:explain` |
+| OpenCode | `.opencode/skills/` | `.opencode/commands/fivem.md` → `/fivem`, `/fivem reference`, `/fivem audit`, `/fivem learn`, `/fivem memory health`, `/fivem graph`, `/fivem query`, `/fivem path`, `/fivem explain` |
 
-Templates for reference/audit/memory ship to `.cursor/fivem/` (Cursor) and `.gemini/fivem/` (Gemini). After install on Gemini, run `/commands reload`.
+Templates for reference/audit/memory ship to `.cursor/fivem/` (Cursor), `.gemini/fivem/` (Gemini), and `.opencode/fivem/` (OpenCode). After install on Gemini, run `/commands reload`.
 
 **Layers:**
 
@@ -201,7 +203,7 @@ skills/
 
 templates/
 ├── commands/
-│   ├── fivem.md                # Cursor / Claude command template
+│   ├── fivem.md                # Cursor / Claude / OpenCode command template
 │   └── gemini/                 # Gemini CLI TOML commands
 │       ├── fivem.toml          # /fivem
 │       └── fivem/
@@ -256,7 +258,7 @@ templates/
 
 This skill works with any agent that supports the [Agent Skills standard](https://agentskills.io):
 
-Cursor, Claude Code, Codex, GitHub Copilot, Cline, Windsurf, Roo Code, Gemini CLI, Amp, and [30+ others](https://github.com/vercel-labs/skills#supported-agents).
+Cursor, Claude Code, Codex, OpenCode, GitHub Copilot, Cline, Windsurf, Roo Code, Gemini CLI, Amp, and [30+ others](https://github.com/vercel-labs/skills#supported-agents).
 
 ## Author
 

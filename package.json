@@ -1,7 +1,7 @@
 {
   "name": "fivem-skill",
   "version": "1.0.0",
-  "description": "Install FiveM Agent Skills for Cursor, Claude Code, and Codex",
+  "description": "Install FiveM Agent Skills for Cursor, Claude Code, Codex, Gemini CLI, and OpenCode",
   "bin": {
     "fivem-skill": "./scripts/install.js"
   },
@@ -17,6 +17,7 @@
     "fivem",
     "cursor",
     "gemini",
+    "opencode",
     "skills",
     "vrp",
     "qbcore",

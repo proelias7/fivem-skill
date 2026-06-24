@@ -58,6 +58,7 @@ const LEGACY_FIVEM_FILES = [
 const AGENT_FIVEM_DIRS = {
   cursor: path.join(".cursor", "fivem"),
   gemini: path.join(".gemini", "fivem"),
+  opencode: path.join(".opencode", "fivem"),
 };
 
 const AGENTS = {
@@ -88,11 +89,18 @@ const AGENTS = {
     commandMode: "toml",
     fivemTemplatesDir: AGENT_FIVEM_DIRS.gemini,
   },
+  opencode: {
+    label: "OpenCode",
+    skillsDir: path.join(".opencode", "skills"),
+    commandsDir: path.join(".opencode", "commands"),
+    commandMode: "file",
+    fivemTemplatesDir: AGENT_FIVEM_DIRS.opencode,
+  },
 };
 
 function printHelp() {
   console.log(`
-Install FiveM skills for Cursor, Claude Code, Codex, and/or Gemini CLI.
+Install FiveM skills for Cursor, Claude Code, Codex, Gemini CLI, and/or OpenCode.
 
 Recommended (install once globally, then use short command):
   ${globalInstall()}
@@ -103,6 +111,7 @@ Without global install:
   ${npxInstall("-y")}          Skip prompts, use defaults
   ${npxInstall("--all")}       Install every skill
   ${npxInstall("--gemini -y")} Gemini only
+  ${npxInstall("--opencode -y")} OpenCode only
 
 Local dev (from this repo):
   node scripts/install.js --target ./my-fivem-resource
@@ -115,14 +124,15 @@ Options:
   --claude           Install for Claude Code only
   --codex            Install for Codex only
   --gemini           Install for Gemini CLI only
-  --agent <list>     Comma-separated: cursor, claude, codex, gemini
+  --opencode         Install for OpenCode only
+  --agent <list>     Comma-separated: cursor, claude, codex, gemini, opencode
   --no-command       Skip /fivem helper
   -i, --interactive  Force interactive mode
   -y, --yes          Skip prompts, use defaults
   -h, --help         Show this help
 
 Interactive mode (default in terminal):
-  1. Select agents (Cursor, Claude, Codex, Gemini CLI)
+  1. Select agents (Cursor, Claude, Codex, Gemini CLI, OpenCode)
   2. Select skills to install
   3. Confirm /fivem helper
 `);
@@ -191,6 +201,12 @@ function parseArgs(argv) {
 
     if (arg === "--gemini") {
       options.agents = ["gemini"];
+      options.explicitAgents = true;
+      continue;
+    }
+
+    if (arg === "--opencode") {
+      options.agents = ["opencode"];
       options.explicitAgents = true;
       continue;
     }
@@ -559,7 +575,12 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
 
     if (fileName === "knowledge-graph.html") {
-      const agentKey = relativeDestDir.includes("gemini") ? "gemini" : "cursor";
+      let agentKey = "cursor";
+      if (relativeDestDir.includes("gemini")) {
+        agentKey = "gemini";
+      } else if (relativeDestDir.includes("opencode")) {
+        agentKey = "opencode";
+      }
       const fivemDir = relativeDestDir.replace(/\\/g, "/");
       const emptyGraph = {
         nodes: [],
@@ -816,7 +837,7 @@ async function main() {
   console.log("Restart your agent IDE/CLI or open a new session.");
   console.log(`Update anytime: ${npxInstall("-y")}  (or after global: fivem-skill -y)`);
   console.log(
-    "Cursor/Claude: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn, /fivem:memory, /fivem:graph",
+    "Cursor/Claude/OpenCode: /fivem  |  Codex: $fivem  |  Gemini: /fivem, /fivem:reference, /fivem:audit, /fivem:learn, /fivem:memory, /fivem:graph",
   );
   console.log("Gemini: run /commands reload after install.");
   console.log(

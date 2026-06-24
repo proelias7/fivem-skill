@@ -166,7 +166,7 @@ Audit the target Lua/JS resource(s) for **security**, **performance**, and **pat
 
 ### Step 1 — Load standards
 
-Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.claude/skills/`, or `.agents/skills/`):
+Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.opencode/skills/`, `.claude/skills/`, or `.agents/skills/`):
 
 | Skill file | Sections |
 |------------|----------|
@@ -174,7 +174,7 @@ Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills
 | Framework skill (`vrp-framework`, etc.) | If detected |
 | `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
 
-Read **`<agent>/fivem/audit.template.md`** for report structure (`.cursor/fivem/` or `.gemini/fivem/`).
+Read **`<agent>/fivem/audit.template.md`** for report structure (`.cursor/fivem/`, `.gemini/fivem/`, or `.opencode/fivem/`).
 
 If **`reference.mdc`** exists at project root → read for project-specific conventions.
 
@@ -249,7 +249,7 @@ Assign severity:
 
 ### Step 4 — Write report
 
-Save to **`<agent>/fivem/audit-<resource-name>.md`** (e.g. `.cursor/fivem/audit-inventory.md` or `.gemini/fivem/audit-inventory.md`).
+Save to **`<agent>/fivem/audit-<resource-name>.md`** (e.g. `.cursor/fivem/audit-inventory.md`, `.gemini/fivem/audit-inventory.md`, or `.opencode/fivem/audit-inventory.md`).
 
 Use structure from `audit.template.md`:
 
@@ -283,7 +283,7 @@ In chat, provide:
 
 ## Mode: Learn
 
-Generate or update a **topic memory** at `<agent>/fivem/memory/<topic>.md` (`.cursor/fivem/` or `.gemini/fivem/`).
+Generate or update a **topic memory** at `<agent>/fivem/memory/<topic>.md` (`.cursor/fivem/`, `.gemini/fivem/`, or `.opencode/fivem/`).
 
 **Do not implement code** in this mode — only scan, write markdown, and update index/reference links.
 
@@ -295,7 +295,7 @@ Generate or update a **topic memory** at `<agent>/fivem/memory/<topic>.md` (`.cu
 
 ### Step 2 — Load context
 
-Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.):
+Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.opencode/skills/`, etc.):
 
 | File | Purpose |
 |------|---------|
@@ -521,7 +521,7 @@ From the FiveM project root, read:
 - `<agent>/fivem/memory/*.md` (exclude `_index.md`)
 - `<agent>/fivem/topic-catalog.md` (catalog orphans)
 
-Cursor: `<agent>` = `.cursor/fivem` · Gemini: `.gemini/fivem`
+Cursor: `<agent>` = `.cursor/fivem` · Gemini: `.gemini/fivem` · OpenCode: `.opencode/fivem`
 
 If `<agent>/fivem/knowledge-graph.html` is missing → tell user to run fivem-skill installer first.
 
@@ -621,6 +621,7 @@ Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>", "confidence"
 ```
 
 Use `"agent": "gemini"` and `"fivemDir": ".gemini/fivem"` for Gemini projects.
+Use `"agent": "opencode"` and `"fivemDir": ".opencode/fivem"` for OpenCode projects.
 
 ### Step 3 — Write JSON and HTML
 
@@ -879,7 +880,7 @@ Required sections (adapt titles to what exists in **this** project):
 7. **Integrações** — cacheaside, cerberus (`SendFullSync` / `SendDeltaSync`, `SafeEvent`, `SetCooldown`), oxmysql patterns **as used here**
 8. **NUI** — source folder + `pnpm run build` path if applicable
 9. **Git / submodules** — if relevant
-10. **Skills FiveM** — `.cursor/skills/` paths installed in this project
+10. **Skills FiveM** — `.cursor/skills/`, `.opencode/skills/`, etc. paths installed in this project
 
 Write in **Portuguese** if the codebase/comments are PT-BR; otherwise match project language.
 
@@ -924,7 +925,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - Architecture / cross-topic flow → suggest `/fivem query "<question>"` if `knowledge-graph.json` exists
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 
-2. **Read the relevant skill** from the agent skills directory (`.cursor/skills/`, `.gemini/skills/`, etc.)
+2. **Read the relevant skill** from the agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.opencode/skills/`, etc.)
 
 3. **Fetch current documentation** with WebFetch when needed (never invent natives or APIs)
 
