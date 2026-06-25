@@ -399,7 +399,7 @@ end
 
 ### 2.3 Audit — View Cache & Hot-Path Rebuild
 
-Use this checklist when running **`/fivem audit`** or reviewing server sync code.
+Use this checklist when running **`/fxmind audit`** or reviewing server sync code.
 
 #### Step A — Find transform/build functions
 
@@ -515,7 +515,7 @@ rebuildViewItem(id)
 
 ### 2.4 Audit Assertiveness — Mandatory Passes
 
-When running **`/fivem audit`**, the agent **must** complete every pass below before writing the report. Skipping a pass or auditing a single file while ignoring `fxmanifest` siblings is an **incomplete audit**.
+When running **`/fxmind audit`**, the agent **must** complete every pass below before writing the report. Skipping a pass or auditing a single file while ignoring `fxmanifest` siblings is an **incomplete audit**.
 
 #### Pass 0 — Full resource scope (non-negotiable)
 

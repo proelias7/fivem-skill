@@ -1,6 +1,6 @@
 ---
 name: fivem-development
-description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), manager server auth (§5.1), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fivem audit, or general server development without a specific framework context.
+description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), manager server auth (§5.1), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
 ---
 
 # FiveM Development — Best Practices
@@ -15,8 +15,8 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
-6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fivem/memory/<topic>.md` = shared compact recipe (`lang: en-compact`, structured frontmatter). All agents read/write the same `.fivem/` folder. Run `/fivem learn` before rescanning; `/fivem memory health [fix]` after refactors; `/fivem graph` for snapshot; `/fivem query` for graph-based retrieval in tasks and questions.
-7. **Audit assertiveness** — `/fivem audit` must follow `best-practices.md` §2.4 (full resource, view-cache matrix V-a–V-i, globals grep, manager auth §5.1). Cooldown ≠ permission. Incomplete matrix = redo audit.
+6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe (`lang: en-compact`, structured frontmatter). All agents read/write the same `.fxmind/` folder. Run `/fxmind learn` before rescanning; `/fxmind memory health [fix]` after refactors; `/fxmind graph` for snapshot; `/fxmind query` for graph-based retrieval in tasks and questions.
+7. **Audit assertiveness** — `/fxmind audit` must follow `best-practices.md` §2.4 (full resource, view-cache matrix V-a–V-i, globals grep, manager auth §5.1). Cooldown ≠ permission. Incomplete matrix = redo audit.
 
 ---
 
@@ -115,14 +115,14 @@ WebFetch(
 | Asset Discovery | "model for...", "prop name", "vehicle spawn" | Read asset-discovery.md |
 | Local Knowledge | fxmanifest, threads, patterns | Read best-practices.md |
 | New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
-| Code audit | "audit", "review security", "check performance", exploit | User runs `/fivem audit` — read-only plan, no auto-fix |
-| Project memory | `/fivem learn`, "learn craft", topic memory | User runs `/fivem learn <topic>` — writes compact English `.fivem/memory/<topic>.md` (shared) |
-| Memory health | `/fivem memory health`, stale memory, memória desatualizada | User runs `/fivem memory health [fix] [topic]` — verifies paths/events vs repo, index/reference sync, token format; optional compact rewrite |
-| Knowledge graph | `/fivem graph`, "mapa mental", "grafo 3D" | User runs `/fivem graph` — writes `knowledge-graph.json` + static HTML |
-| Graph query | `/fivem query`, "como X se conecta com Y", fluxo entre tópicos | User runs `/fivem query "<question>"` — BFS/DFS over topic graph with token budget |
-| Graph path | `/fivem path`, caminho entre tópicos | User runs `/fivem path <a> <b>` — shortest path between learned topics |
-| Graph explain | `/fivem explain`, explicar tópico | User runs `/fivem explain <topic>` — node + connections |
-| Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `.fivem/memory/<topic>.md` first; legacy fallback `.cursor/fivem/memory/` if empty; else suggest `/fivem learn <topic>` or `/fivem query` if graph exists |
+| Code audit | "audit", "review security", "check performance", exploit | User runs `/fxmind audit` — read-only plan, no auto-fix |
+| Project memory | `/fxmind learn`, "learn craft", topic memory | User runs `/fxmind learn <topic>` — writes compact English `.fxmind/memory/<topic>.md` (shared) |
+| Memory health | `/fxmind memory health`, stale memory, memória desatualizada | User runs `/fxmind memory health [fix] [topic]` — verifies paths/events vs repo, index/reference sync, token format; optional compact rewrite |
+| Knowledge graph | `/fxmind graph`, "mapa mental", "grafo 3D" | User runs `/fxmind graph` — writes `knowledge-graph.json` + static HTML |
+| Graph query | `/fxmind query`, "como X se conecta com Y", fluxo entre tópicos | User runs `/fxmind query "<question>"` — BFS/DFS over topic graph with token budget |
+| Graph path | `/fxmind path`, caminho entre tópicos | User runs `/fxmind path <a> <b>` — shortest path between learned topics |
+| Graph explain | `/fxmind explain`, explicar tópico | User runs `/fxmind explain <topic>` — node + connections |
+| Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `.fxmind/memory/<topic>.md` first; legacy fallback `.cursor/fivem/memory/` if empty; else suggest `/fxmind learn <topic>` or `/fxmind query` if graph exists |
 
 ---
 
