@@ -605,15 +605,21 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 | # | Check | Grep hint | If found → severity |
 |---|-------|-----------|---------------------|
 | V-a | `build*` / `Sanitize*` **inside** `TriggerClientEvent(...)` args | `TriggerClientEvent\([^)]*build` | **High** |
-| V-b | `build*List()` in `RegisterNetEvent` handler (get/open) | handlers calling `build*List` | **High** |
+| V-b | `build*List()` / `Get*Summary*()` in event handler | **every** caller grep'd — list all `file:line` | **High** |
 | V-c | **Double build** — `build*Item` then `build*List` in same handler | same function body | **High** |
-| V-d | **Triple sync** — delta event + full list + `Load*Player` in same CRUD | create/update handlers | **High** |
+| V-d | **Redundant sync storm** in same CRUD handler | count **every** send: manager UI + full list + `Load*Player` + world delta (`Send*Update*`, `garages:*`) | **High** |
 | V-e | `Load*Player` / full sanitize on `playerConnect` | `playerConnect` → `Load*` | **High** |
 | V-f | `Load*Player` after single CRUD when delta fn exists | update/create + `Send*Update` / `SendDelta` | **High** |
 | V-g | `Load*Cache()` full DB after one insert/update | `insertSync`/`execute` then `Load*Cache()` | **Medium** |
-| V-h | Duplicate transform (`apply*Entry` vs `build*Item`, duplicate `decode*`) | same fn name twice | **Medium** |
+| V-h | Duplicate transform (`apply*Entry` vs `build*Item`, duplicate `decode*`, same normalize in 2+ fns) | same fn name twice **or** parallel build paths without shared view cache | **Medium** |
 | V-i | Manual `ChunkTable` + `Wait` loop | `ChunkTable` + `Wait(` | **Medium** |
 | V-j | **`TriggerClientEvent(-1, ...)` misuse** | `manager:*` or admin UI to `-1`; large table to `-1` without cerberus | **High** / **Critical** if admin leak |
+
+**V-b rule:** one matrix row is not enough — in **V-b detail**, list **every** hot caller (e.g. `getGarages` **and** each `GetGarageVehicleSetSummaryList()` after CRUD).
+
+**V-d rule:** do not label "triple" from habit — **list each sync line** in the handler. Example create: `manager:garageUpdated` + `manager:receiveGarages` + `LoadGaragePlayer` + `SendGarageUpdateToClients` = **4 paths**; recommend keeping only admin `source` delta + world delta.
+
+**V-h rule:** flag `apply*Entry` + `build*Item` (or similar) when both decode/normalize the same cache fields without a shared view cache.
 
 **V-j rules (§1.6.1):**
 
@@ -652,7 +658,9 @@ Build a **Manager events matrix** — one row per event:
 | `manager:getGarages` | ? | ? | ? | data leak | **Critical** |
 | `manager:deleteGarage` | ? | ? | ? | CRUD | **Critical** |
 
-**Critical rule:** a helper named `CanUse*`, `checkCooldown`, or similar that only checks **time/source** is **not** permission. Do not treat it as auth. Flag missing **real** server permission on:
+**Critical rule:** a helper named `CanUse*`, `checkCooldown`, or similar that only checks **time/source** is **not** permission. Do not treat it as auth. When stating "used by N events", **grep and count** — do not guess (e.g. `CanUseGarageManager` may be 6 calls, not 7).
+
+Flag missing **real** server permission on:
 
 - Events that **read** sensitive config (lists with perms, coords, admin data)
 - Events that **mutate** DB/world (create/update/delete/teleport)
@@ -684,6 +692,21 @@ Before saving the report, confirm:
 - [ ] No finding references wrong handler/symbol
 - [ ] Phase plan severity matches findings tables
 - [ ] Each High/Critical finding has a **before/after code snippet**
+
+#### Pass 7 — Report quality gates (common agent mistakes)
+
+Fix these before saving — they caused **valid audits to lose trust**:
+
+| Gate | Rule |
+|------|------|
+| **Files reviewed** | Only paths from `fxmanifest` (`server_scripts`, `client_scripts`, `shared_scripts`) + NUI if audited. **Never** list files not in manifest (e.g. `config/config.lua` when absent). |
+| **Summary counts** | Count **rows in Findings tables** per severity. Systemic auth may be **1 theme + S2…Sn rows** — if grouped in summary, say so explicitly; sub-rows must still exist in tables. |
+| **V-b completeness** | Grep `build*List\(` and `Get*Summary*` — **all** call sites in detail, not only the first. |
+| **V-d accuracy** | Name **each** sync call in the CRUD handler; count paths, do not round to "triple". |
+| **Cooldown count** | Grep `CanUse*Manager` (or similar) — exact count in prose. |
+| **Delete + view cache** | Phase 2 must include **invalidating** view cache on delete (`ViewCache[id] = nil`), not only upsert. |
+| **Permission fix** | Snippets use `hasGroup`/`hasPermission` with note: **confirm project staff group** — do not hardcode `Admin` without codebase evidence. |
+| **Checklist honesty** | Do not mark `[x]` on security items the code fails (e.g. "client data re-validated" when `getGarages` has no auth). |
 
 ---
 
