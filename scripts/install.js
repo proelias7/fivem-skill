@@ -734,6 +734,50 @@ function migrateLegacyMemories(targetRoot) {
   return { actions, mergedIndex };
 }
 
+function cleanLegacyAgentMemories(targetRoot) {
+  const removed = [];
+  const sharedMemoryDir = path.join(targetRoot, SHARED_FIVEM_DIR, "memory");
+
+  for (const legacyDir of LEGACY_AGENT_FIVEM_DIRS) {
+    const legacyMemoryDir = path.join(targetRoot, legacyDir, "memory");
+    if (!fs.existsSync(legacyMemoryDir)) {
+      continue;
+    }
+
+    for (const name of fs.readdirSync(legacyMemoryDir)) {
+      if (!name.endsWith(".md")) {
+        continue;
+      }
+
+      const legacyPath = path.join(legacyMemoryDir, name);
+      if (!fs.existsSync(legacyPath) || !fs.statSync(legacyPath).isFile()) {
+        continue;
+      }
+
+      if (name === "_index.md") {
+        fs.unlinkSync(legacyPath);
+        removed.push(path.relative(targetRoot, legacyPath));
+        continue;
+      }
+
+      const sharedPath = path.join(sharedMemoryDir, name);
+      if (fs.existsSync(sharedPath)) {
+        fs.unlinkSync(legacyPath);
+        removed.push(path.relative(targetRoot, legacyPath));
+      }
+    }
+
+    if (fs.existsSync(legacyMemoryDir) && isDirEmpty(legacyMemoryDir)) {
+      fs.rmdirSync(legacyMemoryDir);
+      removed.push(path.relative(targetRoot, legacyMemoryDir));
+    }
+
+    pruneEmptyDirsUpward(path.join(targetRoot, legacyDir), targetRoot);
+  }
+
+  return removed;
+}
+
 function installSharedFivem(targetRoot) {
   const relativeDestDir = SHARED_FIVEM_DIR;
   const destDir = path.join(targetRoot, relativeDestDir);
@@ -1013,22 +1057,14 @@ async function main() {
       console.log(`  ✓ index    → ${migration.mergedIndex} (merged legacy rows)`);
     }
 
+    const legacyMemoryCleanup = cleanLegacyAgentMemories(options.target);
+    for (const dest of legacyMemoryCleanup) {
+      console.log(`  ✓ removed  → ${dest}`);
+    }
+
     const legacyCleanup = cleanLegacyAgentFivemTemplates(options.target);
     for (const dest of legacyCleanup) {
       console.log(`  ✓ legacy   → removed ${dest}`);
-    }
-
-    const hasLegacyMemory = LEGACY_AGENT_FIVEM_DIRS.some((legacyDir) => {
-      const memoryDir = path.join(options.target, legacyDir, "memory");
-      return (
-        fs.existsSync(memoryDir) &&
-        fs.readdirSync(memoryDir).some((name) => name.endsWith(".md") && name !== "_index.md")
-      );
-    });
-    if (hasLegacyMemory) {
-      console.log(
-        "  ℹ Legacy agent memory folders still present — validate .fivem/memory/ then remove .cursor/fivem/memory/, .gemini/fivem/memory/, .opencode/fivem/memory/ manually.",
-      );
     }
 
     console.log("");
