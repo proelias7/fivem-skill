@@ -59,7 +59,7 @@ Every agent reads and writes the **same** memory folder:
 └── reference.example.mdc   # sample reference format
 ```
 
-**Migration:** Re-running `fivem-skill -y` merges legacy per-agent memories (`.cursor/fivem/memory/`, `.gemini/fivem/memory/`, `.opencode/fivem/memory/`) into `.fivem/memory/` — newer `updated` date wins — and **removes** the legacy memory files afterward.
+**Migration:** Re-running `fivem-skill -y` merges legacy per-agent data into `.fivem/` — memories (by `updated` date), `knowledge-graph.json` (prefers graph with more nodes), `memory-health.md`, and `audit-*.md` — then **removes** the entire `.cursor/fivem/`, `.gemini/fivem/`, and `.opencode/fivem/` folders when empty.
 
 **Tip:** Commit `.fivem/memory/` to git so your team and every agent share the same project knowledge.
 

@@ -778,6 +778,133 @@ function cleanLegacyAgentMemories(targetRoot) {
   return removed;
 }
 
+function parseGraphMeta(filePath) {
+  if (!fs.existsSync(filePath)) {
+    return { nodes: 0, generatedAt: 0 };
+  }
+
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return {
+      nodes: Array.isArray(data.nodes) ? data.nodes.length : 0,
+      generatedAt: parseUpdatedTimestamp(data.meta?.generatedAt),
+    };
+  } catch {
+    return { nodes: 0, generatedAt: 0 };
+  }
+}
+
+function syncKnowledgeGraphHtml(targetRoot, graphData) {
+  const htmlPath = path.join(targetRoot, SHARED_FIVEM_DIR, "knowledge-graph.html");
+  if (!fs.existsSync(htmlPath)) {
+    return;
+  }
+
+  const graphJsonStr = JSON.stringify(graphData, null, 2);
+  let html = fs.readFileSync(htmlPath, "utf8");
+
+  if (html.includes("/*__GRAPH_DATA__*/")) {
+    html = html.replace("/*__GRAPH_DATA__*/", graphJsonStr);
+  } else {
+    html = html.replace(
+      /const GRAPH_DATA = [\s\S]*?;\s*\n/,
+      `const GRAPH_DATA = ${graphJsonStr};\n`,
+    );
+  }
+
+  fs.writeFileSync(htmlPath, html, "utf8");
+}
+
+function shouldPreferLegacyArtifact(legacyPath, sharedPath) {
+  if (!fs.existsSync(legacyPath)) {
+    return false;
+  }
+
+  if (!fs.existsSync(sharedPath)) {
+    return true;
+  }
+
+  return fs.statSync(legacyPath).mtimeMs > fs.statSync(sharedPath).mtimeMs;
+}
+
+function migrateAndCleanLegacyAgentArtifacts(targetRoot) {
+  const migrated = [];
+  const removed = [];
+  const sharedDir = path.join(targetRoot, SHARED_FIVEM_DIR);
+
+  for (const legacyDir of LEGACY_AGENT_FIVEM_DIRS) {
+    const legacyFull = path.join(targetRoot, legacyDir);
+    if (!fs.existsSync(legacyFull)) {
+      continue;
+    }
+
+    const legacyGraph = path.join(legacyFull, "knowledge-graph.json");
+    const sharedGraph = path.join(sharedDir, "knowledge-graph.json");
+    if (fs.existsSync(legacyGraph)) {
+      const legacyMeta = parseGraphMeta(legacyGraph);
+      const sharedMeta = parseGraphMeta(sharedGraph);
+      const preferLegacy =
+        !fs.existsSync(sharedGraph) ||
+        legacyMeta.nodes > sharedMeta.nodes ||
+        (legacyMeta.nodes === sharedMeta.nodes &&
+          legacyMeta.generatedAt > sharedMeta.generatedAt);
+
+      if (preferLegacy) {
+        fs.copyFileSync(legacyGraph, sharedGraph);
+        try {
+          const graphData = JSON.parse(fs.readFileSync(sharedGraph, "utf8"));
+          graphData.meta = {
+            ...(graphData.meta || {}),
+            agent: "shared",
+            fivemDir: SHARED_FIVEM_DIR,
+          };
+          fs.writeFileSync(sharedGraph, `${JSON.stringify(graphData, null, 2)}\n`, "utf8");
+          syncKnowledgeGraphHtml(targetRoot, graphData);
+        } catch {
+          // keep copied file as-is
+        }
+        migrated.push(path.relative(targetRoot, sharedGraph));
+      }
+    }
+
+    for (const name of ["memory-health.md"]) {
+      const legacyPath = path.join(legacyFull, name);
+      const sharedPath = path.join(sharedDir, name);
+      if (shouldPreferLegacyArtifact(legacyPath, sharedPath)) {
+        fs.copyFileSync(legacyPath, sharedPath);
+        migrated.push(path.relative(targetRoot, sharedPath));
+      }
+    }
+
+    for (const name of fs.readdirSync(legacyFull)) {
+      if (!name.startsWith("audit-") || !name.endsWith(".md")) {
+        continue;
+      }
+
+      const legacyPath = path.join(legacyFull, name);
+      const sharedPath = path.join(sharedDir, name);
+      if (shouldPreferLegacyArtifact(legacyPath, sharedPath)) {
+        fs.copyFileSync(legacyPath, sharedPath);
+        migrated.push(path.relative(targetRoot, sharedPath));
+      }
+    }
+
+    for (const entry of fs.readdirSync(legacyFull, { withFileTypes: true })) {
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const legacyPath = path.join(legacyFull, entry.name);
+      fs.unlinkSync(legacyPath);
+      removed.push(path.relative(targetRoot, legacyPath));
+    }
+
+    pruneEmptyDirsUpward(legacyFull, targetRoot);
+  }
+
+  return { migrated, removed };
+}
+
 function installSharedFivem(targetRoot) {
   const relativeDestDir = SHARED_FIVEM_DIR;
   const destDir = path.join(targetRoot, relativeDestDir);
@@ -1059,6 +1186,14 @@ async function main() {
 
     const legacyMemoryCleanup = cleanLegacyAgentMemories(options.target);
     for (const dest of legacyMemoryCleanup) {
+      console.log(`  ✓ removed  → ${dest}`);
+    }
+
+    const legacyArtifacts = migrateAndCleanLegacyAgentArtifacts(options.target);
+    for (const dest of legacyArtifacts.migrated) {
+      console.log(`  ✓ artifact → ${dest} (from legacy agent folder)`);
+    }
+    for (const dest of legacyArtifacts.removed) {
       console.log(`  ✓ removed  → ${dest}`);
     }
 
