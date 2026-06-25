@@ -294,6 +294,225 @@ exports.cacheaside:Delete("relationship:findRelationship", playerId)
 exports.cacheaside:Set("relationship:findRelationship", playerId, newValue, 300)
 ```
 
+### 2.2 Pre-Build Client Sync Payloads (View Cache)
+
+When server data lives in a raw cache (DB row shape) but must be normalized before sending to clients — `json.decode`, field renaming, counts, defaults — **build the client-facing shape once** when the cache is populated or updated. Do **not** rebuild on every `TriggerClientEvent`.
+
+```lua
+-- WRONG: transform on every send
+TriggerClientEvent("manager:garageUpdated", source, buildManagerGarageListItem(id, cacheEntry))
+
+-- CORRECT: send pre-built payload from view cache
+TriggerClientEvent("manager:garageUpdated", source, ManagerGarageListCache[id])
+```
+
+**Pattern:** keep two layers — source cache (truth) and view cache (client-ready).
+
+```lua
+local GarageCache = {}              -- raw DB / source truth
+local ManagerGarageListCache = {}   -- client-ready view (pre-built)
+
+local function buildManagerGarageListItem(id, data)
+    local permOut = data.perm or ""
+    local ok, decoded = pcall(json.decode, permOut)
+    if ok and decoded and type(decoded) == "table" and #decoded > 0 then
+        permOut = decoded
+    end
+
+    local vehicleClassesOut = data.vehicleClasses or {}
+    if not vehicleClassesOut or #vehicleClassesOut == 0 then
+        vehicleClassesOut = {}
+    end
+
+    return {
+        id = id,
+        name = data.name,
+        coords = data.coords,
+        spawns = data.spawns or {},
+        spawnCount = data.spawns and type(data.spawns) == "table" and _countTable(data.spawns) or 0,
+        perm = permOut,
+        type = data.type or "Normal",
+        vehicleSet = NormalizeGarageVehicleSetId(data.vehicleSet or data.vehicle_set),
+        vehicleClasses = vehicleClassesOut,
+        requireService = data.requireService == true or data.require_service == 1,
+    }
+end
+
+local function rebuildManagerGarageListItem(id)
+    local data = GarageCache[id]
+    if data then
+        ManagerGarageListCache[id] = buildManagerGarageListItem(id, data)
+    else
+        ManagerGarageListCache[id] = nil
+    end
+end
+
+local function rebuildManagerGarageList()
+    ManagerGarageListCache = {}
+    for id, data in pairs(GarageCache) do
+        ManagerGarageListCache[id] = buildManagerGarageListItem(id, data)
+    end
+end
+
+-- Resource start / DB load
+loadGaragesFromDb()
+rebuildManagerGarageList()
+
+-- CRUD: rebuild only the affected entry, then broadcast
+function upsertGarage(id, data)
+    GarageCache[id] = data
+    rebuildManagerGarageListItem(id)
+    TriggerClientEvent("manager:garageUpdated", -1, ManagerGarageListCache[id])
+end
+
+function removeGarage(id)
+    GarageCache[id] = nil
+    ManagerGarageListCache[id] = nil
+    TriggerClientEvent("manager:garageDeleted", -1, id)
+end
+
+-- Player bootstrap: send cached view, not raw + rebuild
+TriggerClientEvent("manager:garageFullSync", source, ManagerGarageListCache)
+```
+
+If the client needs a sorted array, build that list once at bootstrap or full rebuild — not per player or per event:
+
+```lua
+local function buildManagerGarageList()
+    local list = {}
+    for id, item in pairs(ManagerGarageListCache) do
+        list[#list + 1] = item
+    end
+    table.sort(list, function(a, b) return tostring(a.id) < tostring(b.id) end)
+    return list
+end
+```
+
+| Anti-Pattern | Problem | Solution |
+|--------------|---------|----------|
+| `build*(id, cacheEntry)` inside every `TriggerClientEvent` | Repeated decode/normalize/allocate on hot paths; CPU spikes when broadcasting | Rebuild view cache on load and on CRUD only |
+| Full list sort on every delta sync | O(n log n) work per small change | Keep map cache; sort once for bootstrap or when list shape changes |
+| Same transform in multiple handlers | Drift and inconsistent payloads | Single `build*` function; write only to view cache |
+| Full resync (`Load*Player`, `Sanitize*Cache`, manual chunks) on single CRUD | Rebuilds entire cache + network blast for one change | Delta event or cerberus `SendDeltaSync`; full sync only from pre-built chunks |
+| `Load*Cache()` full DB reload after one insert/update | O(all rows) query + reparse per admin action | Upsert affected entry in memory cache + rebuild view for that key |
+| `Get*SummaryList()` / `build*List()` inside event handlers | Recompute + sort on every manager open | Cache summary/list at load/CRUD; handlers send cached reference |
+
+### 2.3 Audit — View Cache & Hot-Path Rebuild
+
+Use this checklist when running **`/fivem audit`** or reviewing server sync code.
+
+#### Step A — Find transform/build functions
+
+Grep scope: all `server/**/*.lua` (or `client/**/*.lua` for client-only UI state) in the resource.
+
+```text
+^function build|^local function build
+^function Sanitize|^local function Sanitize
+^function Get.*List|^local function Get.*List
+^function Get.*Summary|^local function Get.*Summary
+json\.decode
+table\.sort
+ChunkTable|CHUNK_SIZE|CHUNK_DELAY
+Load.*Player|Load.*Cache
+```
+
+Flag any function that **transforms** cached data (`json.decode`, normalize loops, `_countTable`, `table.sort`, chunking) — not plain DB reads.
+
+#### Step B — Map call sites (hot vs cold)
+
+For each transform function, list callers and classify:
+
+| Call context | Hot path? | Typical severity |
+|--------------|-----------|------------------|
+| Inside `TriggerClientEvent(...)` argument | Yes | **High** |
+| `RegisterNetEvent` / `AddEventHandler` (player request) | Yes | **High** |
+| `playerConnect` / `playerJoining` / spawn bootstrap | Yes | **High** |
+| CRUD handler after single row change (create/update/delete) | Yes if full rebuild | **High** |
+| Resource start / `Load*Cache` after DB fetch | No (cold) | OK |
+| Incremental rebuild of one key after CRUD | No | OK |
+
+**Evidence required:** `file:line` for both the build function and each hot caller.
+
+#### Step C — Check for missing view cache
+
+Red flags:
+
+1. **Source cache only** — e.g. `GarageCache = {}` populated in `LoadGarageCache`, but no parallel `*ViewCache`, `*Sanitized*`, or `Manager*Cache`.
+2. **Build on send** — `TriggerClientEvent("...", source, buildItem(id, RawCache[id]))`.
+3. **Double build** — one item built for delta, then `buildList()` for full list in same handler.
+4. **Full player reload on delta** — `LoadSomethingPlayer(source)` after create/update when `SendDeltaSync` or small delta event exists.
+5. **Manual chunk loop** — `ChunkTable` + `Wait(ms)` per player instead of cerberus or pre-built chunks sent from cache.
+6. **Full cache reload** — `LoadSomethingCache()` (DB `SELECT *`) after single insert/update instead of patching one entry.
+
+#### Step D — Propose fix (audit report format)
+
+Each finding must include **Problem → Fix → Snippet**. Prefer minimal diff:
+
+```markdown
+| ID | Severity | File | Issue | Recommendation |
+| P2 | High | `server/adapter.lua:574` | `buildManagerGarageList()` on every `manager:getGarages` | Add `ManagerGarageListCache`; rebuild in `LoadGarageCache` + CRUD; handler sends cache |
+```
+
+**Fix template — view cache layer:**
+
+```lua
+local SourceCache = {}
+local ViewCache = {}       -- map id -> client-ready item
+local ViewListCache = nil  -- optional sorted array; nil = dirty
+
+local function rebuildViewItem(id)
+    local data = SourceCache[id]
+    ViewCache[id] = data and buildItem(id, data) or nil
+    ViewListCache = nil
+end
+
+local function rebuildViewAll()
+    ViewCache = {}
+    for id, data in pairs(SourceCache) do
+        ViewCache[id] = buildItem(id, data)
+    end
+    ViewListCache = nil
+end
+
+local function getViewList()
+    if not ViewListCache then
+        local list = {}
+        for _, item in pairs(ViewCache) do list[#list + 1] = item end
+        table.sort(list, function(a, b) return tostring(a.id) < tostring(b.id) end)
+        ViewListCache = list
+    end
+    return ViewListCache
+end
+
+-- Load: SourceCache = ... ; rebuildViewAll()
+-- CRUD: SourceCache[id] = ... ; rebuildViewItem(id)
+-- Send: TriggerClientEvent("...", source, ViewCache[id]) or getViewList()
+```
+
+**Fix template — delta instead of full resync:**
+
+```lua
+-- WRONG: full reload for one garage change
+LoadGaragePlayer(source)
+
+-- CORRECT: delta already shaped in view cache
+TriggerClientEvent("garages:updateGarage", -1, ViewCache[id])
+-- or exports["cerberus"]:SendDeltaSync(-1, "garages:updateGarage", ViewCache[id])
+```
+
+**Fix template — incremental cache after DB write:**
+
+```lua
+-- WRONG
+CreateRow(...)
+LoadFullCacheFromDb()
+
+-- CORRECT
+local entry = buildSourceFromRow(row)
+SourceCache[id] = entry
+rebuildViewItem(id)
+```
+
 ---
 
 ## 3. Code Structure
@@ -428,20 +647,29 @@ Prefer `local function` in the same file over new globals or extra modules.
 | Helper used in multiple handlers in the same file | One shared `local function` — do not duplicate |
 | Helper shared across resources | Separate file or shared lib — justified |
 | Small cache (names, cooldowns) | `local` table at file top |
+| Cache read by **another file in the same resource, same side** (server→server or client→client) | Global or `return` module — justified |
 
-**Avoid** global tables (`MyResourceCache = {}`, `MyResourceLog = {}`) for small helpers. Use locals unless Tunnel or another script file must call the API.
+**Globals rule:** a table/function without `local` is OK only when **another script file in the same resource and same runtime side** reads it (per `fxmanifest` — all paths under `server_scripts` share server scope; `client_scripts` share client scope). If the symbol is used **only in the file that declares it**, use `local`.
+
+**Audit check for globals:**
+
+1. Read `fxmanifest.lua` — split files into **server scope** vs **client scope** (ignore `shared_scripts` for this rule unless the global is explicitly shared by design).
+2. Grep top-level assignments: `^[A-Z][A-Za-z0-9_]*\s*=` and `^function [A-Z]` (exclude `local`).
+3. For each symbol, grep all Lua files in the **same scope only**.
+4. **Flag** if used in declaring file only → recommend `local`.
+5. **Do not flag** if referenced from another file in same scope (e.g. `GarageCache` in `adapter.lua` read by `server/garages.lua`).
+6. **Flag** server global read from client file (or vice versa) — wrong pattern; use events, exports, or shared with clear contract.
 
 ```lua
--- WRONG: global module for a tiny helper
-IdentityCache = {}
-function IdentityCache.getName(id) ... end
+-- OK: server/adapter.lua
+GarageCache = {}
+-- server/spawn.lua reads GarageCache[id]
+
+-- WRONG: only used inside adapter.lua
+GarageCache = {}  -- → local GarageCache = {}
 
 -- CORRECT: local helper in server.lua
 local identityNameCache = {}
-
-local function getIdentityName(passport)
-    ...
-end
 ```
 
 Extract to another file only when the boundary is **stable, large, and reused** — not preemptively.
@@ -537,9 +765,10 @@ Typical **AI over-engineering** mistakes — **do not generate code like this:**
 
 - **Many server files** for one resource (`discord.lua`, `cache.lua`, `panel_a.lua`, `panel_b.lua`, plus a huge `server.lua`)
 - **Many client files** for one resource (`client.lua`, `hud.lua`, `spectate.lua`, …)
-- **Globals everywhere** instead of locals (`MyResourceCache`, cross-file helper tables)
+- **Globals everywhere** instead of locals — flag only when symbol is not read by another file in same scope (§3.6)
 - **Comment noise** — banner blocks and `---` on every helper
 - **State mixed with handlers** — variables and helpers declared mid-file
+- **Rebuild client payload on every send** — `TriggerClientEvent(..., buildItem(id, rawCache))` instead of a pre-built view cache
 
 When in doubt: **one server file, one client file, locals at top, fewer comments, reuse functions.**
 

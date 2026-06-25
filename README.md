@@ -60,7 +60,7 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 |---------|--------|
 | `/fivem como criar item usável?` | FiveM help (natives, framework, skills) |
 | `/fivem reference` | Scan project → generate/update `reference.mdc` at project root |
-| `/fivem audit` | Audit resource for security, performance, patterns → correction plan |
+| `/fivem audit` | Audit resource for security, performance, patterns → correction plan (includes **view cache / rebuild-on-send**, **globals cross-file check** §2.3, §3.6) |
 | `/fivem audit resources/[Novos]/myresource` | Audit specific path only |
 | `/fivem learn craft` | Scan codebase → save topic memory at `<agent>/fivem/memory/craft.md` |
 | `/fivem learn list` | List learned topics (`memory/_index.md`) + suggested catalog |
@@ -82,7 +82,7 @@ Run `/fivem memory health` after refactors or deletes — catches stale paths/ev
 
 Re-run `/fivem graph` after learning new topics to refresh `knowledge-graph.json` and the 3D map. Use `/fivem query` for agent retrieval without rescanning the repo.
 
-`/fivem audit` is **read-only**: writes `.cursor/fivem/audit-<resource>.md` with findings and a phased fix plan. Does not edit code until you approve.
+`/fivem audit` is **read-only**: writes `.cursor/fivem/audit-<resource>.md` with findings and a phased fix plan. Detects hot-path `build*`/`Sanitize*`/`Load*Player`, missing view caches, unnecessary globals (same-file only), and proposes minimal fixes per `best-practices.md` §2.3. Does not edit code until you approve.
 
 `/fivem learn` is **scan + markdown only**: writes `<agent>/fivem/memory/<topic>.md` (compact English, ~25–60 lines), updates `_index.md`, and adds a link row in `reference.mdc` — does not edit Lua/JS.
 

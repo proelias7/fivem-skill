@@ -203,7 +203,8 @@ Optional NUI (see skill `fivem-react-nui`):
 | Trust client data | Always validate on server |
 | Hardcode framework | Detect dynamically |
 | Fetch data every frame | Cache with refresh interval |
-| Global variables | Use local, encapsulate |
+| Rebuild client payload on every `TriggerClientEvent` | Pre-build view cache on load/CRUD; send cached item (§2.2–2.3) |
+| Global when only used in one file | `local` — global only for cross-file same-side access (§3.6) |
 | Invent natives/APIs | Verify before writing |
 
 ---
@@ -217,7 +218,7 @@ Optional NUI (see skill `fivem-react-nui`):
 
 ## Additional References
 
-- Detailed best practices (performance, security, cache): [best-practices.md](best-practices.md)
+- Detailed best practices (performance, security, cache, **§2.3 audit checklist**): [best-practices.md](best-practices.md)
 - Asset discovery (props, vehicles, peds, weapons): [asset-discovery.md](asset-discovery.md)
 - Framework auto-detection and bridge: [framework-detection.md](framework-detection.md)
 - NUI interface construction: use skill `fivem-react-nui`

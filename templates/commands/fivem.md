@@ -170,7 +170,7 @@ Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills
 
 | Skill file | Sections |
 |------------|----------|
-| `fivem-development/best-practices.md` | §1 Communication, §2 Cache, §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus (load balance + SafeEvent + SetCooldown), §5 Security |
+| `fivem-development/best-practices.md` | §1 Communication, §2 Cache (**§2.2 view cache**, **§2.3 audit checklist**), §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus, §5 Security |
 | Framework skill (`vrp-framework`, etc.) | If detected |
 | `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
 
@@ -195,8 +195,32 @@ SendFullSync / SendDeltaSync
 exports["cacheaside"]
 while true do Wait(0)
 TriggerEvent(  (same-environment abuse)
+build.*ListItem|build.*Item.*TriggerClientEvent
+Sanitize.*Cache|ChunkTable|CHUNK_SIZE|Load.*Player
+Get.*SummaryList|Get.*List\(
+Load.*Cache\(
+json\.decode
 MySQL / oxmysql / exports.oxmysql
+^[A-Z][A-Za-z0-9_]*\s*=  (top-level globals — verify cross-file use)
+playerConnect|playerJoining|playerSpawned
 ```
+
+5. **View cache pass (§2.3)** — mandatory for resources with server caches or manager UIs:
+
+   a. List every `build*`, `Sanitize*`, `Get*List`, `Get*Summary*` function that transforms cached data.
+   b. For each, grep callers — mark hot paths: inside `TriggerClientEvent`, event handlers, `playerConnect`, CRUD after single-row change.
+   c. Check whether a parallel **view cache** exists (populated at load/CRUD, not at send).
+   d. Flag: build-on-send, double build (item + full list same handler), `Load*Player` full resync on delta, manual `ChunkTable`+`Wait`, `Load*Cache()` full DB reload after one write.
+   e. Each finding: cite `file:line` for build fn **and** caller; propose fix using §2.3 templates (view cache layer, delta sync, incremental upsert).
+
+6. **Globals pass (§3.6)** — per resource audited:
+
+   a. From `fxmanifest.lua`, list files in `server_scripts` vs `client_scripts`.
+   b. Find top-level globals (no `local`) in each scope.
+   c. Grep each symbol across **same-scope files only**.
+   d. Flag globals used in declaring file only → recommend `local`.
+   e. Do **not** flag globals read by another server (or client) file in the same resource.
+   f. Flag server global referenced from client file (or reverse) — wrong boundary.
 
 ### Step 3 — Evaluate (evidence required)
 
@@ -212,7 +236,17 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 - SQL built from unsanitized client strings
 - Webhooks/tokens in client or shared files exposed to NUI
 
-#### Performance
+#### Performance — view cache & hot-path rebuild (§2.2–2.3)
+
+- `build*` / `Sanitize*` / `Get*SummaryList` / `Get*List` called from event handlers or inside `TriggerClientEvent` args
+- Source cache (`*Cache = {}`) without matching view/sanitized cache rebuilt at load/CRUD
+- Full list rebuild + sort on every manager open or get request
+- `Load*Player` / full sanitize + chunk loop on `playerConnect` or after single CRUD
+- Manual `ChunkTable` + `Wait` instead of cerberus or pre-built chunks
+- `Load*Cache()` full DB reload after single insert/update/delete
+- Duplicate transform logic (e.g. `apply*Entry` vs `build*Item`) without shared view cache
+
+#### Performance — general
 
 - `Wait(0)` / tight loops without dynamic sleep
 - Callbacks/Tunnel where events would suffice (no return needed)
@@ -225,12 +259,26 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 #### Patterns & clean code (§3.5–3.10, §1.3)
 
 - Over-split fxmanifest (many server/client files for one resource)
-- Globals for small helpers; duplicated logic
+- **Unnecessary globals** — top-level symbol not read by any other file in same scope (§3.6); verify via fxmanifest scope before flagging
+- Duplicated logic (same `json.decode`/normalize in multiple functions)
 - Comment noise, state declared mid-file
 - Long if/elseif chains where lookup table fits
 - Missing nil guards on concatenation
 - **Thin event wrappers** — `local function foo() TriggerEvent(...) end` with no other logic (inline the event or merge into a real helper)
 - **Same-side `TriggerEvent`** when a local function in the same file could be called directly
+- **Rebuild-on-send** — `TriggerClientEvent(..., buildItem(id, rawCache))`; pre-build view cache on load/CRUD (§2.2–2.3)
+
+#### Correction plan — view cache findings
+
+For each §2.3 finding in the report, the plan must include:
+
+1. **New caches** — name `SourceCache` / `ViewCache` / optional `ViewListCache`
+2. **Rebuild hooks** — where to call `rebuildViewItem(id)` / `rebuildViewAll()` (load, create, update, delete)
+3. **Send sites** — replace hot-path `build*` calls with cached references
+4. **Delta vs full** — remove redundant `Load*Player` when delta event or `SendDeltaSync` exists; keep full bootstrap from pre-built chunks only
+5. **Minimal snippet** — before/after for the worst caller (`file:line`)
+
+Do not recommend a full rewrite — smallest change that stops hot-path rebuild.
 
 #### NUI (when applicable)
 
@@ -273,7 +321,7 @@ In chat, provide:
 
 - **Never invent** findings — every row needs file evidence
 - **Do not** auto-fix during audit mode
-- Prefer concrete fix snippets in the plan, not vague advice
+- Prefer concrete fix snippets in the plan, not vague advice — use §2.3 fix templates for view-cache issues
 - If scope is too large, audit one resource at a time and say so
 - **Do not recommend** creating a function whose body is only `TriggerEvent(...)` / `TriggerServerEvent(...)` — inline at call site, or expand into a helper that also closes NUI/camera/state (see best-practices §1.3)
 - **Do not recommend** `TriggerEvent` for logic that already exists as `local function` in the same file — call the function directly
