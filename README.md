@@ -1,18 +1,27 @@
 # FiveM Agent Skills — vRP, QBCore, Qbox & ESX
 
-Knowledge pack **`fivem`** for [fxmind](https://github.com/fx-mind/fxmind) — Agent Skills for **FiveM** development.
+**Source of truth for FiveM patterns** — consumed by [fxmind](https://github.com/fx-mind/fxmind) as the `fivem` knowledge pack.
 
-## Install via fxmind
+## Repo split
+
+| Repo | Role |
+|------|------|
+| **[fivem-skill](https://github.com/proelias7/fivem-skill)** (this repo) | Agent **skills** — `best-practices.md`, frameworks, NUI guides |
+| **[fxmind](https://github.com/fx-mind/fxmind)** | **Tooling** — install, `/fxmind audit`, memory, graph, audit templates |
+
+Skills install to `.fxmind/skills/` in the FiveM project. Audit reports write to `.fxmind/audits/`.
+
+## Install
+
+**Via fxmind (recommended):**
 
 ```bash
-# Interactive — select fivem pack (and skills) in the menu
-npx github:fx-mind/fxmind
-
-# Non-interactive — fivem pack + default skills
 npx github:fx-mind/fxmind --pack fivem -y
 ```
 
-Or skills only via [skills CLI](https://github.com/vercel-labs/skills):
+Uses sibling path `../fivem-skill/skills` or clones from GitHub (`pack.json`).
+
+**Skills CLI only:**
 
 ```bash
 npx skills add proelias7/fivem-skill
@@ -22,7 +31,7 @@ npx skills add proelias7/fivem-skill
 
 | Skill | Description |
 |-------|-------------|
-| `fivem-development` | Best practices, natives, performance, security |
+| `fivem-development` | Best practices (§1.6.1 broadcast, §2 view cache, §4 cerberus, §5.1 manager auth) |
 | `fivem-react-nui` | React + Vite NUI |
 | `vrp-framework` | vRP Creative / vRPEX |
 | `qbcore-framework` | QBCore |
@@ -33,7 +42,7 @@ npx skills add proelias7/fivem-skill
 
 ```
 skills/
-├── fivem-development/
+├── fivem-development/   ← best-practices.md, SKILL.md
 ├── fivem-react-nui/
 ├── vrp-framework/
 ├── qbcore-framework/
@@ -41,7 +50,13 @@ skills/
 └── esx-framework/
 ```
 
-This repo is the **skills source** for the `fivem` knowledge pack. Templates (audit, topic catalog) live in [fxmind/packs/fivem](https://github.com/fx-mind/fxmind/tree/main/packs/fivem).
+## Audit workflow
+
+1. Run **`/fxmind audit resources/[novos]/myresource`** in the FiveM project
+2. Agent reads **`.fxmind/skills/fivem-development/best-practices.md`**
+3. Report saved to **`.fxmind/audits/<resource>.md`** (template from fxmind pack)
+
+Key audit rules live in `best-practices.md` **§2.4** (matrices V-a–V-j) and **§1.6.1** (`source` vs `-1` vs cerberus).
 
 ## License
 

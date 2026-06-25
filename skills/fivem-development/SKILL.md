@@ -16,7 +16,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe (`lang: en-compact`, structured frontmatter). All agents read/write the same `.fxmind/` folder. Run `/fxmind learn` before rescanning; `/fxmind memory health [fix]` after refactors; `/fxmind graph` for snapshot; `/fxmind query` for graph-based retrieval in tasks and questions.
-7. **Audit assertiveness** — `/fxmind audit` must follow `best-practices.md` §2.4 (full resource, view-cache matrix V-a–V-i, globals grep, manager auth §5.1). Cooldown ≠ permission. Incomplete matrix = redo audit.
+7. **Audit assertiveness** — `/fxmind audit` (fxmind tool) must follow `best-practices.md` §2.4 (full resource, matrix V-a–V-j, globals grep, manager auth §5.1, broadcast §1.6.1). Cooldown ≠ permission. Incomplete matrix = redo audit.
 
 ---
 
@@ -205,7 +205,9 @@ Optional NUI (see skill `fivem-react-nui`):
 | Hardcode framework | Detect dynamically |
 | Fetch data every frame | Cache with refresh interval |
 | Rebuild client payload on every `TriggerClientEvent` | Pre-build view cache on load/CRUD (§2.2–2.4) |
-| Audit one file ignoring fxmanifest siblings | Read all manifest scripts; matrix V-a–V-i |
+| `TriggerClientEvent("manager:*", -1, ...)` | Admin → `source`; world sync small → `-1`; large → cerberus (§1.6.1) |
+| Large table via `TriggerClientEvent(-1, ...)` | cerberus `SendFullSync` / `SendDeltaSync` + scope |
+| Audit one file ignoring fxmanifest siblings | Read all manifest scripts; matrix V-a–V-j |
 | Cooldown helper as “manager permission” | Real `hasGroup`/`hasPermission` on server (§5.1) |
 | Global when only used in one file | `local` — global only cross-file same-side (§3.6) |
 | Invent natives/APIs | Verify before writing |
@@ -221,7 +223,7 @@ Optional NUI (see skill `fivem-react-nui`):
 
 ## Additional References
 
-- Detailed best practices (performance, security, cache, **§2.3 audit checklist**): [best-practices.md](best-practices.md)
+- Detailed best practices (performance, security, cache, broadcast §1.6.1, **§2.4 audit**, §5.1): [best-practices.md](best-practices.md)
 - Asset discovery (props, vehicles, peds, weapons): [asset-discovery.md](asset-discovery.md)
 - Framework auto-detection and bridge: [framework-detection.md](framework-detection.md)
 - NUI interface construction: use skill `fivem-react-nui`

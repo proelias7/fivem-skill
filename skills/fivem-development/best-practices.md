@@ -222,6 +222,52 @@ end
 
 **Signs of problem:** `Network overflow` in console, players disconnecting, lag spikes.
 
+### 1.6.1 Broadcast targets — `source` vs `-1` vs cerberus
+
+Choose the target by **audience** (who must receive) and **payload size** (how much data).
+
+| Target | When to use | Payload size |
+|--------|-------------|--------------|
+| `source` | One player — UI/NUI reply, admin panel, personal bootstrap | Any (prefer < 8 KB) |
+| `-1` | **Global world sync** — all clients must apply the same small change (blip, zone, delete id) | **Small only** (< ~8 KB recommended) |
+| `SendDeltaSync` / `SendFullSync` | Many players + large table, or need **scope** (`range`, `scopeRadius`, chunking) | Any — cerberus handles load balance |
+
+**Rules:**
+
+1. **`-1` is for global gameplay state**, not admin/manager UI. Events like `manager:*`, panel refresh, or staff-only data → **`source`** (or explicit admin source list).
+2. **Small delta to everyone** → `TriggerClientEvent("world:updateX", -1, smallPayload)` or cerberus `SendDeltaSync(-1, ...)` when payload is tiny.
+3. **Large sync to everyone or scoped area** → **never** manual `ChunkTable` + `Wait` + `TriggerClientEvent(-1, ...)`. Use cerberus with `coords`, `range`, `scopeRadius`.
+4. **Bootstrap one player** → `source` + pre-built view cache, or `SendFullSync(source, ...)`.
+
+```lua
+-- WRONG: admin UI broadcast to all players
+TriggerClientEvent("manager:garageUpdated", -1, ManagerGarageListCache[id])
+
+-- CORRECT: admin UI → only the admin client
+TriggerClientEvent("manager:garageUpdated", source, ManagerGarageListCache[id])
+
+-- CORRECT: world blip/zone sync → all players, small payload
+TriggerClientEvent("garages:updateGarage", -1, {
+    id = tostring(id), x = coords.x, y = coords.y, z = coords.z, spawns = spawns
+})
+
+-- CORRECT: large cache bootstrap near player
+exports["cerberus"]:SendFullSync(source, "garages:fullSync", SanitizedGarageCache, {
+    key = "garages:bootstrap",
+    coords = GetEntityCoords(GetPlayerPed(source)),
+    range = 150.0
+})
+
+-- CORRECT: delta to all, small entry (alternative to TriggerClientEvent -1)
+exports["cerberus"]:SendDeltaSync(-1, "garages:updateGarage", ViewCache[id])
+```
+
+| Anti-Pattern | Problem | Solution |
+|--------------|---------|----------|
+| `TriggerClientEvent("manager:*", -1, ...)` | Leaks admin data to every client | `source` only |
+| `TriggerClientEvent(-1, hugeTable)` | Network overflow, tick spikes | cerberus `SendFullSync` / `SendDeltaSync` + scope options |
+| Manual chunk loop to `-1` | Reinventing cerberus poorly | Pre-built cache + cerberus exports |
+
 ### 1.7 Signs of Callback/Tunnel Problems
 
 If you see errors related to Tunnel/callback timeouts:
@@ -358,21 +404,29 @@ end
 loadGaragesFromDb()
 rebuildManagerGarageList()
 
--- CRUD: rebuild only the affected entry, then broadcast
-function upsertGarage(id, data)
+-- CRUD: rebuild view cache, then sync by audience
+function upsertGarage(id, data, adminSource)
     GarageCache[id] = data
     rebuildManagerGarageListItem(id)
-    TriggerClientEvent("manager:garageUpdated", -1, ManagerGarageListCache[id])
+    -- Admin UI → source only (§1.6.1)
+    TriggerClientEvent("manager:garageUpdated", adminSource, ManagerGarageListCache[id])
+    -- World state → all players, small delta
+    TriggerClientEvent("garages:updateGarage", -1, WorldViewCache[id])
 end
 
-function removeGarage(id)
+function removeGarage(id, adminSource)
     GarageCache[id] = nil
     ManagerGarageListCache[id] = nil
-    TriggerClientEvent("manager:garageDeleted", -1, id)
+    TriggerClientEvent("manager:garageDeleted", adminSource, id)
+    TriggerClientEvent("garages:deleteGarage", -1, id)
 end
 
--- Player bootstrap: send cached view, not raw + rebuild
-TriggerClientEvent("manager:garageFullSync", source, ManagerGarageListCache)
+-- Player bootstrap: one player, large payload → cerberus or pre-built chunks
+exports["cerberus"]:SendFullSync(source, "garages:fullSync", SanitizedGarageCache, {
+    key = "garages:bootstrap:" .. source,
+    coords = GetEntityCoords(GetPlayerPed(source)),
+    range = 150.0
+})
 ```
 
 If the client needs a sorted array, build that list once at bootstrap or full rebuild — not per player or per event:
@@ -396,6 +450,8 @@ end
 | Full resync (`Load*Player`, `Sanitize*Cache`, manual chunks) on single CRUD | Rebuilds entire cache + network blast for one change | Delta event or cerberus `SendDeltaSync`; full sync only from pre-built chunks |
 | `Load*Cache()` full DB reload after one insert/update | O(all rows) query + reparse per admin action | Upsert affected entry in memory cache + rebuild view for that key |
 | `Get*SummaryList()` / `build*List()` inside event handlers | Recompute + sort on every manager open | Cache summary/list at load/CRUD; handlers send cached reference |
+| `TriggerClientEvent("manager:*", -1, ...)` | Admin payload to all clients | `source` for UI; `-1` only for world sync events (§1.6.1) |
+| `TriggerClientEvent(-1, largeTable)` | Overflow / lag | cerberus `SendFullSync` / `SendDeltaSync` with scope |
 
 ### 2.3 Audit — View Cache & Hot-Path Rebuild
 
@@ -557,6 +613,13 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 | V-g | `Load*Cache()` full DB after one insert/update | `insertSync`/`execute` then `Load*Cache()` | **Medium** |
 | V-h | Duplicate transform (`apply*Entry` vs `build*Item`, duplicate `decode*`) | same fn name twice | **Medium** |
 | V-i | Manual `ChunkTable` + `Wait` loop | `ChunkTable` + `Wait(` | **Medium** |
+| V-j | **`TriggerClientEvent(-1, ...)` misuse** | `manager:*` or admin UI to `-1`; large table to `-1` without cerberus | **High** / **Critical** if admin leak |
+
+**V-j rules (§1.6.1):**
+
+- `TriggerClientEvent("manager:*", -1, ...)` → **Critical** (admin data leak)
+- `TriggerClientEvent(-1, ...)` with payload likely > 8 KB or full cache table → **High** — use cerberus
+- `TriggerClientEvent(-1, smallWorldDelta)` for gameplay sync → **OK** — do not flag
 
 Missing rows that apply to the resource = **incomplete audit**.
 
@@ -612,7 +675,9 @@ If **any** `manager:*` / admin event lacks real permission → **Critical**, gro
 Before saving the report, confirm:
 
 - [ ] All `fxmanifest` Lua files listed in **Files reviewed**
-- [ ] View cache matrix: every applicable row checked (V-a–V-i)
+- [ ] View cache matrix: every applicable row checked (V-a–V-j)
+- [ ] Broadcast targets: `manager:*` / admin events use `source`, not `-1` (§1.6.1)
+- [ ] Large `-1` or full-cache sync uses cerberus, not manual chunks
 - [ ] Every `build*` caller grep'd with `file:line`
 - [ ] Globals table complete for server + client scope
 - [ ] Manager events matrix complete (or N/A stated)
@@ -905,15 +970,19 @@ resource server -> cerberus server -> network -> cerberus client -> local Trigge
 
 The final `TriggerEvent` on the client is local and does not add extra network traffic.
 
-### 4.2 When to use cerberus
+### 4.2 When to use cerberus vs `TriggerClientEvent`
 
-| Situation | Use |
-|-----------|-----|
-| Bootstrap / full cache for one player | `SendFullSync` |
-| Single entry update or delete | `SendDeltaSync` |
-| Large payload to many players | `SendFullSync` or `SendDeltaSync` with queue/chunking |
-| Small direct event, no sync burden | Normal `TriggerClientEvent` is fine |
+| Situation | Target | Method |
+|-----------|--------|--------|
+| Reply to one player (UI, bootstrap, admin panel) | `source` | `TriggerClientEvent` with pre-built cache |
+| Small world delta to **all** (id, coords, delete) | `-1` | `TriggerClientEvent` if payload < ~8 KB |
+| Small world delta with flood protection | `-1` | `SendDeltaSync(-1, event, payload)` |
+| Full/large cache to **one** player | `source` | `SendFullSync(source, ...)` |
+| Full/large cache to **many** or **scoped area** | `-1` or table | `SendFullSync` / `SendDeltaSync` + `coords`, `range`, `scopeRadius` |
+| Manual `ChunkTable` + `Wait` to players | — | **Replace** with cerberus |
 
+> **Rule:** `-1` = global **gameplay** sync with **small** payload. Admin/manager events → **`source` only** (§1.6.1).
+>
 > **Rule:** Do not implement manual chunking in consumer scripts. Use cerberus exports instead.
 >
 > **Rule:** Prefer `SendDeltaSync` for unit updates. Reserve `SendFullSync` for bootstrap or full cache rebuild.
