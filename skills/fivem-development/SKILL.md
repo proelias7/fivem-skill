@@ -16,7 +16,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe (`lang: en-compact`, structured frontmatter). All agents read/write the same `.fxmind/` folder. Run `/fxmind learn` before rescanning; `/fxmind memory health [fix]` after refactors; `/fxmind graph` for snapshot; `/fxmind query` for graph-based retrieval in tasks and questions.
-7. **Audit assertiveness** — `/fxmind audit` (fxmind) follows `best-practices.md` §2.4 + **§2.5 quality gates** (manifest-only files, exact counts, all V-b call sites).
+7. **Audit assertiveness** — `/fxmind audit` (fxmind) follows `best-practices.md` §2.4 + **§2.5 quality gates** (manifest-only files, Summary = Findings row counts not matrix themes, all V-b call sites).
 
 ---
 

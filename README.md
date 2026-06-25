@@ -56,7 +56,7 @@ skills/
 2. Agent reads **`.fxmind/skills/fivem-development/best-practices.md`**
 3. Report saved to **`.fxmind/audits/<resource>.md`** (template from fxmind pack)
 
-Key audit rules live in `best-practices.md` **§2.4** (matrices), **§2.5** (quality gates), **§1.6.1** (broadcast).
+Key audit rules live in `best-practices.md` **§2.4** (matrices), **§2.5** (quality gates — Summary counts = Findings table rows, not matrix themes), **§1.6.1** (broadcast).
 
 ## License
 

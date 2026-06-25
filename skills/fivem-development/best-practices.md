@@ -619,6 +619,8 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 
 **V-d rule:** do not label "triple" from habit — **list each sync line** in the handler. Example create: `manager:garageUpdated` + `manager:receiveGarages` + `LoadGaragePlayer` + `SendGarageUpdateToClients` = **4 paths**; recommend keeping only admin `source` delta + world delta.
 
+**Findings vs matrix:** V-b/V-d detail and the view-cache matrix drive **discovery** — each distinct issue still gets its **own row** in the Findings table (e.g. two V-b rows, two V-d rows). **Summary counts come from Findings rows only**, not from matrix row count (see Pass 7 **Summary count rule**).
+
 **V-h rule:** flag `apply*Entry` + `build*Item` (or similar) when both decode/normalize the same cache fields without a shared view cache.
 
 **V-j rules (§1.6.1):**
@@ -678,6 +680,10 @@ If **any** `manager:*` / admin event lacks real permission → **Critical**, gro
 
 **Forbidden:** marking a finding **High** in the table but placing its fix in Phase 3/4.
 
+### 2.5 Report quality gates (Pass 6–7)
+
+Pass 6 = pre-save checklist. Pass 7 = gates that commonly invalidate otherwise good audits (including **Summary count rule**).
+
 #### Pass 6 — Pre-report self-check
 
 Before saving the report, confirm:
@@ -692,6 +698,7 @@ Before saving the report, confirm:
 - [ ] No finding references wrong handler/symbol
 - [ ] Phase plan severity matches findings tables
 - [ ] Each High/Critical finding has a **before/after code snippet**
+- [ ] **Summary counts** match Findings row totals per severity (Pass 7 **Summary count rule**)
 
 #### Pass 7 — Report quality gates (common agent mistakes)
 
@@ -700,13 +707,26 @@ Fix these before saving — they caused **valid audits to lose trust**:
 | Gate | Rule |
 |------|------|
 | **Files reviewed** | Only paths from `fxmanifest` (`server_scripts`, `client_scripts`, `shared_scripts`) + NUI if audited. **Never** list files not in manifest (e.g. `config/config.lua` when absent). |
-| **Summary counts** | Count **rows in Findings tables** per severity. Systemic auth may be **1 theme + S2…Sn rows** — if grouped in summary, say so explicitly; sub-rows must still exist in tables. |
+| **Summary counts** | Tally **every row** in Findings tables — see **Summary count rule** below. Matrix rows (V-a–V-j) do **not** map 1:1 to Summary. |
 | **V-b completeness** | Grep `build*List\(` and `Get*Summary*` — **all** call sites in detail, not only the first. |
 | **V-d accuracy** | Name **each** sync call in the CRUD handler; count paths, do not round to "triple". |
 | **Cooldown count** | Grep `CanUse*Manager` (or similar) — exact count in prose. |
 | **Delete + view cache** | Phase 2 must include **invalidating** view cache on delete (`ViewCache[id] = nil`), not only upsert. |
 | **Permission fix** | Snippets use `hasGroup`/`hasPermission` with note: **confirm project staff group** — do not hardcode `Admin` without codebase evidence. |
 | **Checklist honesty** | Do not mark `[x]` on security items the code fails (e.g. "client data re-validated" when `getGarages` has no auth). |
+
+**Summary count rule (§2.5):**
+
+The view-cache matrix (V-a–V-j) and V-b/V-d detail sections are for **discovery**. The **Summary** table counts **only Findings table rows**:
+
+1. Sum rows in every Findings subsection by the **Severity** column (Security, Performance — View Cache, Performance — General, Patterns & Code Quality, NUI).
+2. **One table row = one count** — even when the ID repeats (`V-b`, `V-d`, `V-h` each get separate Findings rows and each increments the total).
+3. **Do not** derive Summary from matrix rows ("V-b found once" ≠ one High), Phase headings, or grouped themes in prose.
+4. **Verify before save:** re-count Critical / High / Medium / Low from Findings; Summary must match exactly.
+
+**Common mistake (`garages`):** matrix shows V-b and V-d once each, but Findings has **V-b×2** and **V-d×2** → Summary High **11** (wrong) vs **13** (correct: S8–S10 + V-a, V-b×2, V-c, V-d×2, V-e, V-f, V-j). Medium **10** vs **12** when V-h×2 and other Medium rows are under-counted.
+
+Systemic auth (S1 narrative + S2…Sn) still requires **one Findings row per distinct issue** — do not collapse events into a single row without listing sub-rows in the table.
 
 ---
 
