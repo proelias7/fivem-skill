@@ -9,7 +9,7 @@ If empty, use @ mention, open files, or ask which resource to audit.
 ## Load standards
 
 Read `.gemini/skills/fivem-development/best-practices.md` (§1–5, §3.5–3.10), framework skill if detected, `fivem-react-nui` if NUI in scope.
-Read `.gemini/fivem/audit.template.md` for report structure.
+Read `.fivem/audit.template.md` for report structure.
 Read `reference.mdc` at project root if present.
 
 ## Analyze
@@ -23,7 +23,7 @@ Check: SafeEvent on advantage events, SetCooldown on client spam, server validat
 
 ## Output
 
-Save report to **`.gemini/fivem/audit-<resource-name>.md`** using audit.template.md structure + phased correction plan.
+Save report to **`.fivem/audit-<resource-name>.md`** using audit.template.md structure + phased correction plan.
 
 Reply with executive summary, top 3 fixes, report path. Ask if user wants Phase 1 implemented — wait for approval.
 

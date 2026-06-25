@@ -39,20 +39,42 @@ This copies skills and the FiveM helper to:
 | Gemini CLI | `.gemini/skills/` (+ `.agents/skills/` alias) | `.gemini/commands/` → `/fivem`, `/fivem:reference`, `/fivem:audit`, `/fivem:learn`, `/fivem:memory`, `/fivem:graph`, `/fivem:query`, `/fivem:path`, `/fivem:explain` |
 | OpenCode | `.opencode/skills/` | `.opencode/commands/fivem.md` → `/fivem`, `/fivem reference`, `/fivem audit`, `/fivem learn`, `/fivem memory health`, `/fivem graph`, `/fivem query`, `/fivem path`, `/fivem explain` |
 
-Templates for reference/audit/memory ship to `.cursor/fivem/` (Cursor), `.gemini/fivem/` (Gemini), and `.opencode/fivem/` (OpenCode). After install on Gemini, run `/commands reload`.
+**Shared project memory** (all agents): `.fivem/` at the project root — memories, graph, and templates. Skills/commands stay per-agent; memory is unified.
+
+Templates for reference/audit/memory ship to **`.fivem/`** (once per project). After install on Gemini, run `/commands reload`.
+
+### Shared memory (`.fivem/`)
+
+Every agent reads and writes the **same** memory folder:
+
+```
+.fivem/
+├── memory/
+│   ├── _index.md           # topic router
+│   └── <topic>.md          # compact English recipes
+├── knowledge-graph.json    # graph snapshot
+├── knowledge-graph.html    # 3D map
+├── topic-catalog.md        # learn search hints
+├── *.template.md           # audit/memory/health skeletons
+└── reference.example.mdc   # sample reference format
+```
+
+**Migration:** Re-running `fivem-skill -y` merges legacy per-agent memories (`.cursor/fivem/memory/`, `.gemini/fivem/memory/`, `.opencode/fivem/memory/`) into `.fivem/memory/` — newer `updated` date wins. Legacy memory folders are kept until you remove them manually after validation.
+
+**Tip:** Commit `.fivem/memory/` to git so your team and every agent share the same project knowledge.
 
 **Layers:**
 
 | Layer | Path | Role |
 |-------|------|------|
 | Reference | `reference.mdc` (project root) | Lean always-on map — paths, integrations, links to memories |
-| Memory | `<agent>/fivem/memory/<topic>.md` | Compact agent-internal recipe per topic — structured frontmatter + grep-verified literals |
-| Graph | `<agent>/fivem/knowledge-graph.json` | Topic graph snapshot for agent retrieval (`query`, `path`, `explain`) |
+| Memory | `.fivem/memory/<topic>.md` | Shared compact recipe per topic — structured frontmatter + grep-verified literals |
+| Graph | `.fivem/knowledge-graph.json` | Topic graph snapshot for agent retrieval (`query`, `path`, `explain`) |
 | Skill | `<agent>/skills/fivem-development/` | Framework-agnostic best practices |
 
-The `/fivem reference` subcommand instructs the agent to scan your project and write **`reference.mdc`** at the project root (Cursor rule with `alwaysApply: true`). Templates ship to `.cursor/fivem/` for structure and examples.
+The `/fivem reference` subcommand instructs the agent to scan your project and write **`reference.mdc`** at the project root (Cursor rule with `alwaysApply: true`). Templates ship to `.fivem/` for structure and examples.
 
-**Language policy:** chat and `reference.mdc` follow the user's/project language (often PT-BR). Topic memories under `memory/` are stored in **compact technical English** (`lang: en-compact`) to reduce tokens when the agent loads them — the agent translates/adapts when replying to the user.
+**Language policy:** chat and `reference.mdc` follow the user's/project language (often PT-BR). Topic memories under `.fivem/memory/` are stored in **compact technical English** (`lang: en-compact`) to reduce tokens when the agent loads them — the agent translates/adapts when replying to the user.
 
 ### Commands after install
 
@@ -62,8 +84,8 @@ The `/fivem reference` subcommand instructs the agent to scan your project and w
 | `/fivem reference` | Scan project → generate/update `reference.mdc` at project root |
 | `/fivem audit` | Audit resource for security, performance, patterns → correction plan (includes **view cache / rebuild-on-send**, **globals cross-file check** §2.3, §3.6) |
 | `/fivem audit resources/[Novos]/myresource` | Audit specific path only |
-| `/fivem learn craft` | Scan codebase → save topic memory at `<agent>/fivem/memory/craft.md` |
-| `/fivem learn list` | List learned topics (`memory/_index.md`) + suggested catalog |
+| `/fivem learn craft` | Scan codebase → save topic memory at `.fivem/memory/craft.md` |
+| `/fivem learn list` | List learned topics (`.fivem/memory/_index.md`) + suggested catalog |
 | `/fivem memory health` | Check memories vs codebase — stale paths, dead events, index/reference drift, token format |
 | `/fivem memory health fix` | Same + auto-fix memories, sync index/reference, compact English rewrite |
 | `/fivem memory health craft` | Health check for one topic (`craft`, `item`, …) |
@@ -80,17 +102,17 @@ Re-run `/fivem learn <topic>` when configs or handlers for that topic change.
 
 Run `/fivem memory health` after refactors or deletes — catches stale paths/events still referenced in memories. Use `/fivem memory health fix` to prune dead refs, rewrite compact English, and sync `_index.md` / `reference.mdc`.
 
-Re-run `/fivem graph` after learning new topics to refresh `knowledge-graph.json` and the 3D map. Use `/fivem query` for agent retrieval without rescanning the repo.
+Re-run `/fivem graph` after learning new topics to refresh `.fivem/knowledge-graph.json` and the 3D map. Use `/fivem query` for agent retrieval without rescanning the repo.
 
-`/fivem audit` is **read-only**: writes `.cursor/fivem/audit-<resource>.md` with findings and a phased fix plan. Detects hot-path `build*`/`Sanitize*`/`Load*Player`, missing view caches, unnecessary globals (same-file only), and proposes minimal fixes per `best-practices.md` §2.3. Does not edit code until you approve.
+`/fivem audit` is **read-only** and **assertive** (§2.4, §5.1): full resource from `fxmanifest`, manager events matrix, view-cache matrix V-a–V-i, globals cross-file grep, cooldown ≠ permission, severity aligned to phases. Output: `.fivem/audit-<resource>.md`. Does not edit code until you approve.
 
-`/fivem learn` is **scan + markdown only**: writes `<agent>/fivem/memory/<topic>.md` (compact English, ~25–60 lines), updates `_index.md`, and adds a link row in `reference.mdc` — does not edit Lua/JS.
+`/fivem learn` is **scan + markdown only**: writes `.fivem/memory/<topic>.md` (compact English, ~25–60 lines), updates `_index.md`, and adds a link row in `reference.mdc` — does not edit Lua/JS.
 
-`/fivem memory health [fix] [topic]` is **verify + optional markdown repair**: writes `<agent>/fivem/memory-health.md`, validates paths/events against repo, checks index/reference sync and token format; `fix` rewrites memories to compact English without touching Lua/JS.
+`/fivem memory health [fix] [topic]` is **verify + optional markdown repair**: writes `.fivem/memory-health.md`, validates paths/events against repo, checks index/reference sync and token format; `fix` rewrites memories to compact English without touching Lua/JS.
 
-`/fivem graph` reads topic memories, writes `<agent>/fivem/knowledge-graph.json` and `<agent>/fivem/knowledge-graph.html`, and opens the HTML in the browser. Re-run after `/fivem learn` to refresh.
+`/fivem graph` reads topic memories, writes `.fivem/knowledge-graph.json` and `.fivem/knowledge-graph.html`, and opens the HTML in the browser. Re-run after `/fivem learn` to refresh.
 
-`/fivem query`, `/fivem path`, and `/fivem explain` are **read-only graph retrieval**: traverse the topic graph, load only relevant memories with a token budget, and answer in the user's language. Task mode uses the graph automatically when `knowledge-graph.json` exists.
+`/fivem query`, `/fivem path`, and `/fivem explain` are **read-only graph retrieval**: traverse the topic graph, load only relevant memories with a token budget, and answer in the user's language. Task mode uses the graph automatically when `.fivem/knowledge-graph.json` exists.
 
 Local development (from this repo):
 
@@ -128,7 +150,7 @@ npx skills add proelias7/fivem-skill --list
 | **Project Reference** | `/fivem reference` generates `reference.mdc` with paths, flows, and anti-bug notes |
 | **Topic Memory** | `/fivem learn <topic>` scans the repo and saves compact English memory with structured frontmatter (~25–60 lines) |
 | **Memory Health** | `/fivem memory health [fix]` verifies memories vs codebase, frontmatter arrays, graph drift; optional auto-fix |
-| **3D Knowledge Graph** | `/fivem graph` builds `knowledge-graph.json` + static HTML map of learned + catalog topics |
+| **3D Knowledge Graph** | `/fivem graph` builds `.fivem/knowledge-graph.json` + static HTML map of learned + catalog topics |
 | **Graph Query** | `/fivem query` — BFS/DFS retrieval over topic graph with token budget |
 | **Graph Path / Explain** | `/fivem path <a> <b>` and `/fivem explain <topic>` for flow tracing |
 | **Code Audit** | `/fivem audit` scans for security, performance, and pattern issues + correction plan |
@@ -220,7 +242,7 @@ templates/
 │   ├── memory-index.template.md
 │   ├── memory-health.template.md
 │   ├── topic-catalog.md
-│   └── knowledge-graph.html    # install also seeds knowledge-graph.json in project
+│   └── knowledge-graph.html    # install seeds .fivem/knowledge-graph.json in target project
 ├── scripts/
 │   └── install.js
 └── rules/

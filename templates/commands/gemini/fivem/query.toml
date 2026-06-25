@@ -1,7 +1,7 @@
 description = "Query knowledge graph — BFS context retrieval from topic memories"
 
 prompt = """
-Run **graph query** against `.gemini/fivem/knowledge-graph.json` and related memories.
+Run **graph query** against `.fivem/knowledge-graph.json` and related memories.
 
 **Question / args:** {{args}}
 
@@ -13,8 +13,8 @@ Parse optional flags (case-insensitive):
 
 ## Step 1 — Load graph
 
-1. Read `.gemini/fivem/knowledge-graph.json` if it exists
-2. If missing → read embedded `GRAPH_DATA` from `.gemini/fivem/knowledge-graph.html` (extract `const GRAPH_DATA = ...`)
+1. Read `.fivem/knowledge-graph.json` if it exists
+2. If missing → read embedded `GRAPH_DATA` from `.fivem/knowledge-graph.html` (extract `const GRAPH_DATA = ...`)
 3. If neither exists → reply: run `/fivem:learn <topic>` then `/fivem:graph` first; stop
 
 ## Step 2 — Vocabulary expansion (required)

@@ -3,7 +3,7 @@ description = "Map project and generate reference.mdc at project root"
 prompt = """
 Generate or update **`reference.mdc` in the project root** (same level as `resources/`, `server.cfg`, or main `fxmanifest.lua`).
 
-Read structure from `.gemini/fivem/reference.template.mdc` and depth from `.gemini/fivem/reference.example.mdc`.
+Read structure from `.fivem/reference.template.mdc` and depth from `.fivem/reference.example.mdc`.
 Read skills from `.gemini/skills/` or `.agents/skills/`.
 If `reference.mdc` already exists, merge/update — do not duplicate valid sections.
 

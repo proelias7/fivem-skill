@@ -55,11 +55,13 @@ const LEGACY_FIVEM_FILES = [
   path.join("scripts", "update-knowledge-graph.js"),
   path.join("scripts", "update-knowledge-graph.py"),
 ];
-const AGENT_FIVEM_DIRS = {
-  cursor: path.join(".cursor", "fivem"),
-  gemini: path.join(".gemini", "fivem"),
-  opencode: path.join(".opencode", "fivem"),
-};
+const SHARED_FIVEM_DIR = ".fivem";
+
+const LEGACY_AGENT_FIVEM_DIRS = [
+  path.join(".cursor", "fivem"),
+  path.join(".gemini", "fivem"),
+  path.join(".opencode", "fivem"),
+];
 
 const AGENTS = {
   cursor: {
@@ -67,7 +69,6 @@ const AGENTS = {
     skillsDir: path.join(".cursor", "skills"),
     commandsDir: path.join(".cursor", "commands"),
     commandMode: "file",
-    fivemTemplatesDir: AGENT_FIVEM_DIRS.cursor,
   },
   claude: {
     label: "Claude Code",
@@ -87,14 +88,12 @@ const AGENTS = {
     altSkillsDir: path.join(".agents", "skills"),
     commandsDir: path.join(".gemini", "commands"),
     commandMode: "toml",
-    fivemTemplatesDir: AGENT_FIVEM_DIRS.gemini,
   },
   opencode: {
     label: "OpenCode",
     skillsDir: path.join(".opencode", "skills"),
     commandsDir: path.join(".opencode", "commands"),
     commandMode: "file",
-    fivemTemplatesDir: AGENT_FIVEM_DIRS.opencode,
   },
 };
 
@@ -358,10 +357,6 @@ function cleanUnselectedAgents(targetRoot, selectedAgentIds, managedSkills) {
       );
     }
 
-    if (agent.fivemTemplatesDir) {
-      cleanFivemTemplates(targetRoot, agent.fivemTemplatesDir);
-    }
-
     const skillRoots = [path.join(targetRoot, agent.skillsDir)];
     if (agent.altSkillsDir) {
       skillRoots.push(path.join(targetRoot, agent.altSkillsDir));
@@ -556,7 +551,191 @@ function removeLegacyCommand(targetRoot, agent) {
   }
 }
 
-function installFivemTemplates(targetRoot, relativeDestDir) {
+function parseFrontmatterUpdated(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  if (!match) {
+    return null;
+  }
+
+  const updated = match[1].match(/^updated:\s*(.+)$/m);
+  if (!updated) {
+    return null;
+  }
+
+  return updated[1].trim().replace(/^["']|["']$/g, "");
+}
+
+function parseUpdatedTimestamp(value) {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+function parseIndexRows(content) {
+  const rows = new Map();
+  const lines = content.split(/\r?\n/);
+
+  for (const line of lines) {
+    if (!line.startsWith("|") || line.includes("Topic |") || line.includes("---")) {
+      continue;
+    }
+
+    const cells = line
+      .split("|")
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+
+    if (cells.length < 4 || cells[0].startsWith("_(")) {
+      continue;
+    }
+
+    rows.set(cells[0].toLowerCase(), {
+      topic: cells[0],
+      file: cells[1],
+      triggers: cells[2],
+      updated: cells[3],
+      line,
+    });
+  }
+
+  return rows;
+}
+
+function mergeIndexTables(targetRoot, relativeDestDir, legacyDirs) {
+  const indexPath = path.join(targetRoot, relativeDestDir, "memory", "_index.md");
+  if (!fs.existsSync(indexPath)) {
+    return null;
+  }
+
+  let merged = parseIndexRows(fs.readFileSync(indexPath, "utf8"));
+
+  for (const legacyDir of legacyDirs) {
+    const legacyIndexPath = path.join(targetRoot, legacyDir, "memory", "_index.md");
+    if (!fs.existsSync(legacyIndexPath)) {
+      continue;
+    }
+
+    const legacyRows = parseIndexRows(fs.readFileSync(legacyIndexPath, "utf8"));
+
+    for (const [topicKey, row] of legacyRows) {
+      const existing = merged.get(topicKey);
+      if (!existing) {
+        merged.set(topicKey, {
+          ...row,
+          file: `.fivem/memory/${topicKey}.md`,
+        });
+        continue;
+      }
+
+      if (
+        parseUpdatedTimestamp(row.updated) >
+        parseUpdatedTimestamp(existing.updated)
+      ) {
+        merged.set(topicKey, {
+          ...row,
+          file: `.fivem/memory/${topicKey}.md`,
+        });
+      }
+    }
+  }
+
+  const header = fs.readFileSync(indexPath, "utf8").split(/\r?\n/);
+  const preamble = [];
+  for (const line of header) {
+    preamble.push(line);
+    if (line.startsWith("|-------")) {
+      break;
+    }
+  }
+
+  const body = [...merged.values()]
+    .sort((a, b) => a.topic.localeCompare(b.topic))
+    .map(
+      (row) =>
+        `| ${row.topic} | ${row.file} | ${row.triggers} | ${row.updated} |`,
+    );
+
+  const restStart = header.findIndex((line) => line.startsWith("Catalog:"));
+  const rest = restStart >= 0 ? header.slice(restStart) : [];
+
+  fs.writeFileSync(
+    indexPath,
+    [...preamble, ...body, "", ...rest].join("\n"),
+    "utf8",
+  );
+
+  return path.relative(targetRoot, indexPath);
+}
+
+function migrateLegacyMemories(targetRoot) {
+  const sharedMemoryDir = path.join(targetRoot, SHARED_FIVEM_DIR, "memory");
+  const actions = [];
+
+  fs.mkdirSync(sharedMemoryDir, { recursive: true });
+
+  for (const legacyDir of LEGACY_AGENT_FIVEM_DIRS) {
+    const legacyMemoryDir = path.join(targetRoot, legacyDir, "memory");
+    if (!fs.existsSync(legacyMemoryDir)) {
+      continue;
+    }
+
+    for (const entry of fs.readdirSync(legacyMemoryDir, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".md") || entry.name === "_index.md") {
+        continue;
+      }
+
+      const legacyPath = path.join(legacyMemoryDir, entry.name);
+      const sharedPath = path.join(sharedMemoryDir, entry.name);
+      const legacyContent = fs.readFileSync(legacyPath, "utf8");
+      const legacyUpdated = parseUpdatedTimestamp(
+        parseFrontmatterUpdated(legacyContent),
+      );
+
+      if (!fs.existsSync(sharedPath)) {
+        fs.copyFileSync(legacyPath, sharedPath);
+        actions.push({
+          type: "migrated",
+          from: path.relative(targetRoot, legacyPath),
+          to: path.relative(targetRoot, sharedPath),
+        });
+        continue;
+      }
+
+      const sharedContent = fs.readFileSync(sharedPath, "utf8");
+      const sharedUpdated = parseUpdatedTimestamp(
+        parseFrontmatterUpdated(sharedContent),
+      );
+
+      if (legacyUpdated > sharedUpdated) {
+        fs.copyFileSync(legacyPath, sharedPath);
+        actions.push({
+          type: "merged",
+          from: path.relative(targetRoot, legacyPath),
+          to: path.relative(targetRoot, sharedPath),
+        });
+      } else {
+        actions.push({
+          type: "skipped",
+          file: path.relative(targetRoot, sharedPath),
+        });
+      }
+    }
+  }
+
+  const mergedIndex = mergeIndexTables(
+    targetRoot,
+    SHARED_FIVEM_DIR,
+    LEGACY_AGENT_FIVEM_DIRS,
+  );
+
+  return { actions, mergedIndex };
+}
+
+function installSharedFivem(targetRoot) {
+  const relativeDestDir = SHARED_FIVEM_DIR;
   const destDir = path.join(targetRoot, relativeDestDir);
   const removed = cleanLegacyFivemFiles(targetRoot, relativeDestDir);
   const templates = FIVEM_TEMPLATE_FILES.map((fileName) => [
@@ -575,20 +754,13 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
 
     if (fileName === "knowledge-graph.html") {
-      let agentKey = "cursor";
-      if (relativeDestDir.includes("gemini")) {
-        agentKey = "gemini";
-      } else if (relativeDestDir.includes("opencode")) {
-        agentKey = "opencode";
-      }
-      const fivemDir = relativeDestDir.replace(/\\/g, "/");
       const emptyGraph = {
         nodes: [],
         links: [],
         meta: {
           generatedAt: "",
-          agent: agentKey,
-          fivemDir,
+          agent: "shared",
+          fivemDir: SHARED_FIVEM_DIR,
           counts: { learned: 0, catalog: 0, links: 0, tokens: 0 },
         },
       };
@@ -616,6 +788,21 @@ function installFivemTemplates(targetRoot, relativeDestDir) {
   }
 
   return { installed, removed };
+}
+
+function cleanLegacyAgentFivemTemplates(targetRoot) {
+  const removed = [];
+
+  for (const legacyDir of LEGACY_AGENT_FIVEM_DIRS) {
+    removed.push(...cleanLegacyFivemFiles(targetRoot, legacyDir));
+    removed.push(
+      ...removeFivemFiles(targetRoot, legacyDir, [
+        ...FIVEM_TEMPLATE_FILES,
+      ]),
+    );
+  }
+
+  return removed;
 }
 
 function seedMemoryIndex(targetRoot, relativeDestDir) {
@@ -803,6 +990,50 @@ async function main() {
     `Agents: ${agents.map((agent) => agent.label).join(", ")}\n`,
   );
 
+  if (options.command) {
+    console.log("[Shared .fivem]");
+
+    const shared = installSharedFivem(options.target);
+    for (const dest of shared.removed) {
+      console.log(`  ✓ cleanup  → ${dest}`);
+    }
+    for (const dest of shared.installed) {
+      console.log(`  ✓ template → ${dest}`);
+    }
+
+    const migration = migrateLegacyMemories(options.target);
+    for (const action of migration.actions) {
+      if (action.type === "migrated") {
+        console.log(`  ✓ migrated → ${action.to} (from ${action.from})`);
+      } else if (action.type === "merged") {
+        console.log(`  ✓ merged   → ${action.to} (kept newer from ${action.from})`);
+      }
+    }
+    if (migration.mergedIndex) {
+      console.log(`  ✓ index    → ${migration.mergedIndex} (merged legacy rows)`);
+    }
+
+    const legacyCleanup = cleanLegacyAgentFivemTemplates(options.target);
+    for (const dest of legacyCleanup) {
+      console.log(`  ✓ legacy   → removed ${dest}`);
+    }
+
+    const hasLegacyMemory = LEGACY_AGENT_FIVEM_DIRS.some((legacyDir) => {
+      const memoryDir = path.join(options.target, legacyDir, "memory");
+      return (
+        fs.existsSync(memoryDir) &&
+        fs.readdirSync(memoryDir).some((name) => name.endsWith(".md") && name !== "_index.md")
+      );
+    });
+    if (hasLegacyMemory) {
+      console.log(
+        "  ℹ Legacy agent memory folders still present — validate .fivem/memory/ then remove .cursor/fivem/memory/, .gemini/fivem/memory/, .opencode/fivem/memory/ manually.",
+      );
+    }
+
+    console.log("");
+  }
+
   for (const agent of agents) {
     console.log(`[${agent.label}]`);
 
@@ -817,16 +1048,6 @@ async function main() {
       const dests = installCommand(options.target, agent);
       for (const dest of dests) {
         console.log(`  ✓ command → ${dest}`);
-      }
-
-      if (agent.fivemTemplatesDir) {
-        const refs = installFivemTemplates(options.target, agent.fivemTemplatesDir);
-        for (const dest of refs.removed) {
-          console.log(`  ✓ cleanup  → ${dest}`);
-        }
-        for (const dest of refs.installed) {
-          console.log(`  ✓ template → ${dest}`);
-        }
       }
     }
 
@@ -845,7 +1066,7 @@ async function main() {
   );
   console.log("Run /fivem audit [scope] for security/perf/pattern audit + fix plan.");
   console.log(
-    "Run /fivem learn <topic> to scan the codebase and save compact English topic memory under <agent>/fivem/memory/.",
+    "Run /fivem learn <topic> to scan the codebase and save compact English topic memory under .fivem/memory/ (shared by all agents).",
   );
   console.log(
     "Run /fivem memory health [fix] [topic] to verify memories vs codebase and optionally compact-rewrite stale topics.",

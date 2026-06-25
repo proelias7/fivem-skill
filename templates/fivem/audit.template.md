@@ -2,7 +2,8 @@
 
 **Date:** {{DATE}}  
 **Framework:** {{FRAMEWORK}}  
-**Scope:** {{SCOPE_PATHS}}
+**Scope:** {{SCOPE_PATHS}}  
+**Coverage:** Full resource (fxmanifest) | Single file only (state reason)
 
 ---
 
@@ -19,138 +20,160 @@ One-paragraph overview of the main risks and quick wins.
 
 ---
 
+## Manager Events Matrix (§5.1)
+
+| Event | File:line | SafeEvent | Real permission | Cooldown-only trap | Verdict |
+|-------|-----------|-----------|-----------------|-------------------|---------|
+| `manager:getGarages` | `server/adapter.lua:571` | ❌ | ❌ | — | **Critical** — data leak |
+| `manager:createGarage` | `server/adapter.lua:463` | ✅ | ❌ (only cooldown) | `CanUseGarageManager` | **Critical** |
+| `manager:deleteGarage` | `server/adapter.lua:676` | ❌ | ❌ | cooldown | **Critical** |
+
+Or: **N/A** — no manager/admin events in scope.
+
+**Systemic finding (if multiple rows lack auth):** list all events in one S* row; fix with shared `CanManageResource(source)`.
+
+---
+
+## View Cache Matrix (§2.4 Pass 2)
+
+| Row | Check | Found? | File:line | Severity |
+|-----|-------|--------|-----------|----------|
+| V-a | `build*` inside `TriggerClientEvent` args | | | High |
+| V-b | `build*List()` in get/open handler | | | High |
+| V-c | Double build (item + list same handler) | | | High |
+| V-d | Triple sync (delta + list + `Load*Player`) | | | High |
+| V-e | `Load*Player` on connect | | | High |
+| V-f | `Load*Player` after CRUD + delta exists | | | High |
+| V-g | Full `Load*Cache()` after one DB write | | | Medium |
+| V-h | Duplicate transform / duplicate fn | | | Medium |
+| V-i | Manual `ChunkTable` + `Wait` | | | Medium |
+
+Mark **N/A** only when the resource has no caches/sync — explain why.
+
+---
+
+## Globals Table (§3.6)
+
+| Symbol | Declared | Used in files | Verdict |
+|--------|----------|---------------|---------|
+| `GarageCache` | `adapter.lua:5` | `adapter.lua` only | → `local` |
+| `GarageLocates` | `adapter.lua:258` | `adapter.lua`, `server.lua` | **OK** — cross-file server |
+| `GarageVehicleSetCache` | `adapter.lua:840` | `adapter.lua` only | → `local` |
+
+---
+
 ## Findings
 
 ### Security
 
-| ID | Severity | File | Issue | Recommendation |
-|----|----------|------|-------|----------------|
-| S1 | Critical | `server/server.lua:123` | Server event gives items without validation | Add server-side permission, distance, and item checks before granting reward |
+| ID | Severity | File:line | Symbol | Issue | Recommendation |
+|----|----------|-----------|--------|-------|----------------|
+| S1 | Critical | `server/adapter.lua:571` | `manager:getGarages` | No server auth; leaks full garage list with perms | Shared `CanManageResource`; block before send |
+| S2 | Critical | `server/adapter.lua:676` | `manager:deleteGarage` | No SafeEvent; no real permission | SafeEvent + `CanManageResource` |
 
-Checklist used:
+Checklist:
 
-- [ ] Money/item/advantage server events use `cerberus` `SafeEvent` **and** server-side validation
-- [ ] Repetitive client/NUI actions use `cerberus` `SetCooldown` before triggering server events
-- [ ] Client data validated on server (never trust NUI/client payload)
-- [ ] Permission/group checks before sensitive actions
-- [ ] Events with `source = -1` guarded against floods
-- [ ] DB queries from client-triggered events throttled or cached
-- [ ] Large server→client sync uses cerberus `SendFullSync` / `SendDeltaSync` instead of manual chunking
-- [ ] No secrets/webhooks hardcoded in client files
+- [ ] Manager events matrix complete
+- [ ] Cooldown helpers not mistaken for permission
+- [ ] SafeEvent on all mutating admin events (compare siblings)
+- [ ] Client/NUI data re-validated on server
+- [ ] No secrets in client files
 
-### Performance
+### Performance — View Cache (IDs = matrix row)
 
-| ID | Severity | File | Issue | Recommendation |
-|----|----------|------|-------|----------------|
-| P1 | High | `client/client.lua:45` | `Wait(0)` in idle loop | Dynamic sleep or event-driven |
+| ID | Severity | File:line | Symbol | Issue | Recommendation |
+|----|----------|-----------|--------|-------|----------------|
+| V-a | High | `server/adapter.lua:668` | `manager:updateGarage` | `buildManagerGarageListItem(...)` in `TriggerClientEvent` | `ViewCache[id]` on CRUD |
+| V-b | High | `server/adapter.lua:574` | `manager:getGarages` | `buildManagerGarageList()` every request | Send `getViewList()` from cache |
+| V-c | High | `server/adapter.lua:565` | `manager:createGarage` | `listItem` + `buildManagerGarageList()` same handler | Single cache rebuild |
+| V-d | High | `server/adapter.lua:567` | `manager:createGarage` | `receiveGarages` + `LoadGaragePlayer` + delta | Keep delta only |
+| V-e | High | `server/adapter.lua:837` | `playerConnect` | Full sanitize/chunk every connect | Pre-built chunks |
+| V-f | High | `server/adapter.lua:669` | `manager:updateGarage` | `LoadGaragePlayer` after update | Use existing delta fn |
+| V-g | Medium | `server/adapter.lua:947` | `CreateGarageVehicleSet` | `LoadGarageVehicleSetCache()` full DB | Upsert one entry |
 
-Checklist used:
-
-- [ ] No unnecessary callbacks when events suffice
-- [ ] No callbacks/events inside tight loops
-- [ ] No `TriggerEvent` for same-side calls when a local function exists
-- [ ] No thin wrappers (`local function x() TriggerEvent(...) end`)
-- [ ] Repeated DB reads use `cacheaside`
-- [ ] Large payloads use cerberus sync or delta updates (not full tables every time)
-- [ ] Network payloads small (delta, not full tables)
-- [ ] Threads use dynamic `Wait` based on distance/state
-
-#### View cache & hot-path rebuild (§2.2–2.3)
-
-| ID | Severity | File | Issue | Recommendation |
-|----|----------|------|-------|----------------|
-| V1 | High | `server/adapter.lua:574` | `buildList()` on every `getGarages` event | `ViewListCache` rebuilt at load/CRUD only; handler sends cache |
-| V2 | High | `server/adapter.lua:438` | `SanitizeCache` + chunks on every `playerConnect` | Pre-build sanitized chunks at load; connect sends cached chunks |
-| V3 | High | `server/adapter.lua:668` | `buildItem()` inside `TriggerClientEvent` | `ViewCache[id]` rebuilt on CRUD; event sends cached item |
-| V4 | High | `server/adapter.lua:567` | Full `Load*Player` after single create | Delta `updateGarage` / `SendDeltaSync`; drop redundant full reload |
-| V5 | Medium | `server/adapter.lua:947` | `Load*Cache()` full DB after one insert | Upsert one row in memory + `rebuildViewItem(id)` |
-
-Checklist used:
-
-- [ ] Transform functions (`build*`, `Sanitize*`, `Get*Summary*`) not called on hot paths (events, connect, TriggerClientEvent args)
-- [ ] Source cache + view cache (or sanitized cache) — view rebuilt at load/CRUD only
-- [ ] No double build (single item + full list) in same handler
-- [ ] CRUD sends delta, not full player resync, when delta path exists
-- [ ] No manual `ChunkTable` + `Wait` when cerberus or pre-built chunks apply
-- [ ] No full DB `Load*Cache()` after single-row write
-- [ ] Duplicate transforms consolidated into one build → view cache
-
-**Correction snippet (example):**
+**Snippet (required for High/Critical):**
 
 ```lua
--- Before (hot path)
-TriggerClientEvent("manager:receiveGarages", source, buildManagerGarageList())
+-- Before @ adapter.lua:668
+TriggerClientEvent("manager:garageUpdated", source, buildManagerGarageListItem(id, cacheEntry))
 
 -- After
-TriggerClientEvent("manager:receiveGarages", source, getManagerGarageListCached())
+TriggerClientEvent("manager:garageUpdated", source, ManagerGarageListCache[id])
 ```
+
+### Performance — General
+
+| ID | Severity | File:line | Issue | Recommendation |
+|----|----------|-----------|-------|----------------|
+| P1 | High | `client/client.lua:45` | `Wait(0)` idle loop | Dynamic sleep |
 
 ### Patterns & Code Quality
 
-| ID | Severity | File | Issue | Recommendation |
-|----|----------|------|-------|----------------|
-| C1 | Medium | `fxmanifest.lua` | Over-split server scripts | Merge into `server/server.lua` (see best-practices §3.5) |
-| C2 | Low | `client/core.lua:26-28` | `finishSpawnSelection()` only calls `TriggerEvent` | Remove wrapper; inline `TriggerEvent("login:Spawn", false)` at call sites, or one helper that also closes NUI/camera |
-
-Checklist used:
-
-- [ ] Monolith-first layout (`server.lua` / `client.lua`)
-- [ ] State/constants at file top (§3.8)
-- [ ] No comment noise / banner blocks (§3.7)
-- [ ] Globals justified — read by another file in **same scope** (server→server or client→client); else `local` (§3.6)
-- [ ] No duplicate functions (`decodeJsonField` twice in same resource)
-- [ ] No thin event-only wrappers — inline `TriggerEvent` or one real helper (§1.3)
-- [ ] Lookup tables instead of long if/else (§3.2)
-- [ ] nil-safe string concat (§3.4)
-
-| ID | Severity | File | Issue | Recommendation |
-|----|----------|------|-------|----------------|
-| G1 | Low | `server/adapter.lua:5` | `GarageCache` global but only used in this file | Change to `local GarageCache = {}` |
-| G2 | — | `server/adapter.lua:5` | `GarageCache` global, read in `server/spawn.lua` | **OK** — cross-file same scope |
+| ID | Severity | File:line | Issue | Recommendation |
+|----|----------|-----------|-------|----------------|
+| C1 | Medium | `adapter.lua:288,842` | `decodeJsonField` defined twice | Remove duplicate |
+| G1 | Medium | `adapter.lua:5` | `GarageCache` global, single-file use | `local GarageCache` |
 
 ### NUI (if applicable)
 
 | ID | Severity | File | Issue | Recommendation |
 |----|----------|------|-------|----------------|
-| N1 | Medium | `web/script.js` | Missing `cb("{}")` on NUI callback | Return valid JSON to avoid fetch errors |
+| N1 | Medium | `web/script.js` | Missing `cb("{}")` | Return valid JSON |
 
 ---
 
 ## Correction Plan
 
-Execute in this order. **Do not implement until user approves.**
+**Severity ↔ phase must match (§2.4 Pass 5).**
 
-### Phase 1 — Critical security (immediate)
+### Phase 1 — Critical security
 
-1. [ ] S1 — ...
-2. [ ] ...
+1. [ ] S1 — `CanManageResource` on all `manager:*` read/list/teleport events
+2. [ ] S2 — SafeEvent on delete events; real permission on CRUD
 
-### Phase 2 — High performance / exploit surface
+### Phase 2 — High (view cache + hot paths)
 
-1. [ ] V1 — view cache: stop rebuild on `getGarages` / manager open
-2. [ ] V2 — pre-build sanitized chunks; fix connect bootstrap
-3. [ ] V3 — `ViewCache[id]` on CRUD; remove build-on-send
-4. [ ] V4 — replace full `Load*Player` with delta on CRUD
-5. [ ] P1 — ...
-2. [ ] ...
+1. [ ] V-a — remove build-on-send
+2. [ ] V-b — cache list for get/open handlers
+3. [ ] V-c / V-d — remove double/triple sync on create
+4. [ ] V-e — pre-build chunks for connect
+5. [ ] V-f — delta-only on update/delete
+6. [ ] P1 — ...
 
-### Phase 3 — Patterns & maintainability
+### Phase 3 — Medium
 
-1. [ ] C1 — ...
-2. [ ] ...
+1. [ ] V-g — incremental cache after DB write
+2. [ ] C1 / G1 — dedupe functions; local globals
 
-### Phase 4 — Low priority / polish
+### Phase 4 — Low
 
 1. [ ] ...
 
 ---
 
+## Pass 6 Self-Check (§2.4)
+
+- [ ] All fxmanifest Lua files in **Files reviewed**
+- [ ] View cache matrix V-a–V-i each marked Found or N/A
+- [ ] Every finding has correct **symbol** (event/fn name)
+- [ ] Line numbers verified by reading file
+- [ ] Globals table complete (server + client scope)
+- [ ] Manager matrix complete or N/A
+- [ ] Phase plan matches finding severities
+- [ ] Before/after snippets for all Critical/High items
+
+---
+
 ## Files Reviewed
 
-- `path/to/file.lua`
-- ...
+| File | Lines | Side |
+|------|-------|------|
+| `src/server/adapter.lua` | 1162 | server |
+| `src/server/server.lua` | 1553 | server |
+| `src/client/client.lua` | 400 | client |
+| `fxmanifest.lua` | 37 | — |
 
 ## Skills Referenced
 
-- `.cursor/skills/fivem-development/best-practices.md` (§1–4, §2.2–2.3 view cache audit, §3.5–3.10)
+- `fivem-development/best-practices.md` — §2.2–2.4, §3.6, §5.1
 - Framework skill: `{{FRAMEWORK_SKILL}}`

@@ -1,7 +1,7 @@
 description = "Execute static 3D knowledge graph generator and open in browser"
 
 prompt = """
-Execute the **graph generator operation** from `.gemini/fivem/memory/` and `topic-catalog.md`, write `.gemini/fivem/knowledge-graph.json` and `.gemini/fivem/knowledge-graph.html`, and open HTML in the browser.
+Execute the **graph generator operation** from `.fivem/memory/` and `topic-catalog.md`, write `.fivem/knowledge-graph.json` and `.fivem/knowledge-graph.html`, and open HTML in the browser.
 
 This is not task mode, not learn mode, and not a refactor opportunity. Do not improve graph code, tune visuals, edit templates, learn memories, create scripts, or modify project code.
 
@@ -9,12 +9,12 @@ This is not task mode, not learn mode, and not a refactor opportunity. Do not im
 
 ### Step 1 — Read sources
 
-- `.gemini/fivem/memory/_index.md`
-- `.gemini/fivem/memory/*.md` (exclude `_index.md`)
-- `.gemini/fivem/topic-catalog.md`
-- `.gemini/fivem/knowledge-graph.html` (template with `/*__GRAPH_DATA__*/` placeholder)
+- `.fivem/memory/_index.md`
+- `.fivem/memory/*.md` (exclude `_index.md`)
+- `.fivem/topic-catalog.md`
+- `.fivem/knowledge-graph.html` (template with `/*__GRAPH_DATA__*/` placeholder)
 
-If `.gemini/fivem/` is missing, tell user to run fivem-skill installer first.
+If `.fivem/` is missing, tell user to run fivem-skill installer first.
 
 ### Step 2 — Build graph JSON
 
@@ -34,14 +34,14 @@ Types: `shared-path`, `shared-resource`, `event-flow`, `shared-symbol`, `cross-m
 
 **Surprising connections** (for reply only): cross-resource `event-flow`, hub nodes (degree ≥ 3), catalog orphans worth learning.
 
-**Meta:** `generatedAt` (ISO), `agent: "gemini"`, `fivemDir: ".gemini/fivem"`, `counts` (learned, catalog, links, tokens).
+**Meta:** `generatedAt` (ISO), `agent: "shared"`, `fivemDir: ".fivem"`, `counts` (learned, catalog, links, tokens).
 
 ### Step 3 — Write JSON and HTML
 
-1. Write full JSON to `.gemini/fivem/knowledge-graph.json` (2-space indent)
-2. Replace `/*__GRAPH_DATA__*/` (or `const GRAPH_DATA = ...`) in `.gemini/fivem/knowledge-graph.html` only
+1. Write full JSON to `.fivem/knowledge-graph.json` (2-space indent)
+2. Replace `/*__GRAPH_DATA__*/` (or `const GRAPH_DATA = ...`) in `.fivem/knowledge-graph.html` only
 
-Allowed writes: `.gemini/fivem/knowledge-graph.json`, `.gemini/fivem/knowledge-graph.html` only.
+Allowed writes: `.fivem/knowledge-graph.json`, `.fivem/knowledge-graph.html` only.
 
 ### Step 4 — Open browser
 

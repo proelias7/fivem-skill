@@ -1,7 +1,7 @@
 description = "Shortest path between two topics in the knowledge graph"
 
 prompt = """
-Find the **shortest path** between two concepts in `.gemini/fivem/knowledge-graph.json`.
+Find the **shortest path** between two concepts in `.fivem/knowledge-graph.json`.
 
 **Args:** {{args}} — format: `<topic-a> <topic-b>` (e.g. `craft inventario`)
 
@@ -9,7 +9,7 @@ Find the **shortest path** between two concepts in `.gemini/fivem/knowledge-grap
 
 ## Load
 
-Read `.gemini/fivem/knowledge-graph.json` (or extract `GRAPH_DATA` from `.gemini/fivem/knowledge-graph.html` as fallback).
+Read `.fivem/knowledge-graph.json` (or extract `GRAPH_DATA` from `.fivem/knowledge-graph.html` as fallback).
 
 ## Find nodes
 

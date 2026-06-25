@@ -1,7 +1,7 @@
 description = "Explain a topic node and its connections in the knowledge graph"
 
 prompt = """
-Explain a **topic node** and everything connected to it in `.gemini/fivem/knowledge-graph.json`.
+Explain a **topic node** and everything connected to it in `.fivem/knowledge-graph.json`.
 
 **Topic / args:** {{args}}
 
@@ -9,8 +9,8 @@ Explain a **topic node** and everything connected to it in `.gemini/fivem/knowle
 
 ## Load
 
-1. `.gemini/fivem/knowledge-graph.json` (or `GRAPH_DATA` from HTML fallback)
-2. `.gemini/fivem/memory/<topic>.md` for the matched node
+1. `.fivem/knowledge-graph.json` (or `GRAPH_DATA` from HTML fallback)
+2. `.fivem/memory/<topic>.md` for the matched node
 
 ## Match node
 

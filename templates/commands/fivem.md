@@ -15,7 +15,7 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 |-------|------|
 | `reference` or `reference ...` | **Reference** — generate/update `reference.mdc` at project root |
 | `audit` or `audit ...` | **Audit** — scan code, report issues, output correction plan |
-| `learn` or `learn <topic>` | **Learn** — generate/update topic memory in `<agent>/fivem/memory/` |
+| `learn` or `learn <topic>` | **Learn** — generate/update topic memory in `.fivem/memory/` |
 | `learn list` | **Learn** — list topics in `_index.md` + catalog |
 | `memory health` or `memory health fix` | **Memory health** — verify memories vs codebase + integration + token format |
 | `memory health <topic>` or `memory health <topic> fix` | **Memory health** — single topic (optional auto-fix) |
@@ -33,6 +33,24 @@ Parse `$ARGUMENTS` (trim, case-insensitive):
 - `audit` alone → resource/folder from user `@` mention, open files, or ask which resource to audit
 - `audit resources/[Novos]/myresource` → audit that path only
 - `audit server.lua` → audit file if path exists
+
+---
+
+## Shared memory (`.fivem/`)
+
+All agents (Cursor, Claude, Gemini, OpenCode, Codex) read and write the **same project memory** under `.fivem/` at the project root.
+
+| Path | Role |
+|------|------|
+| `.fivem/memory/<topic>.md` | Shared topic memories |
+| `.fivem/memory/_index.md` | Memory router |
+| `.fivem/topic-catalog.md` | Learn search hints |
+| `.fivem/knowledge-graph.json` | Topic graph for query/path/explain |
+| `.fivem/*.template.md` | Report/memory skeletons (read-only) |
+
+**Read policy:** always prefer `.fivem/memory/` and `.fivem/knowledge-graph.json`. If a topic exists only under a legacy per-agent folder (`.cursor/fivem/memory/`, `.gemini/fivem/memory/`, `.opencode/fivem/memory/`), read it as fallback and suggest re-running `fivem-skill -y` or `/fivem memory health fix` to consolidate.
+
+**Write policy:** `learn`, `memory health fix`, and `graph` write **only** to `.fivem/` — never to per-agent memory folders.
 
 ---
 
@@ -74,7 +92,7 @@ Use memories as a routing cache, not as a bulk context dump.
 
 **Fast path — graph router (when `knowledge-graph.json` exists):**
 
-1. Read `<agent>/fivem/knowledge-graph.json` (fallback: extract `GRAPH_DATA` from `knowledge-graph.html`).
+1. Read `.fivem/knowledge-graph.json` (fallback: extract `GRAPH_DATA` from `knowledge-graph.html`).
 2. Expand task keywords against graph vocabulary (node `id`, `name`, `triggers`, `events`, `paths`) — up to 12 tokens from vocab only.
 3. BFS from best-matching learned nodes (depth 3); link priority: `event-flow` > `shared-resource` > `shared-path` > `shared-symbol` > `cross-mention`.
 4. Load `memory/<topic>.md` for traversed nodes with budget **~1500 tokens** (hubs full, depth-1 Recipe+Files, depth-2+ frontmatter+Files).
@@ -82,8 +100,8 @@ Use memories as a routing cache, not as a bulk context dump.
 
 **Fallback — index matching:**
 
-1. Read `<agent>/fivem/memory/_index.md` first if it exists.
-2. Read `<agent>/fivem/topic-catalog.md` for aliases/search hints.
+1. Read `.fivem/memory/_index.md` first if it exists.
+2. Read `.fivem/topic-catalog.md` for aliases/search hints.
 3. Match the task against memory rows by slug, canonical slug, aliases, triggers, paths, symbols, and resource names.
 4. Load only the relevant `memory/<topic>.md` files, normally **3–5 maximum**.
 5. If no memory matches, use `topic-catalog.md`, `reference.mdc`, and the task files directly.
@@ -133,18 +151,18 @@ When the learning review qualifies:
 2. Canonicalize the topic (`grupos` → `grupo`, singular/plural, aliases).
 3. Update an existing memory if it covers the same domain.
 4. Create a new memory only for a distinct domain.
-5. Use `<agent>/fivem/memory.template.md` structure, compact English, `lang: en-compact`, ~25–60 lines.
+5. Use `.fivem/memory.template.md` structure, compact English, `lang: en-compact`, ~25–60 lines.
 6. Frontmatter arrays (`resources`, `paths`, `events`, `exports`, `symbols`, `triggers`) — grep-confirmed literals only; `confidence: extracted`.
 7. Include only verified repo literals: paths, events, exports, config keys, permissions, examples.
-7. Update `<agent>/fivem/memory/_index.md`; create from `memory-index.template.md` if missing.
+7. Update `.fivem/memory/_index.md`; create from `memory-index.template.md` if missing.
 8. If `reference.mdc` exists, update only one row under `## Memórias por tópico`.
 
 ### Step 7 — Reply
 
 Reply in the user's language with the implementation summary and validation. If memory changed, add:
 
-- `Memória criada: <agent>/fivem/memory/<topic>.md`
-- or `Memória atualizada: <agent>/fivem/memory/<topic>.md`
+- `Memória criada: .fivem/memory/<topic>.md`
+- or `Memória atualizada: .fivem/memory/<topic>.md`
 - suggest `/fivem graph` to refresh the 3D knowledge map
 
 If no reusable knowledge was learned, omit memory noise unless it clarifies the outcome.
@@ -164,26 +182,29 @@ If no reusable knowledge was learned, omit memory noise unless it clarifies the 
 
 Audit the target Lua/JS resource(s) for **security**, **performance**, and **patterns**. Deliver a structured report + prioritized correction plan.
 
+> **Assertiveness:** Follow **`best-practices.md` §2.4** (mandatory passes) and **§5.1** (manager events). An audit that covers only one file, skips the view-cache matrix, or treats cooldown as permission is **failed/incomplete** — redo before delivering.
+
 ### Step 1 — Load standards
 
 Read from the project agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.opencode/skills/`, `.claude/skills/`, or `.agents/skills/`):
 
 | Skill file | Sections |
 |------------|----------|
-| `fivem-development/best-practices.md` | §1 Communication, §2 Cache (**§2.2 view cache**, **§2.3 audit checklist**), §3 Patterns + **§3.5–3.10 Clean code**, §4 Cerberus, §5 Security |
+| `fivem-development/best-practices.md` | §2.2–**§2.4** (view cache + **assertiveness**), §3.6 globals, §4 Cerberus, **§5.1** manager auth |
 | Framework skill (`vrp-framework`, etc.) | If detected |
 | `fivem-react-nui/ui-guide.md` | If scope includes NUI/web |
 
-Read **`<agent>/fivem/audit.template.md`** for report structure (`.cursor/fivem/`, `.gemini/fivem/`, or `.opencode/fivem/`).
+Read **`.fivem/audit.template.md`** for report structure.
 
 If **`reference.mdc`** exists at project root → read for project-specific conventions.
 
-### Step 2 — Discover scope
+### Step 2 — Discover scope (full resource — Pass 0)
 
-1. Resolve target from `$ARGUMENTS` after `audit` or from user context (`@folder`, open file)
-2. Read `fxmanifest.lua` for the resource(s)
-3. Read all `server/**/*.lua`, `client/**/*.lua`, `shared/**/*.lua`, and NUI scripts in scope
-4. Grep for high-risk patterns:
+1. Resolve target resource folder from `$ARGUMENTS` or user `@` mention
+2. Read **`fxmanifest.lua`** — enumerate **all** script paths
+3. Read **every** `server/**/*.lua`, `client/**/*.lua`, `shared/**/*.lua`, and NUI scripts listed in the manifest
+4. Do **not** stop at the file the user mentioned unless they explicitly scoped to that file only
+5. Grep for high-risk patterns:
 
 ```text
 RegisterNetEvent / RegisterServerEvent / AddEventHandler
@@ -202,33 +223,39 @@ Load.*Cache\(
 json\.decode
 MySQL / oxmysql / exports.oxmysql
 ^[A-Z][A-Za-z0-9_]*\s*=  (top-level globals — verify cross-file use)
+RegisterNetEvent\("manager:|RegisterNetEvent\("admin:
+CanUse.*Manager|CanManage|hasGroup|hasPermission|SafeEvent
 playerConnect|playerJoining|playerSpawned
 ```
 
-5. **View cache pass (§2.3)** — mandatory for resources with server caches or manager UIs:
+6. **View cache matrix (§2.3–2.4 Pass 2)** — mandatory; document every row V-a through V-i as found or N/A:
 
-   a. List every `build*`, `Sanitize*`, `Get*List`, `Get*Summary*` function that transforms cached data.
-   b. For each, grep callers — mark hot paths: inside `TriggerClientEvent`, event handlers, `playerConnect`, CRUD after single-row change.
-   c. Check whether a parallel **view cache** exists (populated at load/CRUD, not at send).
-   d. Flag: build-on-send, double build (item + full list same handler), `Load*Player` full resync on delta, manual `ChunkTable`+`Wait`, `Load*Cache()` full DB reload after one write.
-   e. Each finding: cite `file:line` for build fn **and** caller; propose fix using §2.3 templates (view cache layer, delta sync, incremental upsert).
+   a. Grep **every** `build*`, `Sanitize*`, `Get*List`, `Get*Summary*`, `Load*Player`, `Load*Cache`, `ChunkTable`.
+   b. For **each** caller: read enclosing handler name; record `file:line` + symbol.
+   c. Explicitly search: `TriggerClientEvent\([^)]*build`, same-handler double build, CRUD + `Load*Player` + delta fn.
+   d. Flag all applicable rows — **do not report only the first match**.
 
-6. **Globals pass (§3.6)** — per resource audited:
+7. **Globals pass (§3.6 Pass 3)** — build **Globals table** (Symbol | Declared | Used in | Verdict) for every top-level global in server scope, then client scope.
 
-   a. From `fxmanifest.lua`, list files in `server_scripts` vs `client_scripts`.
-   b. Find top-level globals (no `local`) in each scope.
-   c. Grep each symbol across **same-scope files only**.
-   d. Flag globals used in declaring file only → recommend `local`.
-   e. Do **not** flag globals read by another server (or client) file in the same resource.
-   f. Flag server global referenced from client file (or reverse) — wrong boundary.
+8. **Manager events pass (§5.1 Pass 4)** — build **Manager events matrix** for every `manager:*` / admin event: SafeEvent, real permission, cooldown-only trap, severity.
 
-### Step 3 — Evaluate (evidence required)
+9. **Pass 6 self-check** — complete checklist in §2.4 before writing report.
 
-Every finding **must** cite `file:line` or exact symbol — no generic warnings without code proof.
+### Step 3 — Evaluate (evidence required — Pass 1)
 
-#### Security
+Every finding **must** cite `file:line` **and** name the exact **event/function symbol**. Read the line before citing — never attribute a pattern to the wrong handler.
 
-- Events that grant money, items, XP, vehicles, or bypass restrictions without `cerberus` `SafeEvent` **and** server validation
+#### Security — manager / admin (§5.1)
+
+- Any `manager:*` / admin event without **real** server permission (`hasGroup`, etc.)
+- **Do not** treat cooldown-only helpers (`CanUse*Manager`, rate maps by `source`) as permission
+- Missing `SafeEvent` on create/update/delete — compare siblings in same resource
+- Read events (`get*`, `list*`) leaking config/perms/coords without auth → **Critical**
+- `teleport*` admin actions without permission
+
+Report as **systemic finding** when multiple events share the same missing auth pattern.
+
+#### Security — general
 - Client/NUI data used without server re-validation
 - Repetitive client/NUI actions without `cerberus` `SetCooldown` before `TriggerServerEvent`
 - Missing permission checks (`hasGroup`, `hasPermission`, job checks)
@@ -236,15 +263,19 @@ Every finding **must** cite `file:line` or exact symbol — no generic warnings 
 - SQL built from unsanitized client strings
 - Webhooks/tokens in client or shared files exposed to NUI
 
-#### Performance — view cache & hot-path rebuild (§2.2–2.3)
+#### Performance — view cache & hot-path rebuild (§2.2–2.4)
 
-- `build*` / `Sanitize*` / `Get*SummaryList` / `Get*List` called from event handlers or inside `TriggerClientEvent` args
-- Source cache (`*Cache = {}`) without matching view/sanitized cache rebuilt at load/CRUD
-- Full list rebuild + sort on every manager open or get request
-- `Load*Player` / full sanitize + chunk loop on `playerConnect` or after single CRUD
-- Manual `ChunkTable` + `Wait` instead of cerberus or pre-built chunks
-- `Load*Cache()` full DB reload after single insert/update/delete
-- Duplicate transform logic (e.g. `apply*Entry` vs `build*Item`) without shared view cache
+Report **separate findings** for each matrix row hit (V-a through V-i):
+
+- **V-a** `build*` inside `TriggerClientEvent` argument
+- **V-b** `build*List()` in get/open event handler
+- **V-c** double build (item + list same handler)
+- **V-d** triple sync (delta + full list + `Load*Player` same CRUD)
+- **V-e** `Load*Player` on connect/bootstrap
+- **V-f** `Load*Player` after single CRUD when delta exists
+- **V-g** full `Load*Cache()` after one DB write
+- **V-h** duplicate transform / duplicate function definitions
+- **V-i** manual chunk + `Wait` loop
 
 #### Performance — general
 
@@ -290,21 +321,27 @@ Assign severity:
 
 | Level | When |
 |-------|------|
-| **Critical** | Exploit / free items or money / crash / ban bypass |
-| **High** | Likely abuse or serious perf regression |
-| **Medium** | Should fix; maintainability or moderate risk |
+| **Critical** | Exploit / CRUD or data leak without server auth / free items or money / crash / ban bypass |
+| **High** | Hot-path rebuild, full resync on delta, serious perf regression |
+| **Medium** | Full DB cache reload, duplicate code, unnecessary global |
 | **Low** | Style, minor perf, polish |
+
+**Phase alignment (§2.4 Pass 5):** Critical → Phase 1; High → Phase 2; Medium → Phase 3; Low → Phase 4. Never downgrade.
 
 ### Step 4 — Write report
 
-Save to **`<agent>/fivem/audit-<resource-name>.md`** (e.g. `.cursor/fivem/audit-inventory.md`, `.gemini/fivem/audit-inventory.md`, or `.opencode/fivem/audit-inventory.md`).
+Save to **`.fivem/audit-<resource-name>.md`**.
 
-Use structure from `audit.template.md`:
+Use structure from `audit.template.md` — **required sections:**
 
 1. Summary table (severity counts)
-2. Findings tables: Security, Performance, Patterns, NUI (if any)
-3. **Correction plan** — phased checklist (Phase 1 Critical → Phase 4 Low)
-4. Files reviewed + skills referenced
+2. **Manager events matrix** (or N/A)
+3. **View cache matrix** (rows V-a–V-i: Found / N/A)
+4. **Globals table** (Symbol | Declared | Used in | Verdict)
+5. Findings tables: Security, Performance (view cache IDs `V-a`…), Patterns, NUI
+6. **Correction plan** — phased; severity must match findings
+7. **Files reviewed** — every manifest Lua file with line count
+8. **Pass 6 self-check** — all boxes ticked
 
 Write report in **Portuguese** if codebase/comments are PT-BR; otherwise match project language.
 
@@ -313,16 +350,22 @@ Write report in **Portuguese** if codebase/comments are PT-BR; otherwise match p
 In chat, provide:
 
 - Short executive summary (3–5 bullets)
+- Count of findings by severity + **files reviewed** (must match fxmanifest)
+- Mention if view-cache matrix or manager matrix had hits
 - Top 3 fixes by priority
-- Path to full report: `.cursor/fivem/audit-<name>.md`
+- Path to full report: `.fivem/audit-<name>.md`
 - Ask: *"Quer que eu implemente o Phase 1?"* (or equivalent) — **wait for approval before editing code**
 
 ### Audit rules
 
-- **Never invent** findings — every row needs file evidence
+- **Never invent** findings — read `file:line` before citing; wrong handler = failed audit
+- **Never treat cooldown as permission** — `CanUse*Manager` with only `os.time()` is rate-limit, not auth (§5.1)
+- **Never audit one file** when user scoped the resource — read full `fxmanifest` unless explicitly single-file
+- **Never skip view-cache matrix rows** — report each V-a–V-i as found or N/A
+- **Never mismatch severity and phase** — High findings go to Phase 2, not Phase 3
 - **Do not** auto-fix during audit mode
-- Prefer concrete fix snippets in the plan, not vague advice — use §2.3 fix templates for view-cache issues
-- If scope is too large, audit one resource at a time and say so
+- Prefer concrete **before/after** snippets for every Critical/High finding
+- If scope is too large, audit **one resource at a time** (full manifest), not one file
 - **Do not recommend** creating a function whose body is only `TriggerEvent(...)` / `TriggerServerEvent(...)` — inline at call site, or expand into a helper that also closes NUI/camera/state (see best-practices §1.3)
 - **Do not recommend** `TriggerEvent` for logic that already exists as `local function` in the same file — call the function directly
 - When a fix needs a cross-resource hook (e.g. `login:Spawn`, `hookSelector`), show the **inlined** `TriggerEvent` in the plan, not a one-line wrapper alias
@@ -331,14 +374,14 @@ In chat, provide:
 
 ## Mode: Learn
 
-Generate or update a **topic memory** at `<agent>/fivem/memory/<topic>.md` (`.cursor/fivem/`, `.gemini/fivem/`, or `.opencode/fivem/`).
+Generate or update a **topic memory** at `.fivem/memory/<topic>.md` (shared by all agents).
 
 **Do not implement code** in this mode — only scan, write markdown, and update index/reference links.
 
 ### Step 1 — Resolve topic
 
 1. Parse `$ARGUMENTS` after `learn` (e.g. `craft`, `item-usavel`, `dona-capivara`)
-2. If `learn list` → read `<agent>/fivem/memory/_index.md` and `<agent>/fivem/topic-catalog.md`; reply with table; stop
+2. If `learn list` → read `.fivem/memory/_index.md` and `.fivem/topic-catalog.md`; reply with table; stop
 3. Normalize slug: lowercase, hyphens, no spaces → `memory/<slug>.md`
 
 ### Step 2 — Load context
@@ -349,10 +392,10 @@ Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.openco
 |------|---------|
 | `fivem-development/best-practices.md` | Patterns, anti-bugs |
 | Framework skill (`vrp-framework`, etc.) | If detected |
-| `<agent>/fivem/topic-catalog.md` | Search hints for known topics |
-| `<agent>/fivem/memory.template.md` | Output skeleton |
+| `.fivem/topic-catalog.md` | Search hints for known topics |
+| `.fivem/memory.template.md` | Output skeleton |
 | `reference.mdc` at project root | If exists — project paths |
-| `<agent>/fivem/memory/<topic>.md` | If exists — **merge** (preserve valid content, update paths) |
+| `.fivem/memory/<topic>.md` | If exists — **merge** (preserve valid content, update paths) |
 
 ### Step 3 — Scan codebase
 
@@ -363,18 +406,18 @@ Read from agent skills directory (`.cursor/skills/`, `.gemini/skills/`, `.openco
 
 ### Step 4 — Write memory
 
-Save to **`<agent>/fivem/memory/<topic>.md`** using `memory.template.md` structure (**~25–60 lines**, token-efficient):
+Save to **`.fivem/memory/<topic>.md`** using `memory.template.md` structure (**~25–60 lines**, token-efficient):
 
 - Frontmatter: `topic`, `updated`, `framework`, `lang: en-compact`, `confidence: extracted`
 - Structured arrays (grep-confirmed): `resources`, `paths`, `events`, `exports`, `symbols`, `triggers`
 - Sections: `Files`, `Recipe`, `Example`, `Pitfalls`, `Skills` — **compact technical English only**
 - No prose, no tables unless essential; bullet lists and short imperative lines
 - Keep repo literals verbatim: paths, events, item ids, permissions, resource names
-- **Do not** write memory in Portuguese — memory is agent-internal context, not user-facing
+- **Do not** write memory in Portuguese — memory is shared project context (`lang: en-compact`), not user-facing chat
 
 ### Step 5 — Update index
 
-Update **`<agent>/fivem/memory/_index.md`** — table row: topic | file | triggers | last updated.
+Update **`.fivem/memory/_index.md`** — table row: topic | file | triggers | last updated.
 Create from `memory-index.template.md` if missing.
 
 ### Step 6 — Update reference.mdc
@@ -392,7 +435,7 @@ If `reference.mdc` does not exist, skip (user can run `/fivem reference` later).
 Reply to the user in **their language** (usually PT-BR if they write in PT-BR):
 
 - Summary of what was learned (3–5 bullets)
-- Path: `<agent>/fivem/memory/<topic>.md`
+- Path: `.fivem/memory/<topic>.md`
 - If codebase changed heavily since last learn → suggest re-running `/fivem learn <topic>`
 - Suggest `/fivem graph` to refresh the 3D knowledge map
 
@@ -401,7 +444,7 @@ Reply to the user in **their language** (usually PT-BR if they write in PT-BR):
 - **Never invent** paths, events, or APIs
 - **Do not** edit Lua/JS during learn mode
 - Cursor Agent: use **AskQuestion** if critical context is missing; otherwise ask in chat
-- **Memory file:** compact technical English (`lang: en-compact`) — token-efficient agent context
+- **Memory file:** compact technical English (`lang: en-compact`) — shared project memory
 - **Chat reply:** user's language — do not mirror memory language in the reply
 
 ---
@@ -429,13 +472,13 @@ If no `memory/` files exist → reply suggesting `/fivem learn <topic>` first; s
 
 | File | Purpose |
 |------|---------|
-| `<agent>/fivem/memory-health.template.md` | Report structure |
-| `<agent>/fivem/memory.template.md` | Target compact format |
-| `<agent>/fivem/memory/_index.md` | Index integration |
-| `<agent>/fivem/topic-catalog.md` | Catalog orphans (info) |
+| `.fivem/memory-health.template.md` | Report structure |
+| `.fivem/memory.template.md` | Target compact format |
+| `.fivem/memory/_index.md` | Index integration |
+| `.fivem/topic-catalog.md` | Catalog orphans (info) |
 | `reference.mdc` | Section `## Memórias por tópico` |
-| `<agent>/fivem/memory/<topic>.md` | Each topic to verify |
-| `<agent>/fivem/knowledge-graph.json` | If present — graph drift vs memories |
+| `.fivem/memory/<topic>.md` | Each topic to verify |
+| `.fivem/knowledge-graph.json` | If present — graph drift vs memories |
 
 ### Step 3 — Verify each memory (evidence required)
 
@@ -505,7 +548,7 @@ If graph drift detected → recommend `/fivem graph` refresh.
 
 ### Step 4 — Write report
 
-Save **`<agent>/fivem/memory-health.md`** using `memory-health.template.md`:
+Save **`.fivem/memory-health.md`** using `memory-health.template.md`:
 
 - Summary counts (OK / Stale / Broken / Integration / Token)
 - Per-topic table + detail blocks with grep evidence
@@ -531,7 +574,7 @@ Update frontmatter `updated` on changed memories.
 Reply in **user's language**:
 
 - Summary table (topics × verdict)
-- Path: `<agent>/fivem/memory-health.md`
+- Path: `.fivem/memory-health.md`
 - Auto-fixed topics (fix mode)
 - Topics needing `/fivem learn <topic>` (manual)
 - Suggest `/fivem graph` if memories changed
@@ -565,13 +608,13 @@ This mode is file-only: **no Python, no Node, no Bash helper, no generated scrip
 
 From the FiveM project root, read:
 
-- `<agent>/fivem/memory/_index.md` (topic table)
-- `<agent>/fivem/memory/*.md` (exclude `_index.md`)
-- `<agent>/fivem/topic-catalog.md` (catalog orphans)
+- `.fivem/memory/_index.md` (topic table)
+- `.fivem/memory/*.md` (exclude `_index.md`)
+- `.fivem/topic-catalog.md` (catalog orphans)
 
-Cursor: `<agent>` = `.cursor/fivem` · Gemini: `.gemini/fivem` · OpenCode: `.opencode/fivem`
+If `.fivem/` is missing → user must run fivem-skill installer first.
 
-If `<agent>/fivem/knowledge-graph.html` is missing → tell user to run fivem-skill installer first.
+Legacy fallback: if `.fivem/memory/` is empty but `.cursor/fivem/memory/`, `.gemini/fivem/memory/`, or `.opencode/fivem/memory/` has topics, read from legacy paths and suggest `fivem-skill -y` to migrate.
 
 ### Step 2 — Build graph JSON
 
@@ -588,7 +631,7 @@ Do not scan the source codebase for extra evidence in graph mode. Links come fro
 | `id` | slug (filename without `.md`, lowercase) |
 | `name` | frontmatter `topic`, or index row, or slug |
 | `group` | `"learned"` |
-| `file` | path relative to project root (e.g. `.cursor/fivem/memory/craft.md`) |
+| `file` | path relative to project root (e.g. `.fivem/memory/craft.md`) |
 | `updated` | frontmatter `updated` or index column |
 | `framework` | frontmatter `framework` or `""` |
 | `triggers` | frontmatter `triggers[]` or index triggers column or `""` |
@@ -657,8 +700,8 @@ Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>", "confidence"
 ```json
 {
   "generatedAt": "<ISO-8601 now>",
-  "agent": "cursor",
-  "fivemDir": ".cursor/fivem",
+  "agent": "shared",
+  "fivemDir": ".fivem",
   "counts": {
     "learned": <learned count>,
     "catalog": <catalog count>,
@@ -668,17 +711,16 @@ Each link: `{ "source": "<id>", "target": "<id>", "type": "<type>", "confidence"
 }
 ```
 
-Use `"agent": "gemini"` and `"fivemDir": ".gemini/fivem"` for Gemini projects.
-Use `"agent": "opencode"` and `"fivemDir": ".opencode/fivem"` for OpenCode projects.
+Always use `"agent": "shared"` and `"fivemDir": ".fivem"` — the graph is shared across all agents.
 
 ### Step 3 — Write JSON and HTML
 
 Write the same JSON object to **both**:
 
-1. `<agent>/fivem/knowledge-graph.json` (2-space indent, valid JSON)
-2. `<agent>/fivem/knowledge-graph.html` — replace only the graph data payload
+1. `.fivem/knowledge-graph.json` (2-space indent, valid JSON)
+2. `.fivem/knowledge-graph.html` — replace only the graph data payload
 
-Read `<agent>/fivem/knowledge-graph.html`. Replace **only** the graph data payload with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
+Read `.fivem/knowledge-graph.html`. Replace **only** the graph data payload with the JSON from step 2 (2-space indent, valid JavaScript). Do not change any other part of the file.
 
 Payload replacement rule:
 
@@ -686,12 +728,12 @@ Payload replacement rule:
 - Otherwise replace only the object assigned to `const GRAPH_DATA = ...;`.
 - Preserve all HTML, CSS, JS functions, visual settings, imports, comments, and formatting outside the `GRAPH_DATA` assignment.
 
-Write the result back to `<agent>/fivem/knowledge-graph.html`.
+Write the result back to `.fivem/knowledge-graph.html`.
 
 Allowed writes in graph mode:
 
-- `<agent>/fivem/knowledge-graph.json`
-- `<agent>/fivem/knowledge-graph.html`
+- `.fivem/knowledge-graph.json`
+- `.fivem/knowledge-graph.html`
 
 Forbidden writes in graph mode:
 
@@ -732,7 +774,7 @@ Remind user: re-run `/fivem graph` after `/fivem learn`; use `/fivem query` for 
 - **Do not** edit memory files during graph mode — only regenerate the HTML
 - **Do not** keep a background process running
 - **Do not** modify `knowledge-graph.html` structure during graph mode — only replace the embedded graph data
-- If `<agent>/fivem/` is missing → user must run fivem-skill installer first
+- If `.fivem/` is missing → user must run fivem-skill installer first
 
 ---
 
@@ -748,8 +790,8 @@ Parse `$ARGUMENTS` after `query`:
 
 ### Step 1 — Load graph
 
-1. Read `<agent>/fivem/knowledge-graph.json` if it exists
-2. If missing → extract `GRAPH_DATA` from `<agent>/fivem/knowledge-graph.html`
+1. Read `.fivem/knowledge-graph.json` if it exists
+2. If missing → extract `GRAPH_DATA` from `.fivem/knowledge-graph.html`
 3. If neither exists → tell user to run `/fivem learn <topic>` then `/fivem graph`; stop
 
 ### Step 2 — Vocabulary expansion (required)
@@ -884,7 +926,7 @@ Generate or update **`reference.mdc` in the project root** (same level as `resou
 
 This file is a **Cursor rule** (`alwaysApply: true`) with project-specific paths, flows, and anti-bug notes for future sessions.
 
-Keep it **lean**: detailed flows for recurring topics belong in `<agent>/fivem/memory/<topic>.md` via `/fivem learn <topic>` — do not paste full craft/item recipes here. Memory files use compact technical English (`lang: en-compact`); only link to them from this rule.
+Keep it **lean**: detailed flows for recurring topics belong in `.fivem/memory/<topic>.md` via `/fivem learn <topic>` — do not paste full craft/item recipes here. Memory files use compact technical English (`lang: en-compact`); only link to them from this rule.
 
 ### Step 1 — Discover the project
 
@@ -903,8 +945,8 @@ Use semantic search, grep, and file reads. Every path in the output must exist i
 ### Step 2 — Read existing context
 
 - If **`reference.mdc`** exists at project root → read it and **merge/update** (preserve valid sections, replace outdated paths)
-- Read **`<agent>/fivem/reference.template.mdc`** for section structure (installed by fivem-skill)
-- Read **`<agent>/fivem/reference.example.mdc`** for format/depth only (fictional sample — do not copy its paths)
+- Read **`.fivem/reference.template.mdc`** for section structure (installed by fivem-skill)
+- Read **`.fivem/reference.example.mdc`** for format/depth only (fictional sample — do not copy its paths)
 
 ### Step 3 — Write `reference.mdc`
 
@@ -924,7 +966,7 @@ Required sections (adapt titles to what exists in **this** project):
 3. **Itens / inventário** — registration files, use handlers, naming conventions
 4. **Economia / lojas / webhooks** — shop configs, webhook paths
 5. **Sistemas custom** — one line per major feature pointing to memory or key config path (e.g. "Craft → `/fivem learn craft` ou `memory/craft.md`")
-6. **Memórias por tópico** — table linking topics to `<agent>/fivem/memory/*.md` (filled by `/fivem learn`)
+6. **Memórias por tópico** — table linking topics to `.fivem/memory/*.md` (filled by `/fivem learn`)
 7. **Integrações** — cacheaside, cerberus (`SendFullSync` / `SendDeltaSync`, `SafeEvent`, `SetCooldown`), oxmysql patterns **as used here**
 8. **NUI** — source folder + `pnpm run build` path if applicable
 9. **Git / submodules** — if relevant
@@ -956,7 +998,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
 
 ### Instructions
 
-0. **Before scanning the whole codebase** — read `<agent>/fivem/memory/_index.md`. If a memory exists for the detected topic (craft, item, loja, etc.), read **`memory/<topic>.md` first** and answer from it when sufficient. Memories are stored in **compact technical English** (`lang: en-compact`) for token efficiency — **translate/adapt to the user's language in your reply**, do not paste memory verbatim unless showing code paths.
+0. **Before scanning the whole codebase** — read `.fivem/memory/_index.md`. If a memory exists for the detected topic (craft, item, loja, etc.), read **`memory/<topic>.md` first** and answer from it when sufficient. Memories are stored in **compact technical English** (`lang: en-compact`) for token efficiency — **translate/adapt to the user's language in your reply**, do not paste memory verbatim unless showing code paths.
 
 1. **Analyze the query** to determine what the user needs:
    - Native function → Fetch from https://docs.fivem.net/natives/
@@ -969,7 +1011,7 @@ You are a FiveM development expert. Help the user with their FiveM scripting que
    - NUI/React UI → Read skill `fivem-react-nui`
    - Patterns/best practices → Read skill `fivem-development` (`best-practices.md`)
    - Code audit → suggest `/fivem audit [scope]`
-   - Recurring project flow (craft, item, loja, NUI) → read `<agent>/fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>`
+   - Recurring project flow (craft, item, loja, NUI) → read `.fivem/memory/<topic>.md` if exists; else suggest `/fivem learn <topic>`
    - Architecture / cross-topic flow → suggest `/fivem query "<question>"` if `knowledge-graph.json` exists
    - Project conventions → Read **`reference.mdc`** at project root if it exists
 

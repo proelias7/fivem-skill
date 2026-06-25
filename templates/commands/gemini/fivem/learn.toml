@@ -1,22 +1,22 @@
 description = "Learn topic memory from codebase — scan, write memory/<topic>.md"
 
 prompt = """
-Generate or update a **topic memory** at **`.gemini/fivem/memory/<topic>.md`**.
+Generate or update a **topic memory** at **`.fivem/memory/<topic>.md`**.
 
 **Do NOT implement code** — only scan, write markdown, update index and reference links.
 
 **Topic / args:** {{args}}
-- `list` → read `.gemini/fivem/memory/_index.md` + `.gemini/fivem/topic-catalog.md` and reply with tables
+- `list` → read `.fivem/memory/_index.md` + `.fivem/topic-catalog.md` and reply with tables
 - Otherwise normalize slug (lowercase, hyphens) → `memory/<slug>.md`
 
 ## Load
 
 - `.gemini/skills/fivem-development/best-practices.md`
 - Framework skill if detected
-- `.gemini/fivem/topic-catalog.md` — search hints
-- `.gemini/fivem/memory.template.md` — output skeleton
+- `.fivem/topic-catalog.md` — search hints
+- `.fivem/memory.template.md` — output skeleton
 - `reference.mdc` at project root if present
-- Existing `.gemini/fivem/memory/<topic>.md` — merge if present
+- Existing `.fivem/memory/<topic>.md` — merge if present
 
 ## Scan
 
@@ -25,13 +25,13 @@ Extract config paths, handlers, events, exports, symbols, resource names, one re
 
 ## Write
 
-1. Save `.gemini/fivem/memory/<topic>.md` (~25–60 lines, **compact technical English**, `lang: en-compact`)
+1. Save `.fivem/memory/<topic>.md` (~25–60 lines, **compact technical English**, `lang: en-compact`)
    - Frontmatter: `topic`, `updated`, `framework`, `lang`, `confidence: extracted`
    - Structured arrays (grep-confirmed only): `resources`, `paths`, `events`, `exports`, `symbols`, `triggers`
    - Sections: Files, Recipe, Example, Pitfalls, Skills
    - No prose; keep repo literals verbatim (paths, events, ids)
-   - **Do not** write memory in Portuguese — agent-internal context only
-2. Update `.gemini/fivem/memory/_index.md` (create from template if missing)
+   - **Do not** write memory in Portuguese — shared project memory (`lang: en-compact`) only
+2. Update `.fivem/memory/_index.md` (create from template if missing)
 3. If `reference.mdc` exists → add/update row in `## Memórias por tópico` (one line per topic; keep reference lean)
 
 Reply in the **user's language** (summary bullets, memory path, suggest `/fivem:graph` after learn).

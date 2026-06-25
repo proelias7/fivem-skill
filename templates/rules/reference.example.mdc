@@ -12,7 +12,7 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 ## Manutenção desta rule
 
 - Sempre que surgir um padrão novo (caminho, convenção, anti-bug, integração), **atualize este arquivo**.
-- Fluxos longos → `/fivem learn <topic>` → `.cursor/fivem/memory/<topic>.md`
+- Fluxos longos → `/fivem learn <topic>` → `.fivem/memory/<topic>.md`
 
 ## Framework / grupos / permissões
 
@@ -24,27 +24,27 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / vRP).
 
 - **Cadastro:** `resources/[System]/vrp/config/itemlist.lua`
 - **Uso (servidor):** `resources/[Novos]/inventory/src/server/core.lua` → bloco `inventory:useItem`
-- **Detalhes:** `.cursor/fivem/memory/item.md` (gerar com `/fivem learn item`)
+- **Detalhes:** `.fivem/memory/item.md` (gerar com `/fivem learn item`)
 
 ## Economia / lojas / webhooks
 
 - **Lojas:** `resources/[Exclusive]/store/config/config.lua` → `config.shops[].products`
-- **Detalhes:** `.cursor/fivem/memory/loja.md` (gerar com `/fivem learn loja`)
+- **Detalhes:** `.fivem/memory/loja.md` (gerar com `/fivem learn loja`)
 
 ## Sistemas custom (índice)
 
 | Sistema | Onde começar | Memória |
 |---------|--------------|---------|
-| Craft | `resources/[Exclusive]/craft/config/config.lua` | `.cursor/fivem/memory/craft.md` |
+| Craft | `resources/[Exclusive]/craft/config/config.lua` | `.fivem/memory/craft.md` |
 
 ## Memórias por tópico
 
-Índice completo: `.cursor/fivem/memory/_index.md`
+Índice completo: `.fivem/memory/_index.md`
 
 | Tópico | Arquivo |
 |--------|---------|
-| craft | `.cursor/fivem/memory/craft.md` |
-| item | `.cursor/fivem/memory/item.md` |
+| craft | `.fivem/memory/craft.md` |
+| item | `.fivem/memory/item.md` |
 
 ## Integrações
 

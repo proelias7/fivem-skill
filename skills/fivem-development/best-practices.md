@@ -513,6 +513,113 @@ SourceCache[id] = entry
 rebuildViewItem(id)
 ```
 
+### 2.4 Audit Assertiveness — Mandatory Passes
+
+When running **`/fivem audit`**, the agent **must** complete every pass below before writing the report. Skipping a pass or auditing a single file while ignoring `fxmanifest` siblings is an **incomplete audit**.
+
+#### Pass 0 — Full resource scope (non-negotiable)
+
+1. Read **`fxmanifest.lua`** first — list every path in `server_scripts`, `client_scripts`, `shared_scripts`.
+2. Read **every Lua file** in those paths (not only the file the user `@` mentioned).
+3. In **Files reviewed**, list each file with line count — prove full coverage.
+4. If user scoped one file explicitly (`audit adapter.lua only`), state that limitation in the report header; otherwise audit the **whole resource**.
+
+#### Pass 1 — Evidence discipline
+
+Every finding **must** include:
+
+| Field | Rule |
+|-------|------|
+| **File:line** | Read the line — do not infer from memory or nearby findings |
+| **Symbol** | Exact function/event name (`manager:updateGarage`, not "update handler") |
+| **Caller context** | Quote the enclosing `RegisterNetEvent` / function name |
+
+**Forbidden:**
+
+- Attributing a line to the wrong handler (e.g. citing `updateGarage` when line 804 is inside `updateGarageVehicleSet`)
+- Generic findings without grep proof
+- Copying one finding's fix to another event without verifying each handler
+
+**Verify before write:** for each `file:line`, confirm the line content matches the issue described.
+
+#### Pass 2 — View cache matrix (check ALL rows)
+
+For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report **each row found**, or explicitly mark **N/A**:
+
+| # | Check | Grep hint | If found → severity |
+|---|-------|-----------|---------------------|
+| V-a | `build*` / `Sanitize*` **inside** `TriggerClientEvent(...)` args | `TriggerClientEvent\([^)]*build` | **High** |
+| V-b | `build*List()` in `RegisterNetEvent` handler (get/open) | handlers calling `build*List` | **High** |
+| V-c | **Double build** — `build*Item` then `build*List` in same handler | same function body | **High** |
+| V-d | **Triple sync** — delta event + full list + `Load*Player` in same CRUD | create/update handlers | **High** |
+| V-e | `Load*Player` / full sanitize on `playerConnect` | `playerConnect` → `Load*` | **High** |
+| V-f | `Load*Player` after single CRUD when delta fn exists | update/create + `Send*Update` / `SendDelta` | **High** |
+| V-g | `Load*Cache()` full DB after one insert/update | `insertSync`/`execute` then `Load*Cache()` | **Medium** |
+| V-h | Duplicate transform (`apply*Entry` vs `build*Item`, duplicate `decode*`) | same fn name twice | **Medium** |
+| V-i | Manual `ChunkTable` + `Wait` loop | `ChunkTable` + `Wait(` | **Medium** |
+
+Missing rows that apply to the resource = **incomplete audit**.
+
+#### Pass 3 — Globals with cross-file grep (§3.6)
+
+For **each** top-level global in server scope:
+
+1. `grep -l SymbolName` across all server Lua files listed in `fxmanifest`.
+2. **One file only** → finding `G*` — recommend `local`.
+3. **Two+ server files** → row in report **OK — justified** (do not flag).
+4. Repeat for client scope separately.
+5. Never flag `GarageLocates`-style globals without checking `server.lua` (or sibling files).
+
+Report a **Globals table** with columns: Symbol | Declared | Used in files | Verdict.
+
+#### Pass 4 — Admin / manager events (§5.1)
+
+Grep all server events with admin/manager prefixes:
+
+```text
+RegisterNetEvent\("manager:
+RegisterNetEvent\("admin:
+RegisterNetEvent\(".*:[Mm]anager
+```
+
+Build a **Manager events matrix** — one row per event:
+
+| Event | SafeEvent | Real permission (`hasGroup`/`hasPermission`) | Cooldown-only helper | CRUD / leak | Severity if missing auth |
+|-------|-----------|-----------------------------------------------|----------------------|-------------|--------------------------|
+| `manager:getGarages` | ? | ? | ? | data leak | **Critical** |
+| `manager:deleteGarage` | ? | ? | ? | CRUD | **Critical** |
+
+**Critical rule:** a helper named `CanUse*`, `checkCooldown`, or similar that only checks **time/source** is **not** permission. Do not treat it as auth. Flag missing **real** server permission on:
+
+- Events that **read** sensitive config (lists with perms, coords, admin data)
+- Events that **mutate** DB/world (create/update/delete/teleport)
+
+If **any** `manager:*` / admin event lacks real permission → **Critical**, grouped as one systemic finding with all event names listed.
+
+#### Pass 5 — Severity ↔ correction plan alignment
+
+| Severity in findings | Phase in plan |
+|----------------------|---------------|
+| Critical | **Phase 1 only** |
+| High | **Phase 2** (view cache, hot-path perf, exploit surface) |
+| Medium | Phase 3 |
+| Low | Phase 4 |
+
+**Forbidden:** marking a finding **High** in the table but placing its fix in Phase 3/4.
+
+#### Pass 6 — Pre-report self-check
+
+Before saving the report, confirm:
+
+- [ ] All `fxmanifest` Lua files listed in **Files reviewed**
+- [ ] View cache matrix: every applicable row checked (V-a–V-i)
+- [ ] Every `build*` caller grep'd with `file:line`
+- [ ] Globals table complete for server + client scope
+- [ ] Manager events matrix complete (or N/A stated)
+- [ ] No finding references wrong handler/symbol
+- [ ] Phase plan severity matches findings tables
+- [ ] Each High/Critical finding has a **before/after code snippet**
+
 ---
 
 ## 3. Code Structure
@@ -987,3 +1094,52 @@ Cerberus `SafeEvent` complements — but does not replace — server-side valida
 - Avoid heavy DB work directly from high-frequency client callbacks without throttling
 
 > **Rule:** Every server event that grants money, items, XP, vehicles, or bypasses restrictions must validate on the server before applying the reward.
+
+### 5.1 Admin / Manager Events — Server Auth (Audit)
+
+Client-only UI gating is **not** security. Every admin/manager server event must validate on the server.
+
+**Real permission** = `hasGroup`, `hasPermission`, `hasService`, job check, or project-specific staff API with **identity** (`getUserId` / Passport).
+
+**Not permission:**
+
+```lua
+-- WRONG: cooldown/rate-limit presented as "manager check"
+local function CanUseGarageManager(source)
+    if os.time() - (lastAction[source] or 0) < 3 then return false end
+    return true  -- anyone can pass after 3s
+end
+```
+
+**Audit:** grep all `RegisterNetEvent("manager:*")` (and `admin:*`, panel prefixes). For each handler verify:
+
+1. `local source = source` + `getUserId` early
+2. **Staff permission** before read leak or CRUD
+3. `cerberus` `SafeEvent` on mutating events (create/update/delete)
+4. Same permission helper on **read** events that expose sensitive data (`get*`, `list*`, `teleport*`)
+
+| Event type | Missing SafeEvent | Missing real permission | Typical severity |
+|------------|-------------------|-------------------------|------------------|
+| delete / create / update DB | Flag | Flag | **Critical** |
+| get list with perms/coords | — | Flag | **Critical** |
+| teleport / spawn admin | — | Flag | **Critical** |
+| read-only public data | — | Maybe OK | Context-dependent |
+
+**Fix pattern:**
+
+```lua
+local function CanManageResource(source)
+    local user_id = vRP.getUserId(source)
+    if not user_id then return false end
+    return vRP.hasGroup(user_id, "Admin", 1) -- project rule
+end
+
+RegisterNetEvent("manager:getGarages")
+AddEventHandler("manager:getGarages", function()
+    local source = source
+    if not CanManageResource(source) then return end
+    TriggerClientEvent("manager:receiveGarages", source, getManagerGarageListCached())
+end)
+```
+
+Report missing auth as **one systemic finding** listing all unprotected events, not isolated low-severity rows.

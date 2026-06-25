@@ -21,4 +21,4 @@ Aliases nos triggers ajudam o agente a reconhecer singular/plural e sinônimos (
 Exemplos: `learn dona-capivara`, `learn rise-actions`
 
 - Normalizar slug: minúsculas, hífens, sem espaços
-- Arquivo: `<agent>/fivem/memory/<slug>.md`
+- Arquivo: `.fivem/memory/<slug>.md`

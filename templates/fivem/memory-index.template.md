@@ -6,7 +6,7 @@ Route only — read `memory/<topic>.md` before rescanning repo. Internal format:
 |-------|------|----------|---------|
 | _(none yet)_ | — | — | — |
 
-Catalog: `<agent>/fivem/topic-catalog.md` (`craft`, `item`, `loja`, `nui`, `grupos`, …)
+Catalog: `.fivem/topic-catalog.md` (`craft`, `item`, `loja`, `nui`, `grupos`, …)
 
 Commands: `/fivem learn <topic>` · `/fivem learn list` · `/fivem memory health [fix] [topic]` · `/fivem graph` · `/fivem query "<question>"` · `/fivem path <a> <b>` · `/fivem explain <topic>`
 

@@ -10,10 +10,10 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 ## Manutenção desta rule
 
 - Sempre que surgir um padrão novo (caminho de arquivo, convenção, anti-bug, integração), **atualize este arquivo** para as próximas demandas.
-- Fluxos detalhados e checklists longos → **`/fivem learn <topic>`** → `<agent>/fivem/memory/<topic>.md` (não duplique aqui).
-- Memórias são **contexto interno do agente** — salvas em inglês técnico compacto (`lang: en-compact`); esta rule só aponta links, não cola o conteúdo.
+- Fluxos detalhados e checklists longos → **`/fivem learn <topic>`** → `.fivem/memory/<topic>.md` (não duplique aqui).
+- Memórias são **memória compartilhada do projeto** (`.fivem/memory/`) — salvas em inglês técnico compacto (`lang: en-compact`); esta rule só aponta links, não cola o conteúdo.
 - Após refactors ou deletes na base → **`/fivem memory health`** (ou `fix`) para validar paths/eventos e sincronizar índice.
-- Após aprender tópicos → **`/fivem graph`** para atualizar `knowledge-graph.json`; use **`/fivem query`** para recuperar contexto entre tópicos.
+- Após aprender tópicos → **`/fivem graph`** para atualizar `.fivem/knowledge-graph.json`; use **`/fivem query`** para recuperar contexto entre tópicos.
 
 ## Framework / grupos / permissões
 
@@ -25,12 +25,12 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 
 - **Cadastro principal:** `.../itemlist.lua` (ou equivalente ox_inventory)
 - **Uso no inventário:** handler em `.../inventory/...`
-- **Detalhes / checklist:** ver memória `memory/item.md` (gerar com `/fivem learn item`)
+- **Detalhes / checklist:** ver `.fivem/memory/item.md` (gerar com `/fivem learn item`)
 
 ## Economia / lojas / webhooks
 
 - **Lojas:** config path + campo `webhook`
-- **Detalhes:** ver memória `memory/loja.md` (gerar com `/fivem learn loja`)
+- **Detalhes:** ver `.fivem/memory/loja.md` (gerar com `/fivem learn loja`)
 
 ## Sistemas custom (índice)
 
@@ -41,7 +41,7 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 
 ## Memórias por tópico
 
-Índice completo: `<agent>/fivem/memory/_index.md`
+Índice completo: `.fivem/memory/_index.md`
 
 | Tópico | Arquivo |
 |--------|---------|
@@ -65,7 +65,7 @@ Use estes caminhos e padrões ao trabalhar neste repositório (FiveM / <framewor
 
 - Source: `.../src/ui/project/`
 - Build: `pnpm install && pnpm run build` → pasta usada pelo FiveM
-- Detalhes: ver memória `memory/nui.md` (gerar com `/fivem learn nui`)
+- Detalhes: ver `.fivem/memory/nui.md` (gerar com `/fivem learn nui`)
 
 ## Git / submodules
 

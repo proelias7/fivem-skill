@@ -1,7 +1,7 @@
 description = "Memory health — verify memories vs codebase, integration, token format, graph artifacts"
 
 prompt = """
-Run **memory health check** for `.gemini/fivem/memory/`.
+Run **memory health check** for `.fivem/memory/`.
 
 **Args:** {{args}}
 
@@ -15,13 +15,13 @@ Parse (case-insensitive):
 
 ## Load
 
-- `.gemini/fivem/memory-health.template.md` — report skeleton
-- `.gemini/fivem/memory.template.md` — compact target format
-- `.gemini/fivem/memory/_index.md`
-- `.gemini/fivem/topic-catalog.md`
-- `.gemini/fivem/knowledge-graph.json` — if present (graph drift)
+- `.fivem/memory-health.template.md` — report skeleton
+- `.fivem/memory.template.md` — compact target format
+- `.fivem/memory/_index.md`
+- `.fivem/topic-catalog.md`
+- `.fivem/knowledge-graph.json` — if present (graph drift)
 - `reference.mdc` at project root (section `## Memórias por tópico`)
-- All `.gemini/fivem/memory/*.md` except `_index.md` (or single topic if scoped)
+- All `.fivem/memory/*.md` except `_index.md` (or single topic if scoped)
 
 ## Verify each memory
 
@@ -36,7 +36,7 @@ Verdict per topic: **OK** | **Stale** | **Broken**
 
 ## Report
 
-Save `.gemini/fivem/memory-health.md` using template. Every finding needs evidence.
+Save `.fivem/memory-health.md` using template. Every finding needs evidence.
 
 ## Fix mode (when `fix` in args)
 
