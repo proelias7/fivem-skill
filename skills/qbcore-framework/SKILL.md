@@ -5,6 +5,8 @@ description: Develops resources for FiveM using the QBCore Framework. Covers res
 
 # QBCore Framework Development
 
+**Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
+
 This skill provides guidelines and patterns for developing resources using the **QBCore Framework**.
 
 ## 1. Core Object Retrieval

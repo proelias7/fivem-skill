@@ -8,6 +8,8 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 > Framework-agnostic orchestrator for FiveM resource development.
 > Supports vRP, QBCore, Qbox, and ESX via dedicated framework skills.
 
+**Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
+
 ## Philosophy
 
 1. **Fetch, don't memorize** — When unsure about a native or API, verify from authoritative sources
@@ -153,6 +155,8 @@ ALWAYS follow these rules when writing code:
 11. **Server security:** Validate money, items, permissions, and distance on the server; never trust client/NUI data.
 12. **Tables > if/else:** For 3+ conditions, use lookup table (O(1)) instead of if/elseif chains.
 13. **Protect nil:** Always check variables before concatenating. Use `or ""` as fallback.
+14. **Server-side resolution:** Never send derived data (names, prices, permissions) from client. Send minimal IDs and resolve on server (§5.2).
+15. **Consolidate network calls:** Use single tunnel call with return instead of event + callback pattern (§1.1).
 
 ---
 
@@ -208,9 +212,11 @@ Optional NUI (see skill `fivem-react-nui`):
 | `TriggerClientEvent("manager:*", -1, ...)` | Admin → `source`; world sync small → `-1`; large → cerberus (§1.6.1) |
 | Large table via `TriggerClientEvent(-1, ...)` | cerberus `SendFullSync` / `SendDeltaSync` + scope |
 | Audit one file ignoring fxmanifest siblings | Read all manifest scripts; matrix V-a–V-j |
-| Cooldown helper as “manager permission” | Real `hasGroup`/`hasPermission` on server (§5.1) |
+| Cooldown helper as "manager permission" | Real `hasGroup`/`hasPermission` on server (§5.1) |
 | Global when only used in one file | `local` — global only cross-file same-side (§3.6) |
 | Invent natives/APIs | Verify before writing |
+| Client sends derived data (names, prices, perms) | Server resolves from minimal IDs (§5.2) |
+| Event + callback for one operation | Single tunnel call with return (§1.1) |
 
 ---
 

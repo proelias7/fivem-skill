@@ -20,6 +20,15 @@
 | `ServerCallback._function()` | Medium | Fire-and-forget via callback (function already exists) |
 | `ServerCallback.function()` | Heaviest | When return is needed |
 
+### Decision Flowchart
+
+| Need | Use |
+|------|-----|
+| Return value from server | Tunnel with return (single call) |
+| Fire-and-forget (no return) | Event (`TriggerServerEvent`) — lightest |
+| Same environment call | Direct function call — no overhead |
+| Multiple data in one operation | Single tunnel call that returns all data |
+
 ```lua
 -- CORRECT: return needed → callback/Tunnel
 local inventory = ServerCallback.getUserInventory()
@@ -631,6 +640,24 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 
 Missing rows that apply to the resource = **incomplete audit**.
 
+### Learned rule: V-j matrix hit requires standalone Findings row (robberys, 2026-06-20)
+
+- When V-j is marked **Found** in the View Cache Matrix (even conditional/disabled), add a dedicated row in the appropriate Findings table with its own ID, Severity, `file:line`, and Recommendation.
+- Do not leave V-j documented only in the matrix and correction plan — without a Findings row it does not count in the Summary and causes a summary-count mismatch.
+
+**Why:** §2.4 states "each distinct issue still gets its own row in the Findings table." §2.5 Summary count rule sums Findings table rows only — matrix rows do not count. A conditional or disabled V-j still needs a formal row so the Summary is accurate.
+
+Example:
+```lua
+-- WRONG: V-j marked Found in matrix, mentioned in plan, but no Findings row
+-- View Cache Matrix: | V-j | Found (conditional) | server.lua:118 | Medium |
+-- Summary: Medium = 5  ← wrong (only 4 rows in Findings tables)
+
+-- CORRECT: add to Performance findings table
+-- | Vj1 | Medium | server.lua:118 | robberys:noShootActivate | TriggerClientEvent(-1, polygon ~100pts) when noShootEnabled=true | Use cerberus scopeRadius or send only to nearby players |
+-- Summary: Medium = 5  ← now matches 5 Findings rows
+```
+
 #### Pass 3 — Globals with cross-file grep (§3.6)
 
 For **each** top-level global in server scope:
@@ -984,6 +1011,9 @@ Typical **AI over-engineering** mistakes — **do not generate code like this:**
 - **Comment noise** — banner blocks and `---` on every helper
 - **State mixed with handlers** — variables and helpers declared mid-file
 - **Rebuild client payload on every send** — `TriggerClientEvent(..., buildItem(id, rawCache))` instead of a pre-built view cache
+- **Client sends derived data** (names, prices, permissions) — server should resolve from minimal IDs (§5.2)
+- **Multiple network calls for one operation** — use single tunnel call with return instead of event + callback (§1.1)
+- **Event + callback pattern** — `TriggerServerEvent` + `RegisterNetEvent("receiveX")` = unnecessary when tunnel returns data directly
 
 When in doubt: **one server file, one client file, locals at top, fewer comments, reuse functions.**
 
@@ -1029,6 +1059,30 @@ The final `TriggerEvent` on the client is local and does not add extra network t
 > **Rule:** Do not implement manual chunking in consumer scripts. Use cerberus exports instead.
 >
 > **Rule:** Prefer `SendDeltaSync` for unit updates. Reserve `SendFullSync` for bootstrap or full cache rebuild.
+
+### Learned rule: vRP.Players loop + TriggerClientEvent per player must use cerberus (robberys, 2026-06-20)
+
+- Replace `for _, src in pairs(vRP.Players()) do TriggerClientEvent(..., src, payload) Wait(N) end` with `exports["cerberus"]:SendFullSync(-1, event, payload, options)` (full rebuild) or `SendDeltaSync(-1, event, payload)` (unit update).
+- Do not recommend "single event -1" or "state bag handler" as generic alternatives when cerberus is in the project — always specify the cerberus export directly in the fix.
+
+**Why:** A manual loop over all players with `TriggerClientEvent` + `Wait` blocks the server thread and creates O(n) network events per operation. Cerberus handles load balancing, chunking, and priority internally. Recommending vague alternatives delays implementation and misses the optimization.
+
+Example:
+```lua
+-- WRONG: loop + TriggerClientEvent per player + Wait (blocks server thread, O(n) events)
+for Passport, v in pairs(vRP.Players()) do
+    TriggerClientEvent("robberys:updateBlips", v, payload)
+    Wait(30)
+end
+
+-- CORRECT: cerberus SendFullSync for full rebuild (initial load, state change)
+exports["cerberus"]:SendFullSync(-1, "robberys:updateBlips", payload, {
+    key = "robberys:blips:full"
+})
+
+-- CORRECT: cerberus SendDeltaSync for incremental update (one robbery started/ended)
+exports["cerberus"]:SendDeltaSync(-1, "robberys:updateBlips", deltaPayload)
+```
 
 ### 4.3 Exports
 
@@ -1255,3 +1309,72 @@ end)
 ```
 
 Report missing auth as **one systemic finding** listing all unprotected events, not isolated low-severity rows.
+
+### 5.2 Server-Side Data Resolution — Never Trust Client for Derivable Data
+
+The client should only send **minimal identifiers**, not derived values. The server resolves identities, names, permissions, and other data that can be looked up.
+
+```lua
+-- WRONG: client sends killer name (can be spoofed)
+TriggerServerEvent("survival:playerDied", killerName, coords)
+
+-- CORRECT: client sends killer server ID, server resolves name
+TriggerServerEvent("survival:playerDied", KillerSource, coords)
+
+-- Server-side resolution
+RegisterNetEvent("survival:playerDied")
+AddEventHandler("survival:playerDied", function(KillerSource, deathCoords)
+    local source = source
+    local user_id = vRP.Passport(source)
+    if not user_id then return end
+
+    local killerName = "Unknown"
+    if KillerSource and KillerSource > 0 then
+        local killerPassport = vRP.Passport(KillerSource)
+        if killerPassport then
+            local identity = vRP.Identity(killerPassport)
+            if identity then
+                killerName = identity.name .. " " .. identity.name2 .. " [" .. killerPassport .. "]"
+            end
+        end
+    end
+
+    -- Now use server-resolved killerName
+end)
+```
+
+**Pattern:** Client sends minimal data (source ID, coordinates). Server resolves everything else (names, permissions, prices, distances).
+
+**Anti-patterns to flag:**
+
+| Client sends | Problem | Server should resolve |
+|-------------|---------|----------------------|
+| `killerName` | Spoofable | `vRP.Identity(vRP.Passport(killerSource))` |
+| `price` | Exploitable | `Config.Prices[item]` |
+| `permission` | Bypassable | `vRP.HasGroup(passport, perm)` |
+| `distance` | Manipulable | Calculate server-side from coordinates |
+
+### Learned rule: Webhook tokens must live in a dedicated webhook resource (robberys, 2026-06-20)
+
+- **Never** hardcode Discord webhook URLs/tokens in server scripts (`server.lua`, `sv_*.lua`), shared scripts, or any file accessible to clients (NUI, shared_scripts).
+- Move tokens to a **dedicated server-side webhook resource** — never to `server.cfg`.
+- Critical audit rule: token must not be in any file loaded client-side.
+
+**Why:** Tokens in server Lua files are exposed in the git repository. `server.cfg` is also readable in some hosting environments and is not the correct pattern for webhook credentials. A dedicated webhook resource isolates the secret to a single protected server-only scope and allows rotation without touching game logic.
+
+Example:
+```lua
+-- WRONG: token hardcoded in server.lua (git-exposed)
+local Robbery = "https://discord.com/api/webhooks/123456/TOKEN..."  -- server.lua:50
+
+-- WRONG: token moved to server.cfg (not the right place for webhook credentials)
+-- set WEBHOOK_ROBBERY "https://discord.com/api/webhooks/123456/TOKEN..."
+
+-- CORRECT: dedicated webhook resource (server-only)
+-- In resource "webhook/server.lua":
+local token = "https://discord.com/api/webhooks/123456/TOKEN..."
+exports("SendWebhook", function(data) PerformHttpRequest(token, ...) end)
+
+-- In robberys/server.lua:
+exports["webhook"]:SendWebhook({ content = "..." })
+```

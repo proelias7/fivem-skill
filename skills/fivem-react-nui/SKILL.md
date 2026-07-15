@@ -5,6 +5,8 @@ description: Builds NUI interfaces for FiveM using React 18 + TypeScript + Vite 
 
 # FiveM NUI — React + Vite
 
+**Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
+
 Stack: **React 18 + TypeScript + Vite + Tailwind CSS v3.4.17 + Zustand**
 
 ## Fundamental Rules

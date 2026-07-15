@@ -5,6 +5,8 @@ description: Develops resources for FiveM using the Qbox Project (qbx_core). Cov
 
 # Qbox Framework Development
 
+**Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
+
 This skill provides guidelines and patterns for developing resources using the **Qbox Project (qbx_core)**.
 
 ## 1. Philosophy: Exports & Modules

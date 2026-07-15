@@ -5,6 +5,8 @@ description: Develops resources for FiveM using vRP Creative Network with Lua. C
 
 # vRP Framework — Creative Network
 
+**Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
+
 ## Framework Architecture
 
 vRP Creative Network is based on **Lua 5.4** with communication via **Proxy** (server-to-server) and **Tunnel** (client-server).

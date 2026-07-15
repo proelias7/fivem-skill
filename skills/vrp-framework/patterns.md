@@ -296,6 +296,46 @@ AddEventHandler("my:event", function(data)
 end)
 ```
 
+### 6. Server-Side Data Resolution
+
+Never send derivable data from the client. Send minimal IDs and resolve on server.
+
+```lua
+-- WRONG: client sends killer name (spoofable)
+TriggerServerEvent("survival:playerDied", killerName, coords)
+
+-- CORRECT: client sends server ID, server resolves name
+function cln.GenerateDeathCode(KillerSource)
+    local source = source
+    local Passport = vRP.Passport(source)
+    if not Passport then return end
+
+    local killerName = "Desconhecido"
+    if KillerSource and KillerSource > 0 then
+        local killerPassport = vRP.Passport(KillerSource)
+        if killerPassport then
+            local identity = vRP.Identity(killerPassport)
+            if identity then
+                killerName = identity.name .. " " .. identity.name2 .. " [" .. killerPassport .. "]"
+            end
+        end
+    end
+
+    local code = GenerateDeathCode()
+    DeathCodes[source] = {
+        code = code,
+        user_id = Passport,
+        killerName = killerName,
+        deathCoords = vRP.GetEntityCoords(source),
+        timestamp = os.time(),
+    }
+
+    return code
+end
+```
+
+**Rule:** Client sends `source` ID, `Passport`, or coordinates. Server resolves names, permissions, prices, distances.
+
 ## Performance Patterns
 
 ### 1. Tunnel vs Events
@@ -309,6 +349,34 @@ local inventory = vSERVER.getUserInventory()
 
 -- WRONG: Tunnel without using return
 vSERVER.startEvent()
+```
+
+### 1.1 Tunnel with Return — Consolidate Network Calls
+
+When you need data from the server, use a single tunnel call instead of multiple events.
+
+```lua
+-- WRONG: two events (send data, receive response)
+TriggerServerEvent("survival:playerDied", killerName, coords)
+-- ... wait for callback event ...
+RegisterNetEvent("survival:receiveDeathCode", function(code)
+    SendNUIMessage({ action = "set:code", data = code })
+end)
+
+-- CORRECT: single tunnel call with return
+local deathCode = vRPS.GenerateDeathCode(KillerSource)
+SendNUIMessage({ action = "setVisibility", data = { code = deathCode, ... } })
+```
+
+**Why:** Eliminates ida-e-volta desnecessária, reduz latência, retorna dados diretamente.
+
+### 1.2 Fire-and-Forget Tunnel
+
+Use `_` prefix when you don't need the return value. If tunnel is available in the framework, prefer it even for fire-and-forget:
+
+```lua
+-- CORRECT: fire-and-forget via tunnel (tunnel available, no return needed)
+vRP._GenerateItem(Passport, "water", 1)
 ```
 
 ### 2. Calls in Same Environment = Direct Function
