@@ -5,8 +5,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 
 # FiveM Development — Best Practices
 
-> Framework-agnostic orchestrator for FiveM resource development.
-> Supports vRP, QBCore, Qbox, and ESX via dedicated framework skills.
+> Framework-agnostic orchestrator. **One skill** — load reference files on demand (do not load all).
 
 **Language rule:** Internal reasoning is in compact English. All messages and output displayed to the user must be in the user's language.
 
@@ -16,9 +15,27 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 2. **Framework-agnostic thinking** — Understand patterns, adapt to the active framework
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
-5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers
-6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe (`lang: en-compact`, structured frontmatter). All agents read/write the same `.fxmind/` folder. Run `/fxmind learn` before rescanning; `/fxmind memory health [fix]` after refactors; `/fxmind graph` for snapshot; `/fxmind query` for graph-based retrieval in tasks and questions.
-7. **Audit assertiveness** — `/fxmind audit` (fxmind) follows `best-practices.md` §2.4 + **§2.5 quality gates** (manifest-only files, Summary = Findings row counts not matrix themes, all V-b call sites).
+5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers. **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
+6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe. Run `/fxmind learn` before rescanning; `/fxmind memory health`; `/fxmind graph`; `/fxmind query`.
+7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-e) + [security.md](security.md) §5.1.
+
+---
+
+## Reference router (load only what you need)
+
+| Topic | File | Key sections |
+|-------|------|--------------|
+| Tunnel / events / `_` prefix / same-side calls | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
+| Loops, dynamic sleep, payloads, broadcast, StateBags, cache, audit gates | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–**§2.5**, §4.1–4.2, §4.5 |
+| Monolith layout, globals vs fake modules, state placement | [architecture.md](architecture.md) | **§3.5–§3.6**, §3.8 |
+| Lookup tables, nil, comments, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.10** |
+| SafeEvent, SetCooldown, manager auth, server resolution | [security.md](security.md) | §4.6–4.8, **§5.1–§5.2** |
+| cerberus export signatures & examples | [api.md](api.md) | §4.3–4.4 |
+| Index of all § links | [best-practices.md](best-practices.md) | TOC only |
+| Props / vehicles / peds | [asset-discovery.md](asset-discovery.md) | — |
+| Detect vRP / QB / Qbox / ESX | [framework-detection.md](framework-detection.md) | — |
+
+**Corrections backlog** (`.fxmind/corrections/`) categories map 1:1 to these files — promote rules into the matching file, not into a new skill.
 
 ---
 
@@ -26,33 +43,12 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 
 **NEVER invent or guess native functions, framework APIs, or parameters.**
 
-### Rules
-
 1. **If unsure about a native** → MUST fetch from https://docs.fivem.net/natives/
 2. **If unsure about framework API** → MUST fetch from official docs or read the framework skill
 3. **If function doesn't exist** → Tell user honestly, suggest alternatives
 4. **If parameters unknown** → Fetch documentation, don't guess
 
-### Before writing any native or API call
-
-- [ ] Is this a real FiveM native? → Verify at docs.fivem.net/natives
-- [ ] Is this the correct function name? → Check exact spelling
-- [ ] Are these the correct parameters? → Verify parameter order and types
-- [ ] Does this work on client/server/both? → Check availability
-
-### When you don't know
-
-```
-"I'm not 100% certain about this native/API. Let me fetch the documentation..."
-[Use WebFetch to get accurate info]
-```
-
----
-
-## FiveM Natives — Official Source
-
-- Docs: https://docs.fivem.net/natives/
-- Official Repository (mirror): https://github.com/proelias7/fivem-natives
+Before writing any native or API call: verify name, parameters, and client/server availability.
 
 ---
 
@@ -60,50 +56,17 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 
 **Use local skills first.** Fetch online only when information is missing, outdated, or uncertain.
 
-### Decision Tree
-
 | If user asks about... | Action |
 |-----------------------|--------|
-| Native function (GetPlayerPed, CreateVehicle, etc.) | **FETCH** from natives docs |
-| Framework API (vRP, QBCore, Qbox, ESX) | **READ** framework skill; **FETCH** if uncertain |
-| ox_lib feature (lib.callback, lib.notify) | **FETCH** from ox_lib docs |
-| GTA V asset (prop, vehicle, ped model) | **READ** [asset-discovery.md](asset-discovery.md) + PlebMasters |
-| Resource structure, manifest | **READ** local skills |
-| Best practices, patterns | **READ** [best-practices.md](best-practices.md) |
-| Code structure / clean Lua | **READ** [best-practices.md](best-practices.md) §3.5–3.9 |
-
-### Documentation Sources
-
-| Type | Source | When to use |
-|------|--------|-------------|
-| Native functions | https://docs.fivem.net/natives/ | Any native call |
-| Native mirror | https://github.com/proelias7/fivem-natives | Offline reference |
-| vRP API | skill `vrp-framework` | vRP/Creative Network projects |
-| QBCore API | skill `qbcore-framework` / https://docs.qbcore.org/ | QBCore projects |
-| Qbox API | skill `qbox-framework` / https://docs.qbox.re/ | Qbox projects |
-| ESX API | skill `esx-framework` / https://docs.esx-framework.org/ | ESX projects |
-| ox_lib | https://overextended.dev/ox_lib | ox_lib utilities |
-| Props/Vehicles/Peds | https://forge.plebmasters.de/ | Asset discovery |
-| Code structure / clean Lua | [best-practices.md](best-practices.md) §3.5+ | Before writing or refactoring Lua resources |
-
-### WebFetch Examples
-
-```
-WebFetch(
-  url: "https://docs.fivem.net/natives/",
-  prompt: "Find documentation for the native function '{FUNCTION_NAME}'.
-           Include: parameters, return values, usage examples,
-           client/server availability."
-)
-```
-
-```
-WebFetch(
-  url: "https://forge.plebmasters.de/",
-  prompt: "Search for GTA V {ASSET_TYPE} matching '{SEARCH_TERM}'.
-           Return model names/hashes that can be used in FiveM."
-)
-```
+| Native function | **FETCH** https://docs.fivem.net/natives/ |
+| Framework API | **READ** framework skill; **FETCH** if uncertain |
+| ox_lib | **FETCH** https://overextended.dev/ox_lib |
+| GTA V asset | **READ** [asset-discovery.md](asset-discovery.md) |
+| Communication / Tunnel | **READ** [communication.md](communication.md) |
+| Cache / sleep / broadcast / audit / cerberus sync | **READ** [performance.md](performance.md) |
+| New resource / monolith | **READ** [architecture.md](architecture.md) + [style.md](style.md) |
+| Security / SafeEvent / manager | **READ** [security.md](security.md) |
+| cerberus export API | **READ** [api.md](api.md) |
 
 ---
 
@@ -111,52 +74,41 @@ WebFetch(
 
 | Rule | Triggers | Action |
 |------|----------|--------|
-| Native Detection | PascalCase native name, "GTA native", hash `0x...` | Fetch from docs.fivem.net/natives |
-| Framework API | `vRP.*`, `QBCore.*`, `exports.qbx_core`, `ESX.*`, `xPlayer` | Read framework skill |
-| ox_lib | `lib.*`, `exports.ox_lib` | Fetch from overextended.dev/ox_lib |
-| Asset Discovery | "model for...", "prop name", "vehicle spawn" | Read asset-discovery.md |
-| Local Knowledge | fxmanifest, threads, patterns | Read best-practices.md |
-| New Lua resource / refactor | "create script", "new resource", server.lua, client.lua | Read best-practices.md §3.5–3.9 first |
-| Code audit | "audit", "review security", "check performance", exploit | User runs `/fxmind audit` — read-only plan, no auto-fix |
-| Project memory | `/fxmind learn`, "learn craft", topic memory | User runs `/fxmind learn <topic>` — writes compact English `.fxmind/memory/<topic>.md` (shared) |
-| Memory health | `/fxmind memory health`, stale memory, memória desatualizada | User runs `/fxmind memory health [fix] [topic]` — verifies paths/events vs repo, index/reference sync, token format; optional compact rewrite |
-| Knowledge graph | `/fxmind graph`, "mapa mental", "grafo 3D" | User runs `/fxmind graph` — writes `knowledge-graph.json` + static HTML |
-| Graph query | `/fxmind query`, "como X se conecta com Y", fluxo entre tópicos | User runs `/fxmind query "<question>"` — BFS/DFS over topic graph with token budget |
-| Graph path | `/fxmind path`, caminho entre tópicos | User runs `/fxmind path <a> <b>` — shortest path between learned topics |
-| Graph explain | `/fxmind explain`, explicar tópico | User runs `/fxmind explain <topic>` — node + connections |
-| Recurring project flow | "criar craft", "criar item", "nova loja", craft/receita | Read `.fxmind/memory/<topic>.md` first; legacy fallback `.cursor/fivem/memory/` if empty; else suggest `/fxmind learn <topic>` or `/fxmind query` if graph exists |
+| Native Detection | PascalCase native, `0x...` | Fetch docs.fivem.net/natives |
+| Framework API | `vRP.*`, `QBCore.*`, `exports.qbx_core`, `ESX.*` | Read framework skill |
+| ox_lib | `lib.*` | Fetch overextended.dev/ox_lib |
+| Asset Discovery | prop / vehicle / ped model | Read asset-discovery.md |
+| Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent` | Read communication.md |
+| Performance / audit | Wait(0), loops, payload, broadcast, cache, `/fxmind audit` | Read performance.md (§1.4–§1.6.1, §2.4–§2.5) |
+| Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
+| Style | comments, if/else cleanup | Read style.md |
+| Security | exploit, SafeEvent, manager event, webhook | Read security.md |
+| Project memory | `/fxmind learn`, craft/item/loja | Read `.fxmind/memory/<topic>.md` or suggest learn/query |
 
 ---
 
 ## Before Writing Lua
 
-When **creating or editing** a FiveM resource (server/client Lua):
-
-1. **READ** [best-practices.md](best-practices.md) **sections 3.5–3.9** (monolith layout, reuse, comments, variable placement, checklist)
+1. **READ** [architecture.md](architecture.md) §3.5–3.6 and [style.md](style.md) §3.7–3.10
 2. Default to **one `server.lua` and one `client.lua`** unless split is clearly justified
-3. Do **not** over-comment or over-split files — see best-practices.md §3.10 (anti-patterns)
+3. Prefer Tunnel/`return` over event roundtrips — [communication.md](communication.md) §1.1
 
 ---
 
 ## Critical Performance Rules
 
-ALWAYS follow these rules when writing code:
-
 1. **Callback vs Event:** Use `TriggerServerEvent`/`TriggerClientEvent` when you do NOT need a return. Use callbacks/Tunnel only when you NEED a return.
-2. **Dynamic Sleep:** NEVER fixed `Wait(0)`. Adjust based on state (dist < 20 = `0`, dist < 50 = `500`, else = `1000`+).
-3. **Calls in same environment:** Call functions directly. NEVER use `TriggerEvent()` to call on the same side.
-4. **No remote calls in loops:** Do not use callbacks/events in loops < 5 seconds. Prefer batch or delta.
-5. **Small Payloads:** Send only the change, not full data. Limit of ~8KB per event.
-6. **Cache:** Use `exports["cacheaside"]:Get()` for repeated database queries. Never query the database in a loop.
-7. **Large sync:** Large server→client payloads use `exports["cerberus"]:SendFullSync` or `SendDeltaSync` — no manual chunking.
-8. **Delta sync:** Prefer `SendDeltaSync` for unit updates; use `SendFullSync` only for bootstrap/full cache.
-9. **SafeEvent:** Server events that grant money, items, XP, vehicles, or bypass restrictions must call `exports["cerberus"]:SafeEvent` (with `config.modules.safeEvent = true`) **and** server-side validation.
-10. **SetCooldown:** Repetitive client/NUI actions (open menu, use item, spam callbacks) use `exports["cerberus"]:SetCooldown` before `TriggerServerEvent`.
-11. **Server security:** Validate money, items, permissions, and distance on the server; never trust client/NUI data.
-12. **Tables > if/else:** For 3+ conditions, use lookup table (O(1)) instead of if/elseif chains.
-13. **Protect nil:** Always check variables before concatenating. Use `or ""` as fallback.
-14. **Server-side resolution:** Never send derived data (names, prices, permissions) from client. Send minimal IDs and resolve on server (§5.2).
-15. **Consolidate network calls:** Use single tunnel call with return instead of event + callback pattern (§1.1).
+2. **Dynamic Sleep:** NEVER fixed `Wait(0)`. Adjust based on state.
+3. **Same environment:** Call functions directly — never `TriggerEvent()` same-side.
+4. **No remote calls in loops** < 5s — batch or delta.
+5. **Small payloads** — ~8KB limit; send deltas.
+6. **Cache:** `exports["cacheaside"]:Get()` for repeated DB queries.
+7. **Large sync:** cerberus `SendFullSync` / `SendDeltaSync`.
+8. **SafeEvent** + server validation for money/items/XP/vehicles.
+9. **SetCooldown** on client before spammy `TriggerServerEvent`.
+10. **Server security:** never trust client/NUI; resolve derived data on server (§5.2).
+11. **Tables > if/else** for 3+ conditions; protect nil.
+12. **Consolidate network:** one Tunnel call with return (§1.1).
 
 ---
 
@@ -170,66 +122,45 @@ ALWAYS follow these rules when writing code:
 | ESX Legacy | `esx-framework` |
 | NUI (React + Vite) | `fivem-react-nui` |
 
-For auto-detection and multi-framework bridge pattern, see [framework-detection.md](framework-detection.md).
+See [framework-detection.md](framework-detection.md).
 
 ---
 
 ## Resource Structure
 
-Prefer monolith layout. See [best-practices.md](best-practices.md) §3.5 for when to split files.
+Prefer monolith — [architecture.md](architecture.md) §3.5.
 
 ```
 resource_name/
 ├── fxmanifest.lua
 ├── shared/config.lua
-├── server/server.lua      # default: all server logic here
-└── client/client.lua      # default: all client logic here
-```
-
-Optional NUI (see skill `fivem-react-nui`):
-
-```
-└── html/ or src/ui/
-    ├── index.html
-    └── ...
+├── server/server.lua
+└── client/client.lua
 ```
 
 ---
 
-## Anti-Patterns
+## Anti-Patterns (short)
 
 | Don't | Do |
 |-------|-----|
-| Split every feature into its own Lua file | Keep `server.lua` / `client.lua` unless clearly justified |
-| Comment every line or use banner blocks | Comment only non-obvious rules and framework quirks |
-| Global helper modules for tiny utilities | `local function` at file top; reuse |
-| Declare state mid-file between handlers | Constants and state tables at the top |
-| `while true do Wait(0)` | Use appropriate wait or events |
-| Trust client data | Always validate on server |
-| Hardcode framework | Detect dynamically |
-| Fetch data every frame | Cache with refresh interval |
-| Rebuild client payload on every `TriggerClientEvent` | Pre-build view cache on load/CRUD (§2.2–2.4) |
-| `TriggerClientEvent("manager:*", -1, ...)` | Admin → `source`; world sync small → `-1`; large → cerberus (§1.6.1) |
-| Large table via `TriggerClientEvent(-1, ...)` | cerberus `SendFullSync` / `SendDeltaSync` + scope |
-| Audit one file ignoring fxmanifest siblings | Read all manifest scripts; matrix V-a–V-j |
-| Cooldown helper as "manager permission" | Real `hasGroup`/`hasPermission` on server (§5.1) |
-| Global when only used in one file | `local` — global only cross-file same-side (§3.6) |
-| Invent natives/APIs | Verify before writing |
-| Client sends derived data (names, prices, perms) | Server resolves from minimal IDs (§5.2) |
-| Event + callback for one operation | Single tunnel call with return (§1.1) |
+| Split every feature into its own Lua file | Monolith unless justified (§3.5) |
+| Comment every line | Comment only non-obvious rules (§3.7) |
+| Fake `LoadResourceFile` imports | Global or same-file helper (§3.6) |
+| Event roundtrip for a return value | Tunnel/`return` (§1.1) |
+| Trust client / rebuild payload every send | Server auth + view cache (§5, §2.2) |
+| Invent natives/APIs | Verify first |
+
+Full tables: [style.md](style.md) §3.10, [architecture.md](architecture.md) §3.6.
 
 ---
 
-## External Resources (Download)
+## External Resources
 
-- `cacheaside` (in-memory cache): `git@github.com:proelias7/cacheaside.git`
-- `cerberus` (modular: load balance, SafeEvent, SetCooldown): `git@github.com:proelias7/cerberus.git`
+- `cacheaside`: `git@github.com:proelias7/cacheaside.git`
+- `cerberus`: `git@github.com:proelias7/cerberus.git`
 
----
+## Natives
 
-## Additional References
-
-- Detailed best practices (performance, security, cache, broadcast §1.6.1, **§2.4 audit**, §5.1): [best-practices.md](best-practices.md)
-- Asset discovery (props, vehicles, peds, weapons): [asset-discovery.md](asset-discovery.md)
-- Framework auto-detection and bridge: [framework-detection.md](framework-detection.md)
-- NUI interface construction: use skill `fivem-react-nui`
+- https://docs.fivem.net/natives/
+- Mirror: https://github.com/proelias7/fivem-natives

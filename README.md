@@ -6,7 +6,7 @@
 
 | Repo | Role |
 |------|------|
-| **[fivem-skill](https://github.com/proelias7/fivem-skill)** (this repo) | Agent **skills** — `best-practices.md`, frameworks, NUI guides |
+| **[fivem-skill](https://github.com/proelias7/fivem-skill)** (this repo) | Agent **skills** — `fivem-development` (split refs), frameworks, NUI guides |
 | **[fxmind](https://github.com/fx-mind/fxmind)** | **Tooling** — install, `/fxmind audit`, memory, graph, audit templates |
 
 Skills install to `.fxmind/skills/` in the FiveM project. Audit reports write to `.fxmind/audits/`.
@@ -31,7 +31,7 @@ npx skills add proelias7/fivem-skill
 
 | Skill | Description |
 |-------|-------------|
-| `fivem-development` | Best practices (§1.6.1 broadcast, §2 view cache, §4 cerberus, §5.1 manager auth) |
+| `fivem-development` | Best practices — one skill, split refs (`communication` / `performance` / `architecture` / `style` / `security` / `api`) |
 | `fivem-react-nui` | React + Vite NUI |
 | `vrp-framework` | vRP Creative / vRPEX |
 | `qbcore-framework` | QBCore |
@@ -42,7 +42,15 @@ npx skills add proelias7/fivem-skill
 
 ```
 skills/
-├── fivem-development/   ← best-practices.md, SKILL.md
+├── fivem-development/
+│   ├── SKILL.md              ← thin router
+│   ├── best-practices.md     ← index (stable § links)
+│   ├── communication.md      ← §1
+│   ├── performance.md        ← §2, §4.1–4.2, §4.5
+│   ├── architecture.md       ← §3.5–3.6, §3.8
+│   ├── style.md              ← §3.1–3.4, §3.7, §3.9–3.10
+│   ├── security.md           ← §4.6–4.8, §5
+│   └── api.md                ← §4.3–4.4
 ├── fivem-react-nui/
 ├── vrp-framework/
 ├── qbcore-framework/
@@ -53,10 +61,10 @@ skills/
 ## Audit workflow
 
 1. Run **`/fxmind audit resources/[novos]/myresource`** in the FiveM project
-2. Agent reads **`.fxmind/skills/fivem-development/best-practices.md`**
+2. Agent reads **`SKILL.md`** then on-demand: `performance.md` §2.4–§2.5, `communication.md` §1.6.1, `security.md` §5.1
 3. Report saved to **`.fxmind/audits/<resource>.md`** (template from fxmind pack)
 
-Key audit rules live in `best-practices.md` **§2.4** (matrices), **§2.5** (quality gates — Summary counts = Findings table rows, not matrix themes), **§1.6.1** (broadcast).
+Key audit rules: **§2.4** / **§2.5** in `performance.md`, **§1.6.1** in `communication.md`, **§5.1** in `security.md`. Index: `best-practices.md`.
 
 ## License
 

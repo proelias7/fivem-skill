@@ -344,12 +344,17 @@ end
 -- CORRECT: no return → Event (lighter)
 TriggerServerEvent("airdrop:start")
 
--- CORRECT: needs return → Tunnel
+-- CORRECT: needs return → Tunnel (one call, clean)
 local inventory = vSERVER.getUserInventory()
 
 -- WRONG: Tunnel without using return
 vSERVER.startEvent()
+
+-- FORBIDDEN: event roundtrip instead of Tunnel return
+-- TriggerServerEvent("x:get") + TriggerClientEvent("x:receive", source, data)
 ```
+
+**Rule:** If the client needs a value from the server in the same logical action, use **Tunnel with return**. Do not invent a second event only to push the result back.
 
 ### 1.1 Tunnel with Return — Consolidate Network Calls
 
@@ -368,7 +373,7 @@ local deathCode = vRPS.GenerateDeathCode(KillerSource)
 SendNUIMessage({ action = "setVisibility", data = { code = deathCode, ... } })
 ```
 
-**Why:** Eliminates ida-e-volta desnecessária, reduz latência, retorna dados diretamente.
+**Why:** Eliminates unnecessary round-trips, reduces latency, returns data directly.
 
 ### 1.2 Fire-and-Forget Tunnel
 
