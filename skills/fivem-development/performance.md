@@ -323,6 +323,25 @@ exports.cacheaside:Delete("relationship:findRelationship", playerId)
 exports.cacheaside:Set("relationship:findRelationship", playerId, newValue, 300)
 ```
 
+### Learned rule: per-user slots/permissions must use cacheaside, invalidated on the mutating action (wardrobe, 2026-08-01)
+
+- Read-heavy per-user lookups (slots, ranks, permissions) called by **multiple endpoints** must go through `cacheaside` (`Get`) and be invalidated (`Set`/`Delete`) in the endpoint that mutates them (e.g. slot purchase) — not re-queried on every endpoint call. Audit: same per-user query in 2+ endpoints = E-a per endpoint, **High**.
+
+**Why:** §2.1 already prescribes cache for repeated queries; this pins the **invalidation hook** to the mutating endpoint. In wardrobe, `getMaxSlots` ran the same `SELECT extra_slots` on `loadPresets`, `refresh` **and** `saveOutfit` (E-a × 3).
+
+Example:
+```lua
+-- WRONG: same slots query in loadPresets, refresh and saveOutfit
+local rows = exports["oxmysql"]:query_async("SELECT extra_slots FROM wardrobe_slots WHERE user_id = ?", { user_id })
+
+-- CORRECT: cached read; invalidated on slot purchase
+local Consult = exports.cacheaside:Get("wardrobe:slots", user_id, {
+    query = { "SELECT extra_slots FROM wardrobe_slots WHERE user_id = ?", { user_id } },
+    default = {}
+})
+-- on purchase: exports.cacheaside:Set("wardrobe:slots", user_id, newValue, 300)
+```
+
 ### 2.1.1 Client-side cache — reduzir round-trips ao server
 
 Dados de UI que mudam pouco (presets, configuração do próprio jogador, listas pessoais) não precisam ser rebuscados no server a cada abertura/refresh. Cacheie no **client** e invalide apenas quando o próprio jogador alterar.
@@ -840,6 +859,12 @@ Fix these before saving — they caused **valid audits to lose trust**:
 | **Delete + view cache** | Phase 2 must include **invalidating** view cache on delete (`ViewCache[id] = nil`), not only upsert. |
 | **Permission fix** | Snippets use `hasGroup`/`hasPermission` with note: **confirm project staff group** — do not hardcode `Admin` without codebase evidence. |
 | **Checklist honesty** | Do not mark `[x]` on security items the code fails (e.g. "client data re-validated" when `getGarages` has no auth). |
+
+### Learned rule: `fxmanifest.lua` is scope evidence, not a reviewed script (wardrobe, 2026-08-01)
+
+- **Files reviewed** lists only the script paths the manifest declares (`server_scripts` / `client_scripts` / `shared_scripts` + NUI in `files`). Do **not** list `fxmanifest.lua` itself as a reviewed file — add a note that it was **read for scope**. Judge: never penalize an audit for omitting the manifest from the table.
+
+**Why:** §2.5 restricts Files reviewed to manifest script paths; the manifest is not one of them. Requiring it as a row produced a false Axis A deduction (`-5`) on an audit that correctly declared "fxmanifest lido para escopo".
 
 **Summary count rule (§2.5):**
 

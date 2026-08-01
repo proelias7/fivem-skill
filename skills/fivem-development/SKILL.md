@@ -1,6 +1,6 @@
 ---
 name: fivem-development
-description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside + client-side cache §2.1.1), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), client-callable endpoint exposure & server auth (§5.1), input validation (§5.3), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
+description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside + client-side cache §2.1.1), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), client-callable endpoint exposure & server auth (§5.1), input validation (§5.3), quality gates for implementation/refactor (quality-gates.md), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
 ---
 
 # FiveM Development — Best Practices
@@ -17,7 +17,8 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers. **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe. Run `/fxmind learn` before rescanning; `/fxmind memory health`; `/fxmind graph`; `/fxmind query`.
-7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-e) + [security.md](security.md) §5.1.
+7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-g) + [security.md](security.md) §5.1.
+8. **Quality gates (task mode)** — implementing or refactoring code follows [quality-gates.md](quality-gates.md): design review at Gate A, self-review loop before Gate V.
 
 ---
 
@@ -31,6 +32,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | Lookup tables, nil, comments, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.10** |
 | SafeEvent, SetCooldown, endpoint auth, server resolution, input validation | [security.md](security.md) | §4.6–4.8, **§5.1–§5.3** |
 | cerberus export signatures & examples | [api.md](api.md) | §4.3–4.4 |
+| **Implement / refactor (task mode DoD)** | [quality-gates.md](quality-gates.md) | Gate A QUALITY + self-review loop |
 | Index of all § links | [best-practices.md](best-practices.md) | TOC only |
 | Props / vehicles / peds | [asset-discovery.md](asset-discovery.md) | — |
 | Detect vRP / QB / Qbox / ESX | [framework-detection.md](framework-detection.md) | — |
@@ -83,6 +85,7 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
 | Style | comments, if/else cleanup | Read style.md |
 | Security | exploit, SafeEvent, endpoint auth, input validation, webhook | Read security.md |
+| **Implement / refactor / new endpoint / NUI** | new `func.*`, RegisterNetEvent, RegisterNUICallback, refactor resource | Read [quality-gates.md](quality-gates.md) |
 | Project memory | `/fxmind learn`, craft/item/loja | Read `.fxmind/memory/<topic>.md` or suggest learn/query |
 
 ---
@@ -90,8 +93,9 @@ Before writing any native or API call: verify name, parameters, and client/serve
 ## Before Writing Lua
 
 1. **READ** [architecture.md](architecture.md) §3.5–3.6 and [style.md](style.md) §3.7–3.10
-2. Default to **one `server.lua` and one `client.lua`** unless split is clearly justified
-3. Prefer Tunnel/`return` over event roundtrips — [communication.md](communication.md) §1.1
+2. **Task mode:** read [quality-gates.md](quality-gates.md) — fill Gate A QUALITY plan; run self-review loop before Gate V
+3. Default to **one `server.lua` and one `client.lua`** unless split is clearly justified
+4. Prefer Tunnel/`return` over event roundtrips — [communication.md](communication.md) §1.1
 
 ---
 

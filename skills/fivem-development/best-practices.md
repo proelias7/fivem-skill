@@ -14,6 +14,7 @@
 | [style.md](style.md) | §3.1–3.4 · §3.7 · §3.9–3.10 tables, comments, checklist | `style` |
 | [security.md](security.md) | §4.6–4.8 SafeEvent/SetCooldown · §5 server auth/**§5.3 input validation** | `security` |
 | [api.md](api.md) | §4.3–4.4 cerberus exports & examples | `api` |
+| [quality-gates.md](quality-gates.md) | **Definition of Done** for task mode — checklist by artifact + self-review loop | `quality` |
 
 ## Quick load (agents)
 
@@ -25,6 +26,7 @@
 | Comments, lookup tables, anti-patterns | [style.md](style.md) |
 | SafeEvent, endpoint auth §5.1, server resolution §5.2, input validation §5.3 | [security.md](security.md) |
 | cerberus `SendFullSync` / export signatures | [api.md](api.md) |
+| **Implement / refactor code (task mode)** | [quality-gates.md](quality-gates.md) |
 | Full audit | communication §1.1 + performance (§1.6.1, §2.1.1, §2.4–§2.5) + architecture §3.6 + security §5.1 + §5.3 |
 
 Router: [SKILL.md](SKILL.md)
