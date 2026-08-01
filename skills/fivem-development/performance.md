@@ -49,6 +49,25 @@ while true do
 end
 ```
 
+#### N+1 remote call — loop client → server por item
+
+```lua
+-- WRONG: 1 chamada Tunnel + 1 query por preset (N+1)
+for _, preset in ipairs(presets) do
+    Wait(120)
+    local shot = func.getScreenshot(preset.id)
+    SendNUIMessage({ action = "screenshot", id = preset.id, data = shot })
+end
+
+-- CORRECT: uma chamada batch (ou já incluir o campo no payload da lista)
+local shots = func.getScreenshots(presetIds)  -- server: WHERE id IN (...)
+for id, shot in pairs(shots) do
+    SendNUIMessage({ action = "screenshot", id = id, data = shot })
+end
+```
+
+**Audit grep:** loop no client que chama `func.*` / `ServerCallback` / `TriggerServerEvent` por item de uma lista recebida na mesma sessão. Fix: endpoint batch (`ids[]` → `WHERE id IN (...)`) ou incluir o campo no payload da lista; veja também §2.1.1 (client-side cache).
+
 ### 1.5 Mandatory Dynamic Sleep
 
 **NEVER use fixed `Wait(0)`.** Adjust sleep based on current state.
@@ -130,6 +149,16 @@ end
 ```
 
 **Signs of problem:** `Network overflow` in console, players disconnecting, lag spikes.
+
+#### Respostas Tunnel/callback (`tunnel_res`) seguem o mesmo budget
+
+O retorno de uma chamada Tunnel/callback viaja pelo mesmo canal de rede — o cerberus o reporta como `OUT:<resource>:tunnel_res`. **Os limites acima valem para respostas também**: uma resposta de 290 KB é 35× o budget de um evento e pode derrubar jogadores.
+
+Regras para endpoints de leitura:
+
+1. **Lista retorna só metadados** — `load*`/`list*` retorna campos leves (id, nome, data). Campos pesados (screenshot LONGTEXT, JSON de roupa, imagens) ficam fora da lista.
+2. **Detalhe pesado sob demanda** — por item selecionado (`getDetail(id)`), ou em **batch** se a UI precisa de todos (`getDetails(ids[])`); nunca N+1 (§1.4).
+3. **Resposta > ~64 KB → repensar** — dividir, cachear no client (§2.1.1), ou entregar via cerberus `SendFullSync` quando for bootstrap grande.
 
 ### 1.6.1 Broadcast targets — `source` vs `-1` vs cerberus
 
@@ -293,6 +322,52 @@ exports.cacheaside:Get("namespace", "key", {
 exports.cacheaside:Delete("relationship:findRelationship", playerId)
 exports.cacheaside:Set("relationship:findRelationship", playerId, newValue, 300)
 ```
+
+### 2.1.1 Client-side cache — reduzir round-trips ao server
+
+Dados de UI que mudam pouco (presets, configuração do próprio jogador, listas pessoais) não precisam ser rebuscados no server a cada abertura/refresh. Cacheie no **client** e invalide apenas quando o próprio jogador alterar.
+
+**Padrões:**
+
+| Padrão | Regra |
+|--------|-------|
+| **Fetch on open** | Ao abrir a UI, buscar **uma vez** (metadados + detalhes em batch). Guardar em tabela local do client. |
+| **Save-through** | Ao editar: atualiza a cópia local **e** persiste no server na mesma ação. UI nunca fica à frente/atrás. |
+| **Invalidar no CRUD** | create/update/delete bem-sucedido → atualiza ou remove a entrada no cache local (não rebusca a lista inteira). |
+| **Detalhe em batch** | Precisa de N detalhes (ex. screenshots) → **1 chamada** `getDetails(ids[])`, não N chamadas (§1.4 N+1). |
+| **Gerar no client** | Se o dado pode ser produzido localmente (ex. foto do próprio ped via `screenshot-basic`), prefira gerar no client a buscar bytes do server. |
+
+```lua
+-- client.lua
+local presetsCache = nil
+
+local function openUi()
+    if not presetsCache then
+        local list, maxSlots = func.loadPresets()       -- metadados leves
+        local shots = func.getScreenshots(idsOf(list))  -- batch pesado
+        presetsCache = merge(list, shots)
+    end
+    SendNUIMessage({ action = "open", presets = presetsCache })
+end
+
+-- save-through: server retorna o registro criado; atualiza cache local
+RegisterNUICallback("save", function(data, cb)
+    local ok, preset = func.saveOutfit(data.name, getCurrentClothing())
+    if ok then
+        presetsCache[preset.id] = preset   -- sem novo loadPresets()
+    end
+    cb({ success = ok, preset = preset })
+end)
+```
+
+**Anti-padrões a flagar em audit:**
+
+| Anti-padrão | Problema | Solução |
+|-------------|----------|---------|
+| Refresh rebusca tudo do server a cada interação | Queries + rede repetidas sem necessidade | Cache local + invalidação no CRUD |
+| N+1 para enriquecer cada item (§1.4) | N queries + N respostas por abertura | Batch `getDetails(ids[])` |
+| Lista carrega campos pesados (LONGTEXT/base64) | Resposta `tunnel_res` gigante (§1.6) | Lista = metadados; detalhe sob demanda |
+| Dado gerável no client buscado do server | Round-trip + armazenamento desnecessários | Gerar localmente (screenshot do ped) |
 
 ### 2.2 Pre-Build Client Sync Payloads (View Cache)
 
@@ -585,18 +660,27 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 
 Missing rows that apply to the resource = **incomplete audit**.
 
-#### Pass 2b — Client→server event flow (amplification / DoS)
+#### Pass 2b — Client-callable endpoint flow (amplification / DoS / payload)
 
-View-cache (V-a–V-j) asks *how* you build/sync. This pass asks: **what happens if a cheat fires the net event in a tight loop?**
+View-cache (V-a–V-j) asks *how* you build/sync. This pass asks: **what happens if a cheat fires this endpoint in a tight loop?**
 
-For **every** `RegisterNetEvent` / `AddEventHandler` on **server** that a client can invoke (`TriggerServerEvent` / Tunnel / NUI → server):
+**Scope — inventory EVERY client-callable server endpoint**, not only `RegisterNetEvent`:
 
 ```text
-client TriggerServerEvent(name)
+RegisterNetEvent / AddEventHandler   (TriggerServerEvent)
+Tunnel.bindInterface("<name>", func)  → each func.* is an endpoint (vRP Creative)
+RegisterNUICallback → client → server (NUI-triggered)
+```
+
+For each endpoint:
+
+```text
+client → endpoint
         → server handler
               ├─ MySQL / oxmysql / heavy query?     → cost × N spam
               ├─ TriggerClientEvent(..., -1, ...)? → cost × players × N spam
               ├─ Load*Cache / full rebuild?         → cost × N spam
+              ├─ response size (tunnel_res)?        → KB × N spam (§1.6)
               └─ SafeEvent / cooldown / auth?       → brake or open flood
 ```
 
@@ -607,6 +691,8 @@ client TriggerServerEvent(name)
 | E-c | Handler does **full cache reload** (`Load*Cache`, `SELECT *`, rebuild all views) on client request | Same as E-a at memory/CPU scale | **High** |
 | E-d | Mutating / expensive handler **missing** `SafeEvent` (or equivalent rate-limit) | No server-side brake against flood | **High** (see [security.md](security.md) §4.6) |
 | E-e | **StateBag churn** — `GlobalState` / replicated `.state:set` in loops, per-tick, or spam-able client events (§1.6.2) | Silent broadcast storm; same blast radius as `-1` | **Critical** if `GlobalState` + client-triggered; **High** if tight loop |
+| E-f | **Response payload** — Tunnel/callback return or `TriggerClientEvent` reply > ~8 KB, or unbounded (LONGTEXT/base64 list) | `tunnel_res` flood; 290 KB response = 35× budget | **High** if > ~64 KB or list with heavy fields; **Medium** if > ~8 KB |
+| E-g | **N+1 client loop** — client calls endpoint per item of a list it already holds (§1.4) | N queries + N responses per open | **High** on open path; **Medium** otherwise |
 
 **Rules:**
 
@@ -616,6 +702,7 @@ client TriggerServerEvent(name)
 4. **World `-1` deltas** after a real state change are fine when the trigger is server-authoritative (e.g. admin CRUD after §5.1 auth). Flag when the **entry point** is a naked client event.
 5. **`GlobalState` / replicated bags** are network-expensive — apply the same hostility model as E-b (§1.6.2).
 6. Cross-check with §1.6.1–§1.6.2 (who receives / bag replication) and §4.6 / §5.1 (SafeEvent + permission).
+7. **Tunnel functions are endpoints too.** `Tunnel.bindInterface("x", func)` exposes every `func.*` to the client with a network return — apply E-a…E-g identically. Estimate response KB for `tunnel_res` (§1.6).
 
 ```lua
 -- WRONG: cheat can loop TriggerServerEvent("shop:refresh") → DB + blast all clients
@@ -634,7 +721,7 @@ AddEventHandler("shop:get", function()
 end)
 ```
 
-**Audit output:** for each E-a…E-d hit, one Findings row with event name, `file:line`, and the amplification path (`DB`, `-1`, `Load*Cache`). Do not leave E-* only in a matrix.
+**Audit output:** for each E-a…E-g hit, one Findings row with endpoint name, `file:line`, and the amplification/payload path (`DB`, `-1`, `Load*Cache`, `tunnel_res 290KB`, `N+1`). Do not leave E-* only in a matrix.
 
 ### Learned rule: V-j matrix hit requires standalone Findings row (robberys, 2026-06-20)
 
@@ -666,31 +753,38 @@ For **each** top-level global in server scope:
 
 Report a **Globals table** with columns: Symbol | Declared | Used in files | Verdict.
 
-#### Pass 4 — Admin / manager events (§5.1)
+#### Pass 4 — Client-callable endpoint matrix (exposure & auth)
 
-Grep all server events with admin/manager prefixes:
+Grep **every** client-callable server endpoint (all classes):
 
 ```text
-RegisterNetEvent\("manager:
+RegisterNetEvent\("                → event endpoints
+Tunnel\.bindInterface\(            → Tunnel resources; then enumerate each func.*
+RegisterNUICallback                → NUI → client → server chains
+RegisterNetEvent\("manager:        → admin class (subset)
 RegisterNetEvent\("admin:
-RegisterNetEvent\(".*:[Mm]anager
 ```
 
-Build a **Manager events matrix** — one row per event:
+Build a **Client-callable endpoint matrix** — one row per endpoint:
 
-| Event | SafeEvent | Real permission (`hasGroup`/`hasPermission`) | Cooldown-only helper | CRUD / leak | Severity if missing auth |
-|-------|-----------|-----------------------------------------------|----------------------|-------------|--------------------------|
-| `manager:getGarages` | ? | ? | ? | data leak | **Critical** |
-| `manager:deleteGarage` | ? | ? | ? | CRUD | **Critical** |
+| Endpoint | Type (event/Tunnel/NUI) | Auth | Rate-limit (SafeEvent) | Input validated | DB cost | Response (KB) | Fan-out | Severity if missing |
+|----------|-------------------------|------|------------------------|-----------------|---------|---------------|---------|---------------------|
+| `func.loadPresets` | Tunnel | Passport | none | n/a (read) | query per call | ~290 KB list | source | High (E-a/E-f) |
+| `func.deleteOutfit` | Tunnel | Passport | none | **no** | execute | tiny | source | High (E-d) |
+| `manager:deleteGarage` | event | **none** | none | no | execute | tiny | source | **Critical** (no auth) |
 
-**Critical rule:** a helper named `CanUse*`, `checkCooldown`, or similar that only checks **time/source** is **not** permission. Do not treat it as auth. When stating "used by N events", **grep and count** — do not guess (e.g. `CanUseGarageManager` may be 6 calls, not 7).
+**Classes & severity anchors:**
 
-Flag missing **real** server permission on:
+| Class | Rule | Severity if violated |
+|-------|------|----------------------|
+| `manager:*` / `admin:*` (staff) | **Real** server permission required (`hasGroup`/`hasPermission` + identity) | **Critical** (read leak or CRUD without auth) |
+| Mutation (create/update/delete) | SafeEvent + input validation (§5.3) | **High** (E-d / §5.3) |
+| Read with DB cost | cacheaside/view cache + rate-limit | **High** (E-a) |
+| Read with large response | metadata-only list; detail on demand (§1.6, §2.1.1) | **High** (E-f) |
 
-- Events that **read** sensitive config (lists with perms, coords, admin data)
-- Events that **mutate** DB/world (create/update/delete/teleport)
+**Critical rule:** a helper named `CanUse*`, `checkCooldown`, or similar that only checks **time/source** is **not** permission. Do not treat it as auth. When stating "used by N events", **grep and count** — do not guess.
 
-If **any** `manager:*` / admin event lacks real permission → **Critical**, grouped as one systemic finding with all event names listed.
+If **any** `manager:*` / `admin:*` endpoint lacks real permission → **Critical**, grouped as one systemic finding with all endpoint names listed. Non-admin endpoints: one Findings row per violated rule (E-*, §5.3).
 
 #### Pass 5 — Severity ↔ correction plan alignment
 
@@ -713,13 +807,17 @@ Before saving the report, confirm:
 
 - [ ] All `fxmanifest` Lua files listed in **Files reviewed**
 - [ ] View cache matrix: every applicable row checked (V-a–V-j)
-- [ ] **Event flow (Pass 2b):** every client-callable server event checked for E-a…E-e (DB / `-1` amp / full reload / SafeEvent / StateBag churn)
+- [ ] **Endpoint flow (Pass 2b):** every client-callable endpoint (event + `Tunnel.bindInterface` funcs + NUI chains) checked for E-a…E-g
+- [ ] **Response size estimated** per read endpoint (KB); any `tunnel_res`/reply > ~8 KB flagged (E-f)
+- [ ] **N+1 grep:** no client loop calling server per item of a list (E-g / §1.4)
 - [ ] Broadcast targets: `manager:*` / admin events use `source`, not `-1` (§1.6.1)
 - [ ] StateBags: no `GlobalState` / replicated writes in hot loops; bags stay small (§1.6.2)
 - [ ] Large `-1` or full-cache sync uses cerberus, not manual chunks
 - [ ] Every `build*` caller grep'd with `file:line`
 - [ ] Globals table complete for server + client scope
-- [ ] Manager events matrix complete (or N/A stated)
+- [ ] **Client-callable endpoint matrix** complete (Pass 4); admin/manager marked as class
+- [ ] Input validation checked on every mutation (§5.3)
+- [ ] Client-side cache considered in fixes for repeated reads (§2.1.1)
 - [ ] No finding references wrong handler/symbol
 - [ ] Phase plan severity matches findings tables
 - [ ] Each High/Critical finding has a **before/after code snippet**
@@ -736,6 +834,9 @@ Fix these before saving — they caused **valid audits to lose trust**:
 | **V-b completeness** | Grep `build*List\(` and `Get*Summary*` — **all** call sites in detail, not only the first. |
 | **V-d accuracy** | Name **each** sync call in the CRUD handler; count paths, do not round to "triple". |
 | **Cooldown count** | Grep `CanUse*Manager` (or similar) — exact count in prose. |
+| **Endpoint inventory** | Grep `Tunnel.bindInterface` and enumerate **each** `func.*` — do not audit only `RegisterNetEvent`. Tunnel funcs are client-callable endpoints with `tunnel_res` responses. |
+| **Payload estimate** | For every read endpoint, estimate response KB from the SELECT/payload shape (LONGTEXT/base64 = heavy). Never leave "response size" blank. |
+| **Flood severity** | Never downgrade flood findings (E-a/E-d/E-f) to Medium/Low because "cerberus is present but unused" — presence without `SafeEvent` call = no brake. |
 | **Delete + view cache** | Phase 2 must include **invalidating** view cache on delete (`ViewCache[id] = nil`), not only upsert. |
 | **Permission fix** | Snippets use `hasGroup`/`hasPermission` with note: **confirm project staff group** — do not hardcode `Admin` without codebase evidence. |
 | **Checklist honesty** | Do not mark `[x]` on security items the code fails (e.g. "client data re-validated" when `getGarages` has no auth). |

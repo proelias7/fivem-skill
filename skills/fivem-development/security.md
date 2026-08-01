@@ -140,9 +140,11 @@ Cerberus `SafeEvent` complements — but does not replace — server-side valida
 
 > **Rule:** Every server event that grants money, items, XP, vehicles, or bypasses restrictions must validate on the server before applying the reward.
 
-### 5.1 Admin / Manager Events — Server Auth (Audit)
+### 5.1 Client-Callable Endpoints — Server Auth (Audit)
 
-Client-only UI gating is **not** security. Every admin/manager server event must validate on the server.
+**General rule:** every client-callable server endpoint — `RegisterNetEvent`, `Tunnel.bindInterface` function, or NUI→server chain — requires, on the server: **identity** (Passport/user_id), **rate-limit** (`SafeEvent` §4.6) proportional to cost, and **input validation** (§5.3) when it mutates. UI buttons are not a gate; assume the client is hostile (performance.md Pass 2b).
+
+**Admin/manager endpoints (`manager:*`, `admin:*`)** are a special class: beyond rate-limit + validation, they require **real staff permission**. Client-only UI gating is **not** security.
 
 **Real permission** = `hasGroup`, `hasPermission`, `hasService`, job check, or project-specific staff API with **identity** (`getUserId` / Passport).
 
@@ -232,6 +234,39 @@ end)
 | `price` | Exploitable | `Config.Prices[item]` |
 | `permission` | Bypassable | `vRP.HasGroup(passport, perm)` |
 | `distance` | Manipulable | Calculate server-side from coordinates |
+
+### 5.3 Input Validation Checklist (every mutation)
+
+Every endpoint that writes to DB/state must validate client input on the server **before** the write. Missing validation on a mutation = **High** (combine with Pass 2b E-d).
+
+| Check | Rule | Severity if missing |
+|-------|------|---------------------|
+| **Type/shape** | `type(x)` matches expectation; tables have expected keys only | High |
+| **Whitelist keys** | component/prop/field ids against a `Config` allowlist (e.g. `Config.Components`) | High |
+| **Numeric ranges** | drawable/texture/amount within sane bounds (reject negative/huge) | Medium |
+| **String cap** | `#str` bounded (name ≤ 32, base64 ≤ N KB). Unbounded string → LONGTEXT DB = **High** | High |
+| **Format prefix** | e.g. screenshot must match `^data:image/` | Medium |
+| **Empty/blank** | reject empty name/id where a value is required | Low |
+| **Server-verifiable context** | when the action depends on location/state, verify server-side what you can: coords vs `Config.Locations`, ownership (`AND user_id = ?`). Client-reported UI state is a **hint, not a gate** — the real brake is SafeEvent | Medium |
+
+```lua
+-- WRONG: trust NUI maxlength + unbounded base64 straight into LONGTEXT
+function func.saveScreenshot(presetId, data)
+    exports["oxmysql"]:executeSync("UPDATE ... SET screenshot = ? ...", { data, ... })
+end
+
+-- CORRECT
+function func.saveScreenshot(presetId, data)
+    local source = source
+    if exports["cerberus"]:SafeEvent(source, "wardrobe:saveScreenshot", { time = 5, noBan = true }) then return false end
+    local user_id = vRP.Passport(source)
+    if not user_id then return false end
+    if type(data) ~= "string" or #data > 500000 or not data:match("^data:image/") then
+        return false
+    end
+    -- ownership enforced by WHERE id = ? AND user_id = ?
+end
+```
 
 ### Learned rule: Webhook tokens must live in a dedicated webhook resource (robberys, 2026-06-20)
 

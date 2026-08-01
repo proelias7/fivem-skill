@@ -1,6 +1,6 @@
 ---
 name: fivem-development
-description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), manager server auth (§5.1), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
+description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside + client-side cache §2.1.1), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), client-callable endpoint exposure & server auth (§5.1), input validation (§5.3), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
 ---
 
 # FiveM Development — Best Practices
@@ -25,11 +25,11 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 
 | Topic | File | Key sections |
 |-------|------|--------------|
-| Tunnel / events / `_` prefix / same-side calls | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
-| Loops, dynamic sleep, payloads, broadcast, StateBags, cache, audit gates | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–**§2.5**, §4.1–4.2, §4.5 |
+| Tunnel / events / `_` prefix / same-side calls / response budget | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
+| Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), audit gates | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–**§2.5**, §4.1–4.2, §4.5 |
 | Monolith layout, globals vs fake modules, state placement | [architecture.md](architecture.md) | **§3.5–§3.6**, §3.8 |
 | Lookup tables, nil, comments, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.10** |
-| SafeEvent, SetCooldown, manager auth, server resolution | [security.md](security.md) | §4.6–4.8, **§5.1–§5.2** |
+| SafeEvent, SetCooldown, endpoint auth, server resolution, input validation | [security.md](security.md) | §4.6–4.8, **§5.1–§5.3** |
 | cerberus export signatures & examples | [api.md](api.md) | §4.3–4.4 |
 | Index of all § links | [best-practices.md](best-practices.md) | TOC only |
 | Props / vehicles / peds | [asset-discovery.md](asset-discovery.md) | — |
@@ -63,9 +63,9 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | ox_lib | **FETCH** https://overextended.dev/ox_lib |
 | GTA V asset | **READ** [asset-discovery.md](asset-discovery.md) |
 | Communication / Tunnel | **READ** [communication.md](communication.md) |
-| Cache / sleep / broadcast / audit / cerberus sync | **READ** [performance.md](performance.md) |
+| Cache / sleep / broadcast / audit / cerberus sync / client cache | **READ** [performance.md](performance.md) |
 | New resource / monolith | **READ** [architecture.md](architecture.md) + [style.md](style.md) |
-| Security / SafeEvent / manager | **READ** [security.md](security.md) |
+| Security / SafeEvent / endpoint auth / input validation | **READ** [security.md](security.md) |
 | cerberus export API | **READ** [api.md](api.md) |
 
 ---
@@ -78,11 +78,11 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | Framework API | `vRP.*`, `QBCore.*`, `exports.qbx_core`, `ESX.*` | Read framework skill |
 | ox_lib | `lib.*` | Fetch overextended.dev/ox_lib |
 | Asset Discovery | prop / vehicle / ped model | Read asset-discovery.md |
-| Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent` | Read communication.md |
-| Performance / audit | Wait(0), loops, payload, broadcast, cache, `/fxmind audit` | Read performance.md (§1.4–§1.6.1, §2.4–§2.5) |
+| Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent`, response budget | Read communication.md |
+| Performance / audit | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache, `/fxmind audit` | Read performance.md (§1.4–§1.6.1, §2.1.1, §2.4–§2.5) |
 | Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
 | Style | comments, if/else cleanup | Read style.md |
-| Security | exploit, SafeEvent, manager event, webhook | Read security.md |
+| Security | exploit, SafeEvent, endpoint auth, input validation, webhook | Read security.md |
 | Project memory | `/fxmind learn`, craft/item/loja | Read `.fxmind/memory/<topic>.md` or suggest learn/query |
 
 ---

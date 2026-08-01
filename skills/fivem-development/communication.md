@@ -31,6 +31,9 @@
 | Fire-and-forget (no return) | Event (`TriggerServerEvent`) — lightest |
 | Same environment call | Direct function call — no overhead |
 | Multiple data in one operation | Single Tunnel call that returns all data |
+| List + heavy detail per item | 1 Tunnel call for **metadata** + detail on demand/batch (`getDetails(ids[])`) — **never** N+1 (§1.4) |
+
+> **Response budget:** a Tunnel/callback return travels the same network channel as an event (`tunnel_res`) — it obeys the §1.6 payload budget (~8 KB recommended). Keep list responses metadata-only; heavy fields (LONGTEXT, base64, images) on demand. See [performance.md](performance.md) §1.6 and §2.1.1.
 
 ```lua
 -- CORRECT: return needed → Tunnel (single round-trip, readable)
