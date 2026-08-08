@@ -101,4 +101,15 @@ files {
 
 Avoid: MUI, Chakra UI, Ant Design, framer-motion, styled-components — all too heavy for FiveM CEF.
 
+## fxmind agent vision (NUI dump)
+
+Prefer structured state over screenshots. The **agent** wires and unwires — do not ask the user to patch scripts:
+
+1. `fxmind_fivem_nui_wire` `{ resource }` — patches fxmanifest + injects DOM probe into `ui_page`
+2. `ensure` bridge + resource; user opens NUI in-game
+3. `fxmind_fivem_nui_dump`
+4. **`fxmind_fivem_nui_unwire`** before finishing (mandatory cleanup)
+
+Optional permanent integration (not required for agent debug): `registerFxmindNuiDump(() => useStore.getState())` from bridge snippets.
+
 For the full implementation guide (project structure, vite.config, responsive system, CSS restrictions, hooks source, Visibility/Animation/Theme providers, debugger): [ui-guide.md](ui-guide.md)
