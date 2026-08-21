@@ -133,7 +133,9 @@ Before delivering Lua for a FiveM resource, verify:
 - [ ] Is every extra file justified by size **and** a clear domain boundary?
 - [ ] Were comments removed that only repeat what the code says?
 - [ ] Are state tables and constants grouped at the top?
-- [ ] Were helpers reused instead of duplicated or split into unnecessary globals?
+- [ ] Is every `local function` used at **2+ call sites**? Single-use logic stays inline (§3.11)
+- [ ] Are helpers ordered callee → caller (generic before specific) before handlers/threads? (§3.11)
+- [ ] Did a bugfix stay a **minimal diff** — no file rewrite, no overwrite of user-approved patterns? (§3.11)
 
 ### 3.10 Anti-Pattern Snapshot
 
@@ -143,12 +145,67 @@ Typical **AI over-engineering** mistakes — **do not generate code like this:**
 - **Many client files** for one resource (`client.lua`, `hud.lua`, `spectate.lua`, …)
 - **Globals everywhere** instead of locals — flag only when symbol is not read by another file in same scope (§3.6)
 - **Comment noise** — banner blocks and `---` on every helper
+- **Single-use helpers** — `processX` / `isY` / `buildZ` extracted then called once; inline in the loop/handler (§3.11)
+- **File rewrite on bugfix** — reordering/refactoring the whole file and overwriting user-approved patterns (async build, simpler logic)
+- **Caller before callee** — `local function` used before it is declared
 - **State mixed with handlers** — variables and helpers declared mid-file
 - **Rebuild client payload on every send** — `TriggerClientEvent(..., buildItem(id, rawCache))` instead of a pre-built view cache
 - **Client sends derived data** (names, prices, permissions) — server should resolve from minimal IDs (§5.2)
 - **Multiple network calls for one operation** — use single tunnel call with return instead of event + callback (§1.1)
 - **Event + callback pattern** — `TriggerServerEvent` + `RegisterNetEvent("receiveX")` = unnecessary when tunnel returns data directly
 
-When in doubt: **one server file, one client file, locals at top, fewer comments, reuse functions.**
+When in doubt: **one server file, one client file, locals at top, fewer comments, extract a helper only when it is reused.**
+
+### 3.11 Local functions — extract only on reuse
+
+**Extract a `local function` only when it has 2+ call sites.** One call site → keep the body inline in the `CreateThread` / event handler / loop. Do not invent `processX`, `cleanupY`, `isZ`, `buildW` for a single use.
+
+**Order:** declare helpers **callee before caller** (generic → specific) so a `local function` exists before anything that calls it. Then `AddEventHandler` / `RegisterNetEvent` / `CreateThread`.
+
+**Bugfixes are surgical.** Do not reorder or rewrite the user's file to "clean it up". Preserve patterns already approved (e.g. async `build*`, simpler inline logic). Match surrounding style.
+
+```lua
+-- WRONG: five single-use helpers + caller before callee
+local function processPropsNear()
+    cleanupHitMemory()
+    for _, ent in ipairs(GetGamePool("CObject")) do
+        if isFallenProp(ent) then scheduleRemoval(ent) end
+    end
+end
+
+local function isFallenProp(ent)
+    return GetEntityHeightAboveGround(ent) < 0.2
+end
+
+CreateThread(function()
+    while true do
+        Wait(1000)
+        processPropsNear()
+    end
+end)
+
+-- CORRECT: unique logic inline; only extract what is called twice+
+local function removeProp(ent)
+    -- used from the tick and from an event → extract
+    SetEntityAsMissionEntity(ent, true, true)
+    DeleteEntity(ent)
+end
+
+CreateThread(function()
+    while true do
+        Wait(1000)
+        for _, ent in ipairs(GetGamePool("CObject")) do
+            if GetEntityHeightAboveGround(ent) < 0.2 then
+                removeProp(ent)
+            end
+        end
+    end
+end)
+```
+
+```lua
+-- WRONG: rewrite the file while fixing a bug (loses async build / user order)
+-- CORRECT: change only the failing lines; leave approved async/simple structure
+```
 
 ---

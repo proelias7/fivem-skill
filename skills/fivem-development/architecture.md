@@ -57,11 +57,13 @@ Prefer `local function` in the same file over new globals or extra modules.
 
 | Situation | Do |
 |-----------|-----|
-| Helper used once in the same file | `local function` near the top |
-| Helper used in multiple handlers in the same file | One shared `local function` — do not duplicate |
+| Helper used **once** in the same file | **Inline** at the call site — do not extract ([style.md](style.md) §3.11) |
+| Helper used in **2+** handlers/sites in the same file | One shared `local function` — do not duplicate |
 | Helper shared across resources | Separate file or shared lib — justified |
 | Small cache (names, cooldowns) | `local` table at file top |
 | Cache read by **another file in the same resource, same side** (server→server or client→client) | Global or `return` module — justified |
+
+Single-use logic stays **inline** — [style.md](style.md) §3.11. This table is about **where** shared helpers live, not a license to extract every block.
 
 **Globals rule:** a table/function without `local` is OK only when **another script file in the same resource and same runtime side** reads it (per `fxmanifest` — all paths under `server_scripts` share server scope; `client_scripts` share client scope). If the symbol is used **only in the file that declares it**, use `local`.
 
@@ -118,13 +120,13 @@ Extract to another file only when the boundary is **stable, large, and reused** 
 
 Declare **all** constants and state at the **top** of the file — never scatter new `local` blocks between event handlers.
 
-**Recommended file order:**
+**Recommended file order** (new files only — do **not** reshuffle an existing file just to match this):
 
 1. Requires / Tunnel / Proxy
 2. Constants and state tables (`local ActiveActions = {}`, cooldowns, flags)
-3. Local helper functions
+3. Local helper functions — **callee before caller** (generic → specific); extract only if 2+ call sites ([style.md](style.md) §3.11)
 4. Interface binding (`cRP = {}`, `Tunnel.bindInterface`)
-5. Event handlers and `RegisterNetEvent` / NUI callbacks
+5. Event handlers and `RegisterNetEvent` / NUI callbacks / `CreateThread`
 
 ```lua
 local Tunnel = module("vrp", "lib/Tunnel")

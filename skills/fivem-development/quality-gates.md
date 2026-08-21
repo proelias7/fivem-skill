@@ -13,7 +13,7 @@ Theory lives in sibling files — this file only states **what to do** and **whe
 | Tunnel, response budget, N+1 | [communication.md](communication.md) §1.1 |
 | Payload, cache, broadcast, audit E-a…E-g | [performance.md](performance.md) §1.4–§1.6, §2.1, §2.1.1 |
 | Monolith, globals | [architecture.md](architecture.md) §3.5–§3.6 |
-| Comments, anti-patterns | [style.md](style.md) §3.7, §3.10 |
+| Comments, anti-patterns, local-function extract | [style.md](style.md) §3.7, §3.10–**§3.11** |
 | SafeEvent, validation, auth | [security.md](security.md) §4.6–§4.8, §5.1–§5.3 |
 | cerberus exports | [api.md](api.md) |
 
@@ -100,9 +100,10 @@ Apply **every row** that matches something you created or changed in the diff.
 |---|-------|------|-----|
 | C1 | Monolith | Stay in `server.lua`/`client.lua` unless split is justified | §3.5 |
 | C2 | No noise | Comment only non-obvious rules — not every line | §3.7 |
-| C3 | No thin wrappers | No `local function x() TriggerEvent(...) end` with no other logic | §1.3 |
+| C3 | No single-use helpers | Extract `local function` only if 2+ call sites; no thin event wrappers | §3.11, §1.3 |
 | C4 | Lookup tables | 3+ conditions → table lookup, not long if/elseif | §3.1 |
 | C5 | Dead code | Remove unused imports/bindings touched by the diff | §3.6 |
+| C6 | Minimal diff | Bugfix ≠ file rewrite; keep user-approved structure/async | §3.11 |
 
 ---
 
@@ -128,7 +129,7 @@ For each row in the checklist above that applies, mark **pass** or **fail + file
 
 ### Step 3 — Clean code pass
 
-Scan diff for C1–C5. Fail = fix before Gate V.
+Scan diff for C1–C6. Fail = fix before Gate V.
 
 ### Step 4 — Fix or document
 
@@ -218,6 +219,14 @@ end)
 -- TWINS: grep same missing-SafeEvent pattern in sibling handlers — fix or list
 ```
 
+### Single-use helpers — WRONG vs CORRECT (§3.11)
+
+```lua
+-- WRONG: extract process/is/build helpers used once; reorder the whole file
+-- CORRECT: inline unique logic in the thread/handler; extract only 2+ call sites
+-- CORRECT: bugfix = minimal diff; keep user-approved async/simple structure
+```
+
 ---
 
 ## Graph engineering (Gate B hook)
@@ -242,6 +251,8 @@ Promote a pitfall found in self-review → `fxmind_record_correction` at Gate C 
 | `executeSync` in handler called from UI | `*_async` + cache §2.1 |
 | Client re-fetches same data on every open | Client cache §2.1.1 |
 | `cb("ok")` in NUI | `cb({})` |
+| New `local function` with one call site | Inline in the handler/thread §3.11 |
+| Bugfix rewrote / reordered the whole file | Revert churn; keep user-approved patterns §3.11 |
 | Refactor changed behavior not in INTENT | Revert or update INTENT + PARITY |
 
 Router: [SKILL.md](SKILL.md) · Full audit: [performance.md](performance.md) §2.4–§2.5

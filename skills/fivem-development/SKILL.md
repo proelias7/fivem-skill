@@ -15,7 +15,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 2. **Framework-agnostic thinking** — Understand patterns, adapt to the active framework
 3. **Performance-first** — FiveM has strict tick budgets
 4. **Security-aware** — Server-side validation is non-negotiable
-5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, reuse `local function` helpers. **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
+5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, extract `local function` only when reused (2+ call sites; §3.11). **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe. Run `/fxmind learn` before rescanning; `/fxmind memory health`; `/fxmind graph`; `/fxmind query`.
 7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-g) + [security.md](security.md) §5.1.
 8. **Quality gates (task mode)** — implementing or refactoring code follows [quality-gates.md](quality-gates.md): design review at Gate A, self-review loop before Gate V.
@@ -29,7 +29,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | Tunnel / events / `_` prefix / same-side calls / response budget | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
 | Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), audit gates | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–**§2.5**, §4.1–4.2, §4.5 |
 | Monolith layout, globals vs fake modules, state placement | [architecture.md](architecture.md) | **§3.5–§3.6**, §3.8 |
-| Lookup tables, nil, comments, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.10** |
+| Lookup tables, nil, comments, single-use helpers, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.11** |
 | SafeEvent, SetCooldown, endpoint auth, server resolution, input validation | [security.md](security.md) | §4.6–4.8, **§5.1–§5.3** |
 | cerberus export signatures & examples | [api.md](api.md) | §4.3–4.4 |
 | **Implement / refactor (task mode DoD)** | [quality-gates.md](quality-gates.md) | Gate A QUALITY + self-review loop |
@@ -83,7 +83,7 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent`, response budget | Read communication.md |
 | Performance / audit | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache, `/fxmind audit` | Read performance.md (§1.4–§1.6.1, §2.1.1, §2.4–§2.5) |
 | Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
-| Style | comments, if/else cleanup | Read style.md |
+| Style | comments, if/else cleanup, `local function` extract vs inline | Read style.md (§3.11) |
 | Security | exploit, SafeEvent, endpoint auth, input validation, webhook | Read security.md |
 | **Implement / refactor / new endpoint / NUI** | new `func.*`, RegisterNetEvent, RegisterNUICallback, refactor resource | Read [quality-gates.md](quality-gates.md) |
 | Project memory | `/fxmind learn`, craft/item/loja | Read `.fxmind/memory/<topic>.md` or suggest learn/query |
@@ -92,7 +92,7 @@ Before writing any native or API call: verify name, parameters, and client/serve
 
 ## Before Writing Lua
 
-1. **READ** [architecture.md](architecture.md) §3.5–3.6 and [style.md](style.md) §3.7–3.10
+1. **READ** [architecture.md](architecture.md) §3.5–3.6 and [style.md](style.md) §3.7–3.11
 2. **Task mode:** read [quality-gates.md](quality-gates.md) — fill Gate A QUALITY plan; run self-review loop before Gate V
 3. Default to **one `server.lua` and one `client.lua`** unless split is clearly justified
 4. Prefer Tunnel/`return` over event roundtrips — [communication.md](communication.md) §1.1
@@ -150,12 +150,14 @@ resource_name/
 |-------|-----|
 | Split every feature into its own Lua file | Monolith unless justified (§3.5) |
 | Comment every line | Comment only non-obvious rules (§3.7) |
+| Extract `local function` for one call site | Inline in the handler/thread (§3.11) |
+| Rewrite the file to fix one bug | Minimal diff; keep user-approved patterns (§3.11) |
 | Fake `LoadResourceFile` imports | Global or same-file helper (§3.6) |
 | Event roundtrip for a return value | Tunnel/`return` (§1.1) |
 | Trust client / rebuild payload every send | Server auth + view cache (§5, §2.2) |
 | Invent natives/APIs | Verify first |
 
-Full tables: [style.md](style.md) §3.10, [architecture.md](architecture.md) §3.6.
+Full tables: [style.md](style.md) §3.10–§3.11, [architecture.md](architecture.md) §3.6.
 
 ---
 
