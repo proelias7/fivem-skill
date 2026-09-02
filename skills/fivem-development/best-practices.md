@@ -27,7 +27,8 @@
 | SafeEvent, endpoint auth §5.1, server resolution §5.2, input validation §5.3 | [security.md](security.md) |
 | cerberus `SendFullSync` / export signatures | [api.md](api.md) |
 | **Implement / refactor code (task mode)** | [quality-gates.md](quality-gates.md) |
-| Full audit | communication §1.1 + performance (§1.6.1, §2.1.1, §2.4–§2.5) + architecture §3.6 + security §5.1 + §5.3 |
+| **NUI CEF overlay / Vite hash (task + audit Pass NUI)** | [fivem-react-nui/ui-guide.md](../fivem-react-nui/ui-guide.md) §2, §6 |
+| Full audit | communication §1.1 + performance (§1.6.1, §2.1.1, §2.4–§2.5 Pass NUI) + architecture §3.6 + security §5.1 + §5.3 |
 
 Router: [SKILL.md](SKILL.md)
 

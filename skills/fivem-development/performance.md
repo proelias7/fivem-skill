@@ -760,6 +760,34 @@ Example:
 -- Summary: Medium = 5  ← now matches 5 Findings rows
 ```
 
+#### Pass NUI — CEF overlay fill & Vite cache (when `ui_page` or NUI `files` in fxmanifest)
+
+**Mandatory** when the resource ships a NUI (`ui_page`, `files` with `nui/`, `html/`, `src/ui/build/`). Otherwise mark **N/A** for all rows.
+
+View-cache and endpoint passes do not cover CEF rendering bugs. **Do not confuse** Vite cache (N-a) with rgba fill (N-b/N-c) — if build output already has `[hash]` and CSS uses hex, investigate N-b/N-c, not cache.
+
+| # | Check | Grep hint | If found → severity |
+|---|-------|-----------|---------------------|
+| N-a | Vite output **without** content hash | `entryFileNames` / `chunkFileNames` / `assetFileNames` without `[hash]` in `vite.config.ts` | **High** |
+| N-b | **Alpha fill** on rounded overlay/shell/popup over transparent html | `rgba(` on `.popup`/`.shell`/overlay; Tailwind `bg-*/[0-9]` or `rgb(... / var(--tw-bg-opacity))` on panel fill | **High** |
+| N-c | **fadeIn/fadeOut** or opacity animation on overlay container | `fadeIn`, `fadeOut`, `.fade(` in NUI JS/CSS | **High** |
+| N-d | **oklch** in CSS source or build output | `oklch(` (Tailwind v4) | **High** |
+
+**N-b rules:**
+
+- Solid buttons (`#F1A80D`) and `rgba` in **box-shadow** are OK — flag only the **panel/shell fill**.
+- PNG/image backgrounds (`url(...)`, `images/bg.png`) are valid fills.
+- React: flag `bg-black/70`, `bg-opacity-*` on rounded shell components.
+
+**Audit output:** NUI matrix (N-a–N-d: Found / N/A) in report; each hit = Findings row with `file:line` + before/after fix (hex+gradient, dim on `::before`, remove fadeIn, or restore Vite `[hash]`).
+
+**Correction plan (N-b/N-c):**
+
+1. Replace rgba/Tailwind alpha fill with `#111111` + `background-image: linear-gradient(#111111,#111111)`.
+2. Move screen dim to sibling/`::before` inset-0 without `border-radius`.
+3. Replace `fadeIn`/`fadeOut` with `display: flex|none`.
+4. React: absolute `inset-0 z-0` fill layer; content `z-[3]`.
+
 #### Pass 3 — Globals with cross-file grep (§3.6)
 
 For **each** top-level global in server scope:
@@ -827,6 +855,7 @@ Before saving the report, confirm:
 - [ ] All `fxmanifest` Lua files listed in **Files reviewed**
 - [ ] View cache matrix: every applicable row checked (V-a–V-j)
 - [ ] **Endpoint flow (Pass 2b):** every client-callable endpoint (event + `Tunnel.bindInterface` funcs + NUI chains) checked for E-a…E-g
+- [ ] **NUI matrix (Pass NUI):** when `ui_page`/NUI files present — every row N-a–N-d checked (Found / N/A)
 - [ ] **Response size estimated** per read endpoint (KB); any `tunnel_res`/reply > ~8 KB flagged (E-f)
 - [ ] **N+1 grep:** no client loop calling server per item of a list (E-g / §1.4)
 - [ ] Broadcast targets: `manager:*` / admin events use `source`, not `-1` (§1.6.1)

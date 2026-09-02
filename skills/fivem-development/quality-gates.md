@@ -16,6 +16,7 @@ Theory lives in sibling files — this file only states **what to do** and **whe
 | Comments, anti-patterns, local-function extract | [style.md](style.md) §3.7, §3.10–**§3.11** |
 | SafeEvent, validation, auth | [security.md](security.md) §4.6–§4.8, §5.1–§5.3 |
 | cerberus exports | [api.md](api.md) |
+| NUI overlay fill, Vite hash | [fivem-react-nui/ui-guide.md](../fivem-react-nui/ui-guide.md) §2, §6 |
 
 ---
 
@@ -31,6 +32,8 @@ QUALITY:
   validate:  <§5.3 checks per mutation>
   rate-limit:<SafeEvent on server | SetCooldown on client | both>
   fan-out:   <source | -1 small delta | cerberus | none>
+  nui-fill:  <hex+gradient | png | n/a>   ← when diff touches NUI CSS/React overlay
+  vite-hash: <default | [hash] | fail>    ← when diff touches vite.config.ts
 ```
 
 **Refactor tasks** also declare:
@@ -85,6 +88,15 @@ Apply **every row** that matches something you created or changed in the diff.
 | N2 | JSON response | `cb({})` or valid JSON — not bare `"ok"` string | ui-guide |
 | N3 | No trust | NUI `maxlength`/UI gates are not security; server validates | §5.3 |
 
+### NUI overlay / Vite (when diff touches NUI CSS, React shell, or `vite.config.ts`)
+
+| # | Check | Rule | Ref |
+|---|-------|------|-----|
+| U1 | Vite hash | Never fix `entryFileNames` / `chunkFileNames` / `assetFileNames` without `[hash]` | ui-guide §2 |
+| U2 | Opaque fill | Panel/shell/popup fill = hex + `linear-gradient(#111,#111)` — not `rgba` / `bg-*/70` on same rounded element over transparent html | ui-guide §6 |
+| U3 | Dim layer | Screen dim = sibling/`::before` inset-0 **without** `border-radius`; opacity on dim layer, not card | ui-guide §6 |
+| U4 | No fadeIn | Open/close overlay with `display: flex|none` — not jQuery `fadeIn`/`fadeOut` | ui-guide §6 |
+
 ### Refactor
 
 | # | Check | Rule | Ref |
@@ -120,6 +132,8 @@ endpoints:  func.saveOutfit (Tunnel mutate), NUI save (chain)
 broadcast:  none
 db-writes:  INSERT wardrobe_presets
 nui:        RegisterNUICallback save
+nui-fill:   DominacaoShell — hex+gradient
+vite-hash:  default (no custom rollup output)
 refactor:   no | yes → INVARIANTS: ...
 ```
 
@@ -194,7 +208,57 @@ local shots = func.getScreenshots(idsFrom(presets))
 -- cache in presetsCache; invalidate on CRUD only
 ```
 
-### NUI — WRONG vs CORRECT
+### NUI overlay fill — WRONG vs CORRECT (CEF)
+
+```css
+/* WRONG: rgba fill on rounded shell — 3D world bleeds through for some players */
+.popup {
+  border-radius: 8px;
+  background: rgba(16, 16, 16, 0.85);
+}
+
+/* CORRECT: opaque hex + gradient; dim on ::before without radius */
+.overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0.7;
+}
+.popup {
+  border-radius: 8px;
+  background-color: #111111;
+  background-image: linear-gradient(#111111, #111111);
+}
+```
+
+```tsx
+// WRONG: Tailwind bg-black/70 on rounded shell
+<div className="rounded-xl bg-black/70">{children}</div>
+
+// CORRECT: absolute fill layer + content z-index
+<div className="relative rounded-xl overflow-hidden">
+  <div className="absolute inset-0 z-0 bg-[#111111] [background-image:linear-gradient(#111111,#111111)]" />
+  <div className="relative z-[3]">{children}</div>
+</div>
+```
+
+```typescript
+// WRONG: fixed bundle names — CEF cache serves stale CSS
+build: {
+  rollupOptions: {
+    output: {
+      entryFileNames: "assets/[name].js",
+      assetFileNames: "assets/[name].[ext]",
+    },
+  },
+}
+
+// CORRECT: Vite default (includes [hash]) — fxmanifest: "src/ui/build/**/*"
+build: { outDir: "../build", sourcemap: false },
+```
+
+### NUI callback — WRONG vs CORRECT
 
 ```lua
 -- WRONG
@@ -254,5 +318,8 @@ Promote a pitfall found in self-review → `fxmind_record_correction` at Gate C 
 | New `local function` with one call site | Inline in the handler/thread §3.11 |
 | Bugfix rewrote / reordered the whole file | Revert churn; keep user-approved patterns §3.11 |
 | Refactor changed behavior not in INTENT | Revert or update INTENT + PARITY |
+| `rgba` / `bg-*/70` fill on rounded NUI shell | Hex + `linear-gradient` + dim on sibling §6 |
+| Vite `entryFileNames` without `[hash]` | Remove custom names; use default `[hash]` output |
+| jQuery `fadeIn`/`fadeOut` on overlay | `display: flex|none` toggle |
 
 Router: [SKILL.md](SKILL.md) · Full audit: [performance.md](performance.md) §2.4–§2.5

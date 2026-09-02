@@ -78,6 +78,9 @@ export default defineConfig({
 - `outDir: "../build"` — build stays outside project for fxmanifest to reference
 - `sourcemap: false` — do not expose source code
 - Use `@vitejs/plugin-react-swc` (faster than babel)
+- **Never** set `rollupOptions.output.entryFileNames` / `chunkFileNames` / `assetFileNames` to fixed names like `assets/[name].js` or `assets/[name].[ext]` **without `[hash]`** — FiveM CEF caches NUI on the client; stale CSS makes backgrounds disappear for some players. Leave Vite defaults (`index-[hash].js`, `index-[hash].css`).
+- **WRONG:** `entryFileNames: "assets/[name].js"`, `assetFileNames: "assets/[name].[ext]"`
+- **CORRECT:** omit `rollupOptions.output` names entirely, or use patterns that include `[hash]`
 
 **package.json Scripts:**
 ```json
@@ -96,7 +99,7 @@ ui_page "src/ui/build/index.html"
 
 files {
     "src/ui/build/index.html",
-    "src/ui/build/assets/*",
+    "src/ui/build/**/*",           -- covers hashed assets (index-[hash].js/css)
     "src/ui/project/public/**/*",  -- config.ui.json and images
 }
 ```
@@ -184,6 +187,8 @@ FiveM uses **Chromium Embedded Framework (CEF)** with limitations:
 | `mix-blend-mode` | Inconsistent in CEF |
 | `-webkit-backdrop-filter` | Same problem as backdrop-filter |
 | `will-change` in excess | Memory leak in CEF |
+| `rgba()` / alpha / Tailwind `bg-*/70` as **fill** on rounded overlay/shell/popup over transparent `html/body` | **CEF panel fill bug** — text/border/solid buttons visible; 3D world shows through for some players (Intel/AMD iGPU). Use hex + `linear-gradient` fill instead |
+| jQuery `fadeIn`/`fadeOut` on overlay container | Animates `opacity` on top of alpha — same CEF failure mode |
 
 ### USE WITH CAUTION
 
@@ -197,25 +202,58 @@ FiveM uses **Chromium Embedded Framework (CEF)** with limitations:
 ### SAFE ALTERNATIVES
 
 ```css
-/* Instead of backdrop-filter: blur() */
-.bg-modal-overlay {
-  background: rgba(16, 16, 16, 0.7);   /* Opacity instead of blur */
+/* Screen dim — sibling layer WITHOUT border-radius (opacity on ::before, not on card) */
+.overlay-root::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0.7;
+  z-index: 0;
+}
+
+/* Panel/card fill — opaque hex + linear-gradient (CEF composes background-image even when background-color fails on rounded+overflow) */
+.panel-shell {
+  position: relative;
+  border-radius: 0.5rem;
+  background-color: #111111;
+  background-image: linear-gradient(#111111, #111111);
 }
 
 /* Instead of filter: drop-shadow() */
 .card {
-  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+  box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);  /* rgba in box-shadow on solid elements is OK */
 }
 
-/* Gradients are light and look good */
+/* Accent gradients on opaque base — OK when base fill is solid hex */
 .bg-main {
-  background: linear-gradient(
+  background-color: rgb(20, 21, 31);
+  background-image: linear-gradient(
     293deg,
     rgba(var(--main-color), 0) 82%,
     rgba(var(--main-color), 0.13) 127%
-  ), rgb(20, 21, 31);
+  );
 }
 ```
+
+**React shell pattern:**
+
+```tsx
+<div className="overlay-root fixed inset-0 flex">
+  <div className="absolute inset-0 z-0 bg-[#111111] [background-image:linear-gradient(#111111,#111111)]" />
+  <div className="relative z-[3]">{children}</div>
+</div>
+```
+
+**Diagnosis (background missing for some players only):**
+
+| Build has `index-[hash].css`? | Panel uses hex + gradient fill? | Likely cause |
+|-------------------------------|----------------------------------|--------------|
+| No (fixed asset names) | — | **Vite cache** — fix hash in `vite.config.ts` |
+| Yes | No (`rgba`, `bg-black/70`, fadeIn) | **CEF fill** — fix overlay pattern above |
+| Yes | Yes | Look elsewhere (not these two bugs) |
+
+PNG/image backgrounds (`url(images/bg.png)`) are valid fills — only alpha CSS on the rounded shell is forbidden.
 
 ## 7. NUI Communication Hooks
 
@@ -585,12 +623,15 @@ export function AppContent() {
 - Zustand for global state (light, no boilerplate)
 - Small and focused components
 - Global `overflow: hidden`
-- Linear/radial gradients for backgrounds (light)
-- `opacity` for visibility transitions
+- Linear/radial gradients for panel fills (opaque hex base)
 - `transform: translate/scale` for animations
+- `display: flex|none` to show/hide overlays
 
 ### DO NOT
 
+- Fixed Vite output filenames without `[hash]` (`entryFileNames` / `assetFileNames`)
+- `rgba()` / Tailwind opacity utilities as **fill** on rounded overlay/shell over transparent html
+- jQuery `fadeIn`/`fadeOut` on overlay containers (use `display` toggle)
 - `backdrop-filter: blur()` (FPS killer)
 - `filter: blur()` on dynamic elements
 - `filter: drop-shadow()` (use `box-shadow`)

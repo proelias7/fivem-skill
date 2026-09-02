@@ -17,7 +17,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, extract `local function` only when reused (2+ call sites; §3.11). **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe. Run `/fxmind learn` before rescanning; `/fxmind memory health`; `/fxmind graph`; `/fxmind query`.
-7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-g) + [security.md](security.md) §5.1.
+7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-g, **Pass NUI** N-a…N-d when `ui_page`) + [security.md](security.md) §5.1.
 8. **Quality gates (task mode)** — implementing or refactoring code follows [quality-gates.md](quality-gates.md): design review at Gate A, self-review loop before Gate V.
 
 ---
@@ -33,6 +33,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | SafeEvent, SetCooldown, endpoint auth, server resolution, input validation | [security.md](security.md) | §4.6–4.8, **§5.1–§5.3** |
 | cerberus export signatures & examples | [api.md](api.md) | §4.3–4.4 |
 | **Implement / refactor (task mode DoD)** | [quality-gates.md](quality-gates.md) | Gate A QUALITY + self-review loop |
+| **NUI / React UI (CEF fill, Vite hash)** | [fivem-react-nui/SKILL.md](../fivem-react-nui/SKILL.md) · [ui-guide.md](../fivem-react-nui/ui-guide.md) §2, §6 |
 | Index of all § links | [best-practices.md](best-practices.md) | TOC only |
 | Props / vehicles / peds | [asset-discovery.md](asset-discovery.md) | — |
 | Detect vRP / QB / Qbox / ESX | [framework-detection.md](framework-detection.md) | — |
