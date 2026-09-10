@@ -255,6 +255,21 @@ FiveM uses **Chromium Embedded Framework (CEF)** with limitations:
 
 PNG/image backgrounds (`url(images/bg.png)`) are valid fills — only alpha CSS on the rounded shell is forbidden.
 
+### Background missing: directional border fallback
+
+Project-reported CEF workaround: in some FiveM environments, `border-style: solid` can render poorly alongside the panel background. When the background disappears or a visual border defect is observed, try directional styles on the affected element:
+
+```css
+.panel {
+  border-top-style: inset;
+  border-bottom-style: outset;
+  border-left-style: inset;
+  border-right-style: outset;
+}
+```
+
+Preserve the intended border widths/colors and existing background fixes. Put these declarations after any `border`/`border-style` shorthand or conflicting utility so the cascade does not restore `solid`. Apply to the affected component only, not as a global replacement of all solid borders. Reproduce and visually verify the result in FiveM CEF; browser preview alone does not establish that this runtime-specific defect is fixed.
+
 ## 7. NUI Communication Hooks
 
 ### observe — Listen to messages from Lua

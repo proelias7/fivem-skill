@@ -96,6 +96,8 @@ Apply **every row** that matches something you created or changed in the diff.
 | U2 | Opaque fill | Panel/shell/popup fill = hex + `linear-gradient(#111,#111)` — not `rgba` / `bg-*/70` on same rounded element over transparent html | ui-guide §6 |
 | U3 | Dim layer | Screen dim = sibling/`::before` inset-0 **without** `border-radius`; opacity on dim layer, not card | ui-guide §6 |
 | U4 | No fadeIn | Open/close overlay with `display: flex|none` — not jQuery `fadeIn`/`fadeOut` | ui-guide §6 |
+| U5 | Observed UI | Exercise affected interactions, inspect a fresh screenshot and console; CEF claims require in-game evidence. Missing runtime stays unverified | task-verify |
+| U6 | Border fallback | When background/border rendering fails with `solid`, try top/left `inset`, bottom/right `outset` on the affected element; preserve width/color, check cascade and verify in CEF | ui-guide §6 |
 
 ### Refactor
 
@@ -116,6 +118,7 @@ Apply **every row** that matches something you created or changed in the diff.
 | C4 | Lookup tables | 3+ conditions → table lookup, not long if/elseif | §3.1 |
 | C5 | Dead code | Remove unused imports/bindings touched by the diff | §3.6 |
 | C6 | Minimal diff | Bugfix ≠ file rewrite; keep user-approved structure/async | §3.11 |
+| C7 | Constants | Extract for domain meaning, actual reuse or real configuration; keep obvious one-use literals inline | §3.12 |
 
 ---
 

@@ -156,6 +156,12 @@ Typical **AI over-engineering** mistakes — **do not generate code like this:**
 
 When in doubt: **one server file, one client file, locals at top, fewer comments, extract a helper only when it is reused.**
 
+### 3.12 Constants — meaning, not ceremony
+
+Do not hoist every one-use literal into a constant. Extract when it names a non-obvious domain rule, coordinates a repeated value, or is a real tuning/configuration point. Keep obvious one-use labels, event names and UI strings near their use unless this project already centralizes them. Do not reorganize working code merely to create a constants section.
+
+Before delivery, inspect each newly added constant/helper/file and remove it if it only makes the reader jump elsewhere to understand one expression. Preserve existing useful abstractions and required security validation.
+
 ### 3.11 Local functions — extract only on reuse
 
 **Extract a `local function` only when it has 2+ call sites.** One call site → keep the body inline in the `CreateThread` / event handler / loop. Do not invent `processX`, `cleanupY`, `isZ`, `buildW` for a single use.

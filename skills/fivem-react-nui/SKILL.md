@@ -14,6 +14,7 @@ Stack: **React 18 + TypeScript + Vite + Tailwind CSS v3.4.17 + Zustand**
 - `base: "./"` in `vite.config.ts` — **MANDATORY** for assets to load in FiveM
 - **Never** fix Vite `rollupOptions.output` filenames without `[hash]` — FiveM CEF caches NUI; fixed names (`assets/[name].css`) leave stale CSS for some players
 - **Overlay/shell fill on transparent html:** opaque **hex** + `background-image: linear-gradient(#111,#111)` — **never** `rgba()` / Tailwind `bg-*/70` / `opacity` on the **same** rounded element as the panel fill (CEF bug on some iGPUs). Screen dim = sibling layer **without** `border-radius` (`::before` inset-0). Toggle with `display: flex|none` — **never** jQuery `fadeIn`/`fadeOut` on the overlay container
+- **Background missing / border rendering defect with `border-style: solid`:** try top/left `inset` and bottom/right `outset` on the affected element; see the directional border fallback in `ui-guide.md` §6. Verify visually in FiveM CEF; do not replace solid borders globally.
 - Use `rem` for ALL sizes — NEVER `px` for layout (scales with player resolution)
 - **Tailwind v4 uses OKLCH**, which FiveM CEF does not support — **use Tailwind v3.4.17**
 - FORBIDDEN: `backdrop-filter: blur()`, `filter: blur()`, `filter: drop-shadow()` — cause FPS drop
