@@ -46,10 +46,12 @@ skills/
 │   ├── SKILL.md              ← thin router
 │   ├── best-practices.md     ← index (stable § links)
 │   ├── communication.md      ← §1
-│   ├── performance.md        ← §2, §4.1–4.2, §4.5
+│   ├── performance.md        ← §1.4–1.6.2, §2.1–2.2, §4.1–4.2, §4.5
+│   ├── audit-passes.md       ← §2.3–2.5 (audit only)
+│   ├── quality-gates.md      ← task-mode checklist
 │   ├── architecture.md       ← §3.5–3.6, §3.8
 │   ├── style.md              ← §3.1–3.4, §3.7, §3.9–3.10
-│   ├── security.md           ← §4.6–4.8, §5
+│   ├── security.md           ← §4.6–4.8, §5.1–5.4
 │   └── api.md                ← §4.3–4.4
 ├── fivem-react-nui/
 ├── vrp-framework/
@@ -61,10 +63,14 @@ skills/
 ## Audit workflow
 
 1. Run **`/fxmind audit resources/[novos]/myresource`** in the FiveM project
-2. Agent reads **`SKILL.md`** then on-demand: `performance.md` §2.4–§2.5, `communication.md` §1.6.1, `security.md` §5.1
+2. Agent reads **`SKILL.md`** then on-demand: `audit-passes.md` §2.3–§2.5, `performance.md` §1.6.1, `security.md` §5.1
 3. Report saved to **`.fxmind/audits/<resource>.md`** (template from fxmind pack)
 
-Key audit rules: **§2.4** / **§2.5** in `performance.md`, **§1.6.1** in `communication.md`, **§5.1** in `security.md`. Index: `best-practices.md`.
+Key audit rules: **§2.4** / **§2.5** in `audit-passes.md`, **§1.6.1** in `performance.md`, **§5.1** in `security.md`. Index: `best-practices.md`.
+
+## Principles
+
+fxmind installs `.fxmind/policy/fivem-principles.md` (IDs N1–N6, D1–D3, T1–T2, C1–C4). `SKILL.md` maps each ID to the sections here; corrections are folded into the matching section as a short `Rule (ID)` line — not appended as new "Learned rule" sections.
 
 ## License
 

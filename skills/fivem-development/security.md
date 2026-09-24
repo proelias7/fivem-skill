@@ -136,13 +136,13 @@ Cerberus `SafeEvent` complements — but does not replace — server-side valida
 - Rate-limit repetitive client actions locally (cooldown flag, debounce, or framework pattern)
 - Guard events that can run with `source = -1` against floods
 - Avoid heavy DB work directly from high-frequency client callbacks without throttling
-- **Event-flow DoS:** treat every client→server net event as spam-able — if the handler hits SQL, fans out `TriggerClientEvent(-1)`, or writes `GlobalState` / replicated StateBags, require SafeEvent/cooldown + cache (checklist: [performance.md](performance.md) **Pass 2b** E-a…E-e, §1.6.2)
+- **Event-flow DoS:** treat every client→server net event as spam-able — if the handler hits SQL, fans out `TriggerClientEvent(-1)`, or writes `GlobalState` / replicated StateBags, require SafeEvent/cooldown + cache (checklist: [audit-passes.md](audit-passes.md) **Pass 2b** E-a…E-e, [performance.md](performance.md) §1.6.2)
 
 > **Rule:** Every server event that grants money, items, XP, vehicles, or bypasses restrictions must validate on the server before applying the reward.
 
 ### 5.1 Client-Callable Endpoints — Server Auth (Audit)
 
-**General rule:** every client-callable server endpoint — `RegisterNetEvent`, `Tunnel.bindInterface` function, or NUI→server chain — requires, on the server: **identity** (Passport/user_id), **rate-limit** (`SafeEvent` §4.6) proportional to cost, and **input validation** (§5.3) when it mutates. UI buttons are not a gate; assume the client is hostile (performance.md Pass 2b).
+**General rule:** every client-callable server endpoint — `RegisterNetEvent`, `Tunnel.bindInterface` function, or NUI→server chain — requires, on the server: **identity** (Passport/user_id), **rate-limit** (`SafeEvent` §4.6) proportional to cost, and **input validation** (§5.3) when it mutates. UI buttons are not a gate; assume the client is hostile ([audit-passes.md](audit-passes.md) Pass 2b).
 
 **Admin/manager endpoints (`manager:*`, `admin:*`)** are a special class: beyond rate-limit + validation, they require **real staff permission**. Client-only UI gating is **not** security.
 
@@ -268,27 +268,17 @@ function func.saveScreenshot(presetId, data)
 end
 ```
 
-### Learned rule: Webhook tokens must live in a dedicated webhook resource (robberys, 2026-06-20)
+### 5.4 Secrets — webhook tokens
 
-- **Never** hardcode Discord webhook URLs/tokens in server scripts (`server.lua`, `sv_*.lua`), shared scripts, or any file accessible to clients (NUI, shared_scripts).
-- Move tokens to a **dedicated server-side webhook resource** — never to `server.cfg`.
-- Critical audit rule: token must not be in any file loaded client-side.
+> **Rule:** Discord webhook URLs/tokens never live in game scripts (`server.lua`, `sv_*.lua`), shared/NUI files or `server.cfg`. A dedicated server-only webhook resource holds them and exposes an export; a token in any client-loaded file is **Critical** in audits.
 
-**Why:** Tokens in server Lua files are exposed in the git repository. `server.cfg` is also readable in some hosting environments and is not the correct pattern for webhook credentials. A dedicated webhook resource isolates the secret to a single protected server-only scope and allows rotation without touching game logic.
-
-Example:
 ```lua
--- WRONG: token hardcoded in server.lua (git-exposed)
-local Robbery = "https://discord.com/api/webhooks/123456/TOKEN..."  -- server.lua:50
+-- WRONG: robberys/server.lua:50
+local Robbery = "https://discord.com/api/webhooks/123456/TOKEN..."
 
--- WRONG: token moved to server.cfg (not the right place for webhook credentials)
--- set WEBHOOK_ROBBERY "https://discord.com/api/webhooks/123456/TOKEN..."
-
--- CORRECT: dedicated webhook resource (server-only)
--- In resource "webhook/server.lua":
+-- CORRECT: webhook/server.lua (server-only resource)
 local token = "https://discord.com/api/webhooks/123456/TOKEN..."
 exports("SendWebhook", function(data) PerformHttpRequest(token, ...) end)
-
--- In robberys/server.lua:
+-- robberys/server.lua
 exports["webhook"]:SendWebhook({ content = "..." })
 ```

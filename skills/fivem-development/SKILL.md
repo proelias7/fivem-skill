@@ -1,6 +1,6 @@
 ---
 name: fivem-development
-description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside + client-side cache §2.1.1), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (§2.4), client-callable endpoint exposure & server auth (§5.1), input validation (§5.3), quality gates for implementation/refactor (quality-gates.md), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
+description: FiveM development best practices for any framework (vRP, QBCore, Qbox, ESX). Covers performance, security, client/server communication, cache (cacheaside + client-side cache §2.1.1), cerberus (load balance, SafeEvent, SetCooldown), view-cache audit (audit-passes.md §2.4), client-callable endpoint exposure & server auth (§5.1), input validation (§5.3), quality gates for implementation/refactor (quality-gates.md), asset discovery, framework auto-detection, and dynamic documentation fetching. Use when the user works with FiveM, Lua scripts, natives, resources, fxmanifest, optimization, /fxmind audit, or general server development without a specific framework context.
 ---
 
 # FiveM Development — Best Practices
@@ -17,7 +17,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 4. **Security-aware** — Server-side validation is non-negotiable
 5. **Clean, readable Lua over abstraction** — Monolith-first (`server.lua` / `client.lua`), minimal comments, extract `local function` only when reused (2+ call sites; §3.11). **Do not** componentize Lua like React or invent event roundtrips when Tunnel/`return` fits.
 6. **Project memory** — `reference.mdc` = lean global map (`alwaysApply`); `.fxmind/memory/<topic>.md` = shared compact recipe. Run `/fxmind learn` before rescanning; `/fxmind memory health`; `/fxmind graph`; `/fxmind query`.
-7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + §2.4–§2.5 (**Pass 2b** E-a…E-g, **Pass NUI** N-a…N-d when `ui_page`) + [security.md](security.md) §5.1.
+7. **Audit assertiveness** — `/fxmind audit` follows [performance.md](performance.md) §1.6.1–§1.6.2 + [audit-passes.md](audit-passes.md) §2.3–§2.5 (**Pass 2b** E-a…E-g, **Pass NUI** N-a…N-d when `ui_page`) + [security.md](security.md) §5.1.
 8. **Quality gates (task mode)** — implementing or refactoring code follows [quality-gates.md](quality-gates.md): design review at Gate A, self-review loop before Gate V.
 
 ---
@@ -27,7 +27,8 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | Topic | File | Key sections |
 |-------|------|--------------|
 | Tunnel / events / `_` prefix / same-side calls / response budget | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
-| Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), audit gates | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–**§2.5**, §4.1–4.2, §4.5 |
+| Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), view cache | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–§2.2, §4.1–4.2, §4.5 |
+| **Audit only** — Pass 0–7, matrices V/E/N, report gates | [audit-passes.md](audit-passes.md) | §2.3–§2.5 |
 | Monolith layout, globals vs fake modules, state placement | [architecture.md](architecture.md) | **§3.5–§3.6**, §3.8 |
 | Lookup tables, nil, comments, single-use helpers, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.11** |
 | SafeEvent, SetCooldown, endpoint auth, server resolution, input validation | [security.md](security.md) | §4.6–4.8, **§5.1–§5.3** |
@@ -37,6 +38,24 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | Index of all § links | [best-practices.md](best-practices.md) | TOC only |
 | Props / vehicles / peds | [asset-discovery.md](asset-discovery.md) | — |
 | Detect vRP / QB / Qbox / ESX | [framework-detection.md](framework-detection.md) | — |
+
+**Principle IDs → sections** (IDs from `.fxmind/policy/fivem-principles.md`; open only the row you need):
+
+| ID | Rule | Details |
+|----|------|---------|
+| N1 | recipient scope | performance §1.6.1, §4.2 |
+| N2 | minimal payload | performance §1.6, §2.2 |
+| N3 | big data in pieces | performance §1.6, §4.1–4.2 (cerberus `SendFullSync`) |
+| N4 | no periodic fan-out | performance §1.4, §1.6.1, §4.2 |
+| N5 | client-side sync / statebags | performance §1.6.2, §2.1.1 |
+| N6 | anti-flood | security §4.6–§4.8, §5.1 |
+| D1 | no DB in hot paths | performance §2.1, §2.1.1 |
+| D2 | one round-trip, no N+1 | performance §1.4 |
+| D3 | server owns truth | security §5.2–§5.3 |
+| T1/T2 | event-driven, dynamic sleep | performance §1.5 |
+| C1 | minimal code, no single-use helpers | style §3.11–§3.12, communication §1.3 |
+| C2 | readable flow, no globals | architecture §3.5–§3.6, §3.8; style §3.1–§3.4 |
+| C3/C4 | validate once; clean diff | security §5.3; style §3.7, §3.9 |
 
 **Corrections backlog** (`.fxmind/corrections/`) categories map 1:1 to these files — promote rules into the matching file, not into a new skill.
 
@@ -66,7 +85,8 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | ox_lib | **FETCH** https://overextended.dev/ox_lib |
 | GTA V asset | **READ** [asset-discovery.md](asset-discovery.md) |
 | Communication / Tunnel | **READ** [communication.md](communication.md) |
-| Cache / sleep / broadcast / audit / cerberus sync / client cache | **READ** [performance.md](performance.md) |
+| Cache / sleep / broadcast / cerberus sync / client cache | **READ** [performance.md](performance.md) |
+| `/fxmind audit` | **READ** [audit-passes.md](audit-passes.md) |
 | New resource / monolith | **READ** [architecture.md](architecture.md) + [style.md](style.md) |
 | Security / SafeEvent / endpoint auth / input validation | **READ** [security.md](security.md) |
 | cerberus export API | **READ** [api.md](api.md) |
@@ -82,7 +102,8 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | ox_lib | `lib.*` | Fetch overextended.dev/ox_lib |
 | Asset Discovery | prop / vehicle / ped model | Read asset-discovery.md |
 | Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent`, response budget | Read communication.md |
-| Performance / audit | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache, `/fxmind audit` | Read performance.md (§1.4–§1.6.1, §2.1.1, §2.4–§2.5) |
+| Performance | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache | Read performance.md (§1.4–§1.6.2, §2.1–§2.2) |
+| Audit | `/fxmind audit`, refactor input | Read audit-passes.md (§2.3–§2.5) |
 | Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
 | Style | comments, if/else cleanup, `local function` extract vs inline | Read style.md (§3.11) |
 | Security | exploit, SafeEvent, endpoint auth, input validation, webhook | Read security.md |
