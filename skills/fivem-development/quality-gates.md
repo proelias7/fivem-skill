@@ -6,7 +6,7 @@
 
 > **Audit vs quality-gates:** `/fxmind audit` is the **independent** post-hoc review. This file is the **author's checklist** while writing code. You cannot mark a check as pass without evidence in the diff.
 
-Theory lives in sibling files — this file only states **what to do** and **when**. Follow § links for details.
+Theory lives in sibling files — this file only states **what to do** and **when**. Follow § links for details. The binding rule IDs (N1–N6, D1–D3, T1–T2, C1–C4) come from `.fxmind/policy/fivem-principles.md`; the tags below map each check to them.
 
 | Topic | File |
 |-------|------|
@@ -27,11 +27,11 @@ When the task touches a FiveM resource, add a **QUALITY** block to Gate A (3–6
 ```
 QUALITY:
   endpoints: <new/changed names + type: event|Tunnel|NUI>
-  payload:   <estimated KB per response; list = metadata only>
-  cache:     <server cacheaside §2.1 | client §2.1.1 | none + why>
-  validate:  <§5.3 checks per mutation>
-  rate-limit:<SafeEvent on server | SetCooldown on client | both>
-  fan-out:   <source | -1 small delta | cerberus | none>
+  payload:   <estimated KB per response; list = metadata only>        (N2/N3)
+  cache:     <server cacheaside §2.1 | client §2.1.1 | none + why>   (D1)
+  validate:  <§5.3 checks per mutation>                                (C3/D3)
+  rate-limit:<SafeEvent on server | SetCooldown on client | both>      (N6)
+  fan-out:   <source | list | -1 small delta | cerberus | statebag>    (N1/N4/N5)
   nui-fill:  <hex+gradient | png | n/a>   ← when diff touches NUI CSS/React overlay
   vite-hash: <default | [hash] | fail>    ← when diff touches vite.config.ts
 ```
@@ -153,12 +153,9 @@ Scan diff for C1–C6. Fail = fix before Gate V.
 - **Fix** every fail you can in ≤2 cycles.
 - **Cannot fix** (out of scope) → list in Gate V `REVIEW: ... fixed: [...] deferred: [...]`.
 
-### Gate V artifact (required verbatim)
+### Gate V record
 
-```
-REVIEW: endpoints <n> (<names>) — quality checks <pass|fixed: list|deferred: list> — clean-code <pass|fixed: list>
-PARITY: <n/a | invariants preserved | changed: reason>   ← required on refactor tasks
-```
+Put the result in `fxmind_record_gate` V evidence `review` — not as a block in chat: endpoints checked, fixes/deferred items, principle IDs (`N1 N2 N6 D1 ok; N3 n/a`) and, on refactors, parity (`invariants preserved` or `changed: reason`).
 
 ---
 
@@ -325,4 +322,4 @@ Promote a pitfall found in self-review → `fxmind_record_correction` at Gate C 
 | Vite `entryFileNames` without `[hash]` | Remove custom names; use default `[hash]` output |
 | jQuery `fadeIn`/`fadeOut` on overlay | `display: flex|none` toggle |
 
-Router: [SKILL.md](SKILL.md) · Full audit: [performance.md](performance.md) §2.4–§2.5
+Router: [SKILL.md](SKILL.md) · Full audit: [audit-passes.md](audit-passes.md) §2.4–§2.5
