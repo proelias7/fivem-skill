@@ -27,7 +27,7 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 | Topic | File | Key sections |
 |-------|------|--------------|
 | Tunnel / events / `_` prefix / same-side calls / response budget | [communication.md](communication.md) | §1.1–§1.3, §1.7 |
-| Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), view cache | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–§2.2, §4.1–4.2, §4.5 |
+| Loops, dynamic sleep, payloads, tunnel_res, broadcast, StateBags, cache (server + client §2.1.1), view cache, client data seeding / bootstrap §2.2.1 | [performance.md](performance.md) | **§1.4–§1.6.2**, §2.1–§2.2.1, §4.1–4.2, §4.5 |
 | **Audit only** — Pass 0–7, matrices V/E/N, report gates | [audit-passes.md](audit-passes.md) | §2.3–§2.5 |
 | Monolith layout, globals vs fake modules, state placement | [architecture.md](architecture.md) | **§3.5–§3.6**, §3.8 |
 | Lookup tables, nil, comments, single-use helpers, checklist, anti-patterns | [style.md](style.md) | §3.1–3.4, §3.7, §3.9–**§3.11** |
@@ -45,10 +45,11 @@ description: FiveM development best practices for any framework (vRP, QBCore, Qb
 |----|------|---------|
 | N1 | recipient scope | performance §1.6.1, §4.2 |
 | N2 | minimal payload | performance §1.6, §2.2 |
-| N3 | big data in pieces | performance §1.6, §4.1–4.2 (cerberus `SendFullSync`) |
+| N3 | big data in pieces | performance §1.6, §2.2.1, §4.1–4.2 (cerberus `SendFullSync`) |
 | N4 | no periodic fan-out | performance §1.4, §1.6.1, §4.2 |
 | N5 | client-side sync / statebags | performance §1.6.2, §2.1.1 |
 | N6 | anti-flood | security §4.6–§4.8, §5.1 |
+| N7 | seed client data by server push | performance §2.2.1 |
 | D1 | no DB in hot paths | performance §2.1, §2.1.1 |
 | D2 | one round-trip, no N+1 | performance §1.4 |
 | D3 | server owns truth | security §5.2–§5.3 |
@@ -85,7 +86,7 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | ox_lib | **FETCH** https://overextended.dev/ox_lib |
 | GTA V asset | **READ** [asset-discovery.md](asset-discovery.md) |
 | Communication / Tunnel | **READ** [communication.md](communication.md) |
-| Cache / sleep / broadcast / cerberus sync / client cache | **READ** [performance.md](performance.md) |
+| Cache / sleep / broadcast / cerberus sync / client cache / seeding client data (§2.2.1) | **READ** [performance.md](performance.md) |
 | `/fxmind audit` | **READ** [audit-passes.md](audit-passes.md) |
 | New resource / monolith | **READ** [architecture.md](architecture.md) + [style.md](style.md) |
 | Security / SafeEvent / endpoint auth / input validation | **READ** [security.md](security.md) |
@@ -102,7 +103,7 @@ Before writing any native or API call: verify name, parameters, and client/serve
 | ox_lib | `lib.*` | Fetch overextended.dev/ox_lib |
 | Asset Discovery | prop / vehicle / ped model | Read asset-discovery.md |
 | Communication | Tunnel, callback, `_` prefix, same-side `TriggerEvent`, response budget | Read communication.md |
-| Performance | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache | Read performance.md (§1.4–§1.6.2, §2.1–§2.2) |
+| Performance | Wait(0), loops, payload, tunnel_res, broadcast, cache, client cache | Read performance.md (§1.4–§1.6.2, §2.1–§2.2.1) |
 | Audit | `/fxmind audit`, refactor input | Read audit-passes.md (§2.3–§2.5) |
 | Architecture | new resource, server.lua, refactor layout | Read architecture.md §3.5–3.6 first |
 | Style | comments, if/else cleanup, `local function` extract vs inline | Read style.md (§3.11) |
@@ -129,12 +130,13 @@ Before writing any native or API call: verify name, parameters, and client/serve
 4. **No remote calls in loops** < 5s — batch or delta.
 5. **Small payloads** — ~8KB limit; send deltas.
 6. **Cache:** `exports["cacheaside"]:Get()` for repeated DB queries.
-7. **Large sync:** cerberus `SendFullSync` / `SendDeltaSync`.
+7. **Large sync:** cerberus `SendFullSync` / `SendDeltaSync` when ensured; otherwise chunks split once (performance.md §2.2.1).
 8. **SafeEvent** + server validation for money/items/XP/vehicles.
 9. **SetCooldown** on client before spammy `TriggerServerEvent`.
 10. **Server security:** never trust client/NUI; resolve derived data on server (§5.2).
 11. **Tables > if/else** for 3+ conditions; protect nil.
 12. **Consolidate network:** one Tunnel call with return (§1.1).
+13. **Seed client data by server push:** cache + view built once at resource start (seed `-1`), player-loaded hook sends the cached view to `source`, CRUD patches one key + delta. Never a client `requestSync` on start (performance.md §2.2.1).
 
 ---
 
@@ -177,6 +179,8 @@ resource_name/
 | Fake `LoadResourceFile` imports | Global or same-file helper (§3.6) |
 | Event roundtrip for a return value | Tunnel/`return` (§1.1) |
 | Trust client / rebuild payload every send | Server auth + view cache (§5, §2.2) |
+| Client asks for initial data on start (`requestSync`) | Server push at start + player-loaded hook (§2.2.1) |
+| Reload whole cache after one CRUD | Patch one key + delta (§2.2.1) |
 | Invent natives/APIs | Verify first |
 
 Full tables: [style.md](style.md) §3.10–§3.11, [architecture.md](architecture.md) §3.6.

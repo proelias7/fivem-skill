@@ -176,8 +176,8 @@ Choose the target by **audience** (who must receive) and **payload size** (how m
 
 1. **`-1` is for global gameplay state**, not admin/manager UI. Events like `manager:*`, panel refresh, or staff-only data → **`source`** (or explicit admin source list).
 2. **Small delta to everyone** → `TriggerClientEvent("world:updateX", -1, smallPayload)` or cerberus `SendDeltaSync(-1, ...)` when payload is tiny.
-3. **Large sync to everyone or scoped area** → **never** manual `ChunkTable` + `Wait` + `TriggerClientEvent(-1, ...)`. Use cerberus with `coords`, `range`, `scopeRadius`.
-4. **Bootstrap one player** → `source` + pre-built view cache, or `SendFullSync(source, ...)`.
+3. **Large sync to everyone or scoped area** → cerberus with `coords`, `range`, `scopeRadius` when the project ensures cerberus; otherwise pre-built chunks per §2.2.1. Never one `TriggerClientEvent(-1, hugeTable)`.
+4. **Bootstrap one player** → server push from the player-loaded hook with the pre-built view cache (§2.2.1). The client never requests its initial data.
 
 ```lua
 -- WRONG: admin UI broadcast to all players
@@ -206,7 +206,7 @@ exports["cerberus"]:SendDeltaSync(-1, "garages:updateGarage", ViewCache[id])
 |--------------|---------|----------|
 | `TriggerClientEvent("manager:*", -1, ...)` | Leaks admin data to every client | `source` only |
 | `TriggerClientEvent(-1, hugeTable)` | Network overflow, tick spikes | cerberus `SendFullSync` / `SendDeltaSync` + scope options |
-| Manual chunk loop to `-1` | Reinventing cerberus poorly | Pre-built cache + cerberus exports |
+| Chunk loop that rebuilds/sanitizes the payload per call or per player | Same work repeated N times | Chunks split once from the view cache (§2.2.1), or cerberus when ensured |
 
 ### 1.6.2 StateBags — replication cost (`GlobalState` / entity / player)
 
@@ -486,9 +486,141 @@ end
 | `TriggerClientEvent("manager:*", -1, ...)` | Admin payload to all clients | `source` for UI; `-1` only for world sync events (§1.6.1) |
 | `TriggerClientEvent(-1, largeTable)` | Overflow / lag | cerberus `SendFullSync` / `SendDeltaSync` with scope |
 
+### 2.2.1 Seeding client data — server-push bootstrap (canonical pattern)
+
+Any resource whose clients need server data (points, blips, zones, garages, shops, props) uses **this lifecycle**. Do not invent another one — the server **pushes**, the client never **pulls** on start.
+
+| Moment | Server does | Never |
+|--------|-------------|-------|
+| Resource start (server boot **or** `ensure`) | One `CreateThread`: DB → source cache → view cache (**built once**) → send to players already online. On server boot nobody is online, so it only builds the cache; on `ensure` it re-seeds everyone. | Build lazily on the first client request |
+| Player connects | Framework player-loaded hook sends the **already-built** view to that `source` | DB query, rebuild view, `table.sort`, or re-chunk per player |
+| CRUD (create / update / delete) | Update DB, patch `Cache[id]`, rebuild **only** `View[id]`, send a delta of that id | `Load*Cache()` full reload; full resync to everyone |
+| Client start | Registers the receive handlers and waits | `CreateThread(Wait(N) → TriggerServerEvent("x:requestSync"))` |
+
+**Player-loaded hook by framework:**
+
+| Framework | Server hook | Target |
+|-----------|-------------|--------|
+| vRP Creative | `AddEventHandler("playerConnect", function(Passport, source)` | `source` |
+| QBCore / Qbox | `AddEventHandler("QBCore:Server:PlayerLoaded", function(Player)` | `Player.PlayerData.source` |
+| ESX | `AddEventHandler("esx:playerLoaded", function(playerId, xPlayer)` | `playerId` |
+| Standalone | `AddEventHandler("playerJoining", function()` | `source` |
+
+```lua
+-- WRONG: every client pulls on start; every pull = SELECT * + rebuild + sort for ONE player
+-- client
+CreateThread(function()
+	Wait(2000)
+	TriggerServerEvent("service:requestSync")
+end)
+-- server
+RegisterServerEvent("service:requestSync")
+AddEventHandler("service:requestSync", function()
+	LoadServicePoints()                                               -- full DB query per player
+	TriggerClientEvent("service:syncFull", source, ListForClient())   -- decode + build + sort per player
+end)
+```
+
+Why it is wrong: N players = N full queries + N identical payload builds; the endpoint is client-callable, so a cheat loop on `requestSync` becomes a DB/CPU flood (§5.1, Pass 2b E-a); the reload races with CRUD; `Wait(2000)` is a guess, not a signal.
+
+```lua
+-- CORRECT: build once at start, push on connect, patch one index on CRUD
+local Loaded = false
+local Cache = {}     -- DB rows, keyed by tostring(id)
+local View = {}      -- client-ready payload, keyed by tostring(id) — built at start / on CRUD only
+local Chunks = nil   -- View split for bootstrap; nil = re-split on next send
+
+local function BuildView(row)
+	return {
+		id = row.id,
+		name = row.name,
+		coords = json.decode(row.coords or "[]") or {},
+		distance = tonumber(row.distance) or 1.0,
+	}
+end
+
+local function SendSeed(target)
+	if not Chunks then
+		Chunks = {}
+		local current, count = {}, 0
+		for key, item in pairs(View) do
+			current[key] = item
+			count = count + 1
+			if count >= CHUNK_SIZE then
+				Chunks[#Chunks + 1] = current
+				current, count = {}, 0
+			end
+		end
+		if count > 0 or #Chunks == 0 then Chunks[#Chunks + 1] = current end
+	end
+
+	local targets = target == -1 and GetPlayers() or { target }
+	for _, src in ipairs(targets) do
+		for i, chunk in ipairs(Chunks) do
+			TriggerClientEvent("service:seedChunk", tonumber(src), chunk, i == #Chunks)
+			Wait(CHUNK_DELAY)
+		end
+	end
+end
+
+CreateThread(function()
+	Wait(3000) -- let oxmysql / framework finish starting
+	for _, row in ipairs(exports["oxmysql"]:querySync("SELECT * FROM service_points") or {}) do
+		local key = tostring(row.id)
+		Cache[key] = row
+		View[key] = BuildView(row)
+	end
+	Loaded = true
+	SendSeed(-1) -- server boot: no players, nothing sent; ensure: re-seeds everyone online
+end)
+
+AddEventHandler("playerConnect", function(Passport, source)
+	if Loaded then SendSeed(source) end -- if not loaded yet, the start thread covers this player
+end)
+
+-- CRUD (after the DB write succeeds): one index, one delta
+Cache[key] = row
+View[key] = BuildView(row)
+Chunks = nil
+TriggerClientEvent("service:upsert", -1, View[key])
+
+-- delete
+Cache[key], View[key], Chunks = nil, nil, nil
+TriggerClientEvent("service:remove", -1, key)
+```
+
+```lua
+-- client: only receives; no request on start
+local Points = {}
+
+RegisterNetEvent("service:seedChunk", function(chunk, isLast)
+	for key, item in pairs(chunk) do Points[key] = item end
+	if isLast then RefreshPoints() end
+end)
+
+RegisterNetEvent("service:upsert", function(item) Points[tostring(item.id)] = item end)
+RegisterNetEvent("service:remove", function(key) Points[key] = nil end)
+```
+
+**Transport choice (same lifecycle in all cases):**
+
+1. **Small view** (whole payload < ~8 KB) → one `TriggerClientEvent("x:seed", target, View)`; no chunking.
+2. **Large view, cerberus ensured in the project** → `exports["cerberus"]:SendFullSync(target, "x:seed", View, { key = "x:seed" })` instead of the chunk loop.
+3. **Large view, no cerberus** → pre-built chunks + `Wait(CHUNK_DELAY)` as above. Chunks are split **once** and reused for every player until a CRUD clears them.
+
+Keys are `tostring(id)` so the msgpack payload stays a map (sparse integer keys can serialize unpredictably).
+
+| Anti-Pattern | Problem | Solution |
+|--------------|---------|----------|
+| Client `CreateThread` + `Wait` + `TriggerServerEvent("*:request*")` to get initial data | N pulls, spam-able endpoint, guessed timing | Server push: start thread + player-loaded hook |
+| `Load*Cache()` / `SELECT *` inside a player request or connect | Full DB query per player | Load once at resource start |
+| `ListForClient()` / `build*List()` / `table.sort` inside the send function | Same payload rebuilt for every player | View built at start; CRUD patches one key |
+| Re-sanitize / re-chunk inside the per-player loop | O(players × rows) work | Split chunks once; clear only on CRUD |
+| Full resync to everyone after one CRUD | Network blast for one change | Delta event of `View[key]` |
+
 ### 2.3–2.5 Audit passes
 
-The audit checklist (view-cache steps, Pass 0–7, matrices V-a…V-j, E-a…E-g, N-a…N-d, report gates) lives in [audit-passes.md](audit-passes.md) — read it only for `/fxmind audit`. Section numbers are unchanged.
+The audit checklist (view-cache steps, Pass 0–7, matrices V-a…V-k, E-a…E-g, N-a…N-d, report gates) lives in [audit-passes.md](audit-passes.md) — read it only for `/fxmind audit`. Section numbers are unchanged.
 
 ---
 
@@ -520,16 +652,17 @@ The final `TriggerEvent` on the client is local and does not add extra network t
 
 | Situation | Target | Method |
 |-----------|--------|--------|
-| Reply to one player (UI, bootstrap, admin panel) | `source` | `TriggerClientEvent` with pre-built cache |
+| Reply to one player (UI, admin panel) | `source` | `TriggerClientEvent` with pre-built cache |
+| Initial data for a player (bootstrap) | `source` from player-loaded hook | Server push of pre-built view (§2.2.1) — never a client request |
 | Small world delta to **all** (id, coords, delete) | `-1` | `TriggerClientEvent` if payload < ~8 KB |
 | Small world delta with flood protection | `-1` | `SendDeltaSync(-1, event, payload)` |
 | Full/large cache to **one** player | `source` | `SendFullSync(source, ...)` |
 | Full/large cache to **many** or **scoped area** | `-1` or table | `SendFullSync` / `SendDeltaSync` + `coords`, `range`, `scopeRadius` |
-| Manual `ChunkTable` + `Wait` to players | — | **Replace** with cerberus |
+| Chunk loop to players | — | cerberus when ensured; otherwise chunks split once from the view cache (§2.2.1) |
 
 > **Rule:** `-1` = global **gameplay** sync with **small** payload. Admin/manager events → **`source` only** (§1.6.1).
 >
-> **Rule:** Do not implement manual chunking in consumer scripts. Use cerberus exports instead.
+> **Rule:** When the project ensures cerberus, use its exports instead of a chunk loop. Without cerberus, use the §2.2.1 chunk pattern (split once, reuse for every player, `Wait` between chunks).
 >
 > **Rule:** Prefer `SendDeltaSync` for unit updates. Reserve `SendFullSync` for bootstrap or full cache rebuild.
 
@@ -544,6 +677,6 @@ exports["cerberus"]:SendDeltaSync(-1, "robberys:updateBlips", delta)
 
 ### 4.5 Load balance — what to avoid
 
-- Manual chunking in inventory/routes/NUI resources
+- Manual chunking when cerberus is ensured, or chunking rebuilt per player (§2.2.1)
 - Full sync for every small change
 - Putting queue/priority logic in the consumer client

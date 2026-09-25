@@ -3,7 +3,7 @@
 **Author:** Elias Araújo  
 **Part of:** [best-practices.md](best-practices.md) index (one skill: `fivem-development`)  
 **When to read:** only for `/fxmind audit` (and the audit input of `/fxmind refactor`). Implementation rules live in [performance.md](performance.md), [security.md](security.md) and `.fxmind/policy/fivem-principles.md`.  
-**Section numbers** (`§2.3`–`§2.5`, Pass ids, V-a…V-j, E-a…E-g, N-a…N-d) are stable — keep them when linking from audits/corrections.
+**Section numbers** (`§2.3`–`§2.5`, Pass ids, V-a…V-k, E-a…E-g, N-a…N-d) are stable — keep them when linking from audits/corrections.
 
 ---
 
@@ -38,7 +38,9 @@ For each transform function, list callers and classify:
 |--------------|-----------|------------------|
 | Inside `TriggerClientEvent(...)` argument | Yes | **High** |
 | `RegisterNetEvent` / `AddEventHandler` (player request) | Yes | **High** |
-| `playerConnect` / `playerJoining` / spawn bootstrap | Yes | **High** |
+| `playerConnect` / `playerJoining` / spawn bootstrap that queries DB, rebuilds, sorts or re-chunks | Yes | **High** |
+| Same hook sending the already-built view / chunks (performance §2.2.1) | No | OK — canonical |
+| Client-requested bootstrap (`*:requestSync` / `*:load*` called from client start thread) | Yes | **High** (V-k) |
 | CRUD handler after single row change (create/update/delete) | Yes if full rebuild | **High** |
 | Resource start / `Load*Cache` after DB fetch | No (cold) | OK |
 | Incremental rebuild of one key after CRUD | No | OK |
@@ -53,8 +55,9 @@ Red flags:
 2. **Build on send** — `TriggerClientEvent("...", source, buildItem(id, RawCache[id]))`.
 3. **Double build** — one item built for delta, then `buildList()` for full list in same handler.
 4. **Full player reload on delta** — `LoadSomethingPlayer(source)` after create/update when `SendDeltaSync` or small delta event exists.
-5. **Manual chunk loop** — `ChunkTable` + `Wait(ms)` per player instead of cerberus or pre-built chunks sent from cache.
+5. **Chunk loop rebuilt per send** — `Sanitize*` / `ChunkTable` re-run per call or per player instead of chunks split once from the view cache (performance §2.2.1), or cerberus ignored when the project ensures it.
 6. **Full cache reload** — `LoadSomethingCache()` (DB `SELECT *`) after single insert/update instead of patching one entry.
+7. **Client-pull bootstrap** — client start thread `Wait(N)` + `TriggerServerEvent("*:request*")`, server answers with `Load*Cache()` / `SELECT *` (performance §2.2.1, V-k).
 
 #### Step D — Propose fix (audit report format)
 
@@ -164,12 +167,13 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 | V-b | `build*List()` / `Get*Summary*()` in event handler | **every** caller grep'd — list all `file:line` | **High** |
 | V-c | **Double build** — `build*Item` then `build*List` in same handler | same function body | **High** |
 | V-d | **Redundant sync storm** in same CRUD handler | count **every** send: manager UI + full list + `Load*Player` + world delta (`Send*Update*`, `garages:*`) | **High** |
-| V-e | `Load*Player` / full sanitize on `playerConnect` | `playerConnect` → `Load*` | **High** |
+| V-e | Player-loaded hook that queries DB, rebuilds/sorts the view, or re-chunks per player | `playerConnect` / `PlayerLoaded` → `Load*Cache` / `build*` / `table.sort` | **High** |
 | V-f | `Load*Player` after single CRUD when delta fn exists | update/create + `Send*Update` / `SendDelta` | **High** |
 | V-g | `Load*Cache()` full DB after one insert/update | `insertSync`/`execute` then `Load*Cache()` | **Medium** |
 | V-h | Duplicate transform (`apply*Entry` vs `build*Item`, duplicate `decode*`, same normalize in 2+ fns) | same fn name twice **or** parallel build paths without shared view cache | **Medium** |
-| V-i | Manual `ChunkTable` + `Wait` loop | `ChunkTable` + `Wait(` | **Medium** |
+| V-i | Chunk loop that re-sanitizes / re-chunks per call or per player, has no `Wait` between chunks, or ignores cerberus the project already ensures | `ChunkTable` / `Sanitize*` inside the target loop | **Medium** |
 | V-j | **`TriggerClientEvent(-1, ...)` misuse** | `manager:*` or admin UI to `-1`; large table to `-1` without cerberus | **High** / **Critical** if admin leak |
+| V-k | **Client-pull bootstrap** — client start thread asks the server for initial data; server reloads/rebuilds per request | client `CreateThread` + `TriggerServerEvent("*:request*"\|"*:load*"\|"*:sync*")`; server handler → `Load*` / `SELECT` / `build*List` | **High** |
 
 **V-b rule:** one matrix row is not enough — in **V-b detail**, list **every** hot caller (e.g. `getGarages` **and** each `GetGarageVehicleSetSummaryList()` after CRUD).
 
@@ -186,11 +190,15 @@ For every resource with `*Cache`, `Load*`, `build*`, or manager sync — report 
 - `TriggerClientEvent(-1, smallWorldDelta)` for gameplay sync → **OK** — do not flag
 - A V-j marked **Found** (even conditional/disabled) always gets its own Findings row — matrix-only V-j breaks the Summary count (robberys).
 
+**V-e / V-i rule (performance §2.2.1):** a player-loaded hook that only sends the **pre-built** view or pre-split chunks (with `Wait` between chunks) is the canonical pattern — **do not flag** it. Flag only the per-player rebuild, DB query, or re-chunk.
+
+**V-k fix:** always recommend the §2.2.1 lifecycle (start thread builds + seeds `-1`, player-loaded hook sends to `source`, CRUD patches one key + delta). Remove the client request and the server `requestSync` handler.
+
 Missing rows that apply to the resource = **incomplete audit**.
 
 #### Pass 2b — Client-callable endpoint flow (amplification / DoS / payload)
 
-View-cache (V-a–V-j) asks *how* you build/sync. This pass asks: **what happens if a cheat fires this endpoint in a tight loop?**
+View-cache (V-a–V-k) asks *how* you build/sync. This pass asks: **what happens if a cheat fires this endpoint in a tight loop?**
 
 **Scope — inventory EVERY client-callable server endpoint**, not only `RegisterNetEvent`:
 
@@ -344,7 +352,7 @@ Pass 6 = pre-save checklist. Pass 7 = gates that commonly invalidate otherwise g
 Before saving the report, confirm:
 
 - [ ] All `fxmanifest` Lua files listed in **Files reviewed**
-- [ ] View cache matrix: every applicable row checked (V-a–V-j)
+- [ ] View cache matrix: every applicable row checked (V-a–V-k)
 - [ ] **Endpoint flow (Pass 2b):** every client-callable endpoint (event + `Tunnel.bindInterface` funcs + NUI chains) checked for E-a…E-g
 - [ ] **NUI matrix (Pass NUI):** when `ui_page`/NUI files present — every row N-a–N-d checked (Found / N/A)
 - [ ] **Response size estimated** per read endpoint (KB); any `tunnel_res`/reply > ~8 KB flagged (E-f)
@@ -369,7 +377,7 @@ Fix these before saving — they caused **valid audits to lose trust**:
 | Gate | Rule |
 |------|------|
 | **Files reviewed** | Only paths from `fxmanifest` (`server_scripts`, `client_scripts`, `shared_scripts`) + NUI if audited. **Never** list files not in manifest (e.g. `config/config.lua` when absent). `fxmanifest.lua` itself is read for scope, not listed — never penalize its absence. |
-| **Summary counts** | Tally **every row** in Findings tables — see **Summary count rule** below. Matrix rows (V-a–V-j) do **not** map 1:1 to Summary. |
+| **Summary counts** | Tally **every row** in Findings tables — see **Summary count rule** below. Matrix rows (V-a–V-k) do **not** map 1:1 to Summary. |
 | **V-b completeness** | Grep `build*List\(` and `Get*Summary*` — **all** call sites in detail, not only the first. |
 | **V-d accuracy** | Name **each** sync call in the CRUD handler; count paths, do not round to "triple". |
 | **Cooldown count** | Grep `CanUse*Manager` (or similar) — exact count in prose. |
@@ -382,7 +390,7 @@ Fix these before saving — they caused **valid audits to lose trust**:
 
 **Summary count rule (§2.5):**
 
-The view-cache matrix (V-a–V-j) and V-b/V-d detail sections are for **discovery**. The **Summary** table counts **only Findings table rows**:
+The view-cache matrix (V-a–V-k) and V-b/V-d detail sections are for **discovery**. The **Summary** table counts **only Findings table rows**:
 
 1. Sum rows in every Findings subsection by the **Severity** column (Security, Performance — View Cache, Performance — General, Patterns & Code Quality, NUI).
 2. **One table row = one count** — even when the ID repeats (`V-b`, `V-d`, `V-h` each get separate Findings rows and each increments the total).

@@ -68,8 +68,10 @@ Apply **every row** that matches something you created or changed in the diff.
 | # | Check | Rule | Ref |
 |---|-------|------|-----|
 | S1 | Target | Never `TriggerClientEvent("manager:*", -1, ...)` | §1.6.1 |
-| S2 | Large payload | Never manual `ChunkTable` + `Wait`; use cerberus `SendFullSync`/`SendDeltaSync` | §4.2 |
+| S2 | Large payload | cerberus `SendFullSync`/`SendDeltaSync` when ensured; otherwise chunks split once from the view cache + `Wait` | §2.2.1, §4.2 |
 | S3 | Pre-built | Send from view cache, not `build*(id, raw)` on hot path | §2.2 |
+| S4 | Bootstrap | Server push: start thread builds cache + seeds `-1`; player-loaded hook sends to `source`. **No** client `TriggerServerEvent("*:requestSync")` on start | §2.2.1 |
+| S5 | CRUD | Patch `Cache[id]` + `View[id]` only, send delta; no `Load*Cache()` / full resync | §2.2.1 |
 
 ### DB write
 

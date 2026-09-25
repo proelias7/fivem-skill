@@ -10,7 +10,7 @@
 |------|----------|----------------------|
 | [communication.md](communication.md) | §1.1–§1.3 · §1.7 Tunnel/events/`_`/same-side/response budget | `communication` |
 | [performance.md](performance.md) | §1.4–§1.6.2 loops/sleep/payloads/**tunnel_res**/broadcast/StateBags · §2.1–§2.2 cache/**§2.1.1 client cache**/view cache · §4.1–4.2 · §4.5 | `performance` |
-| [audit-passes.md](audit-passes.md) | §2.3–§2.5 audit only: Pass 0–7, V-a…V-j, E-a…E-g, N-a…N-d, report gates | `performance` |
+| [audit-passes.md](audit-passes.md) | §2.3–§2.5 audit only: Pass 0–7, V-a…V-k, E-a…E-g, N-a…N-d, report gates | `performance` |
 | [architecture.md](architecture.md) | §3.5–3.6 · §3.8 monolith, reuse, state placement | `architecture` |
 | [style.md](style.md) | §3.1–3.4 · §3.7 · §3.9–**§3.11** tables, comments, local-function extract, checklist | `style` |
 | [security.md](security.md) | §4.6–4.8 SafeEvent/SetCooldown · §5 server auth/**§5.3 input validation** | `security` |
